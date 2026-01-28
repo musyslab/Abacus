@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import axios from 'axios';
 
+import HomePage from './pages/public/Home';
 import LoginPage from './pages/public/Login';
 import LandingPage from './pages/public/Landing';
 import NotFound from './pages/public/NotFound';
@@ -42,6 +43,7 @@ class App extends Component {
         return (
             <BrowserRouter>
                 <Routes>
+                    <Route path="/home" element={<HomePage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/admin/classes" element={

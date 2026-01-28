@@ -16,7 +16,7 @@ class MenuComponent extends Component<MenuComponentProps> {
     // Logout and redirect
     handleLogout = () => {
         localStorage.removeItem("AUTOTA_AUTH_TOKEN");
-        window.location.replace("/login");
+        window.location.replace("/home");
     };
 
     // Home routing based on role

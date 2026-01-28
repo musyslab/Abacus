@@ -1,0 +1,285 @@
+.home-page {
+    min-height: 100%;
+}
+
+.nav-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+
+    background: #111;
+    color: #fff;
+
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.07);
+
+    min-height: 88px;
+    z-index: 2000;
+}
+
+.nav-container {
+    width: 95%;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    padding: 16px 0;
+    box-sizing: border-box;
+}
+
+.nav-item {
+    display: inline-flex;
+    align-items: center;
+
+    padding: 16px 18px;
+    background: transparent;
+    color: inherit;
+    white-space: nowrap;
+
+    text-decoration: none;
+    cursor: pointer;
+    border-radius: 12px;
+    line-height: 1;
+
+    font-size: 20px;
+    font-weight: 500;
+
+    transition: background 120ms ease, transform 120ms ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.10);
+    }
+
+    &:active {
+      background: rgba(255, 255, 255, 0.14);
+      transform: translateY(1px);
+    }
+
+    &:focus-visible {
+      outline: 2px solid #ffffff;
+      outline-offset: 2px;
+    }
+}
+
+.nav-head {
+    margin-left: 5rem;
+}
+
+.nav-logo {
+    width: 72px;
+    height: 72px;
+    margin-right: 12px;
+    position: absolute;
+    cursor: pointer;
+}
+
+.nav-img {
+    width: 100%;
+    height: 100%;
+}
+
+.nav-right {
+    margin-left: auto;
+}
+
+.nav-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 12px;
+}
+
+.hero-title {
+    margin: 0;
+    font-size: 2.8rem;
+    font-weight: 700;
+    text-align: center;
+    color: #111827;
+}
+
+.hero-subtitle {
+    font-size: 1.4rem;
+    font-weight: 500;
+    text-align: center;
+    color: #374151;
+    line-height: 1.5;
+}
+
+.sec {
+    width: 80%;
+    margin: 1rem auto 2rem;
+    display: flex;
+    flex-direction: column;
+    scroll-margin-top: 105px;
+
+    border: 1px solid #e7eaf1;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 6px rgba(80, 95, 126, 0.07);
+    padding: 28px;
+}
+
+.sec-hero {
+    margin-top: calc(90px + 2rem);
+}
+
+.sec-title {
+    margin: 0 0 8px;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+.sec-subtitle {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #1F2937;
+    margin-bottom: 4px;
+}
+
+.sec-text {
+    margin-top: 6px;
+    font-size: 1.4rem;
+    font-weight: 400;
+    color: #374151;
+    line-height: 1.6;
+}
+
+.bold {
+    font-weight: 600;
+    color: #111827;
+}
+
+.sec-list {
+    font-size: 0.85rem;
+}
+
+.action-btns {
+    width: 50%;
+    margin: 14px auto 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4rem;
+}
+
+.home-btn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    padding: 1.5rem 2.25rem;
+    font-size: 1.5rem;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    transition: transform 0.05s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+    &:focus-visible {
+        outline: 2px solid #2563EB;
+        outline-offset: 2px;
+    }
+     &:active {
+        transform: translateY(1px);
+     }
+}
+
+.register-btn {
+    background: #2563EB;
+    color: #ffffff;
+
+    &:hover {
+        background: #1E40AF;
+    }
+
+    &:active {
+        background: #1E3A8A;
+    }
+}
+
+.login-btn {
+    background: #E5E7EB;
+    color: #111827;
+
+    &:hover {
+        background: #D1D5DB;
+    }
+
+    &:active {
+        background: #9CA3AF;
+    }
+}
+
+.blue-div {
+    color: #1e40af;
+}
+
+.gold-div {
+    color: #f59e0b;
+}
+
+
+.footer {
+    width: 100%;
+    background-color: #282828;
+    color: #f9fafb;
+    padding: 2rem 1rem;
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.footer-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+}
+
+.footer-content {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    gap: 2rem;
+}
+
+.footer-title {
+    font-size: 1.1rem;
+}
+
+.footer-text {
+    color: #d1d5db;
+}
+
+.footer-link {
+    display: block;
+    color: #d1d5db;
+    text-decoration: none;
+
+    &:hover {
+        color: #f9fafb;
+        text-decoration: underline;
+    }
+}
+
+.footer-icons {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.footer-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 1.75rem;
+    color: #f9fafb;
+}
+

@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom'
 
 class LandingPage extends Component {
   render() {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/home" replace />;
   }
 }
 

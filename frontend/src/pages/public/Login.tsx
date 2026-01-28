@@ -12,7 +12,7 @@ import "../../styling/Login.scss";
 
 import axios from "axios";
 import { Helmet } from "react-helmet";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 
 interface LoginPageState {
   isLoggedIn: boolean;
@@ -259,7 +259,7 @@ class Login extends Component<{}, LoginPageState> {
     return (
       <div className="login-page">
         <Helmet>
-          <title>TA-Bot</title>
+          <title>Abacus</title>
         </Helmet>
 
         {this.state.isNewUser ? (
@@ -397,7 +397,7 @@ class Login extends Component<{}, LoginPageState> {
           </div>
         ) : null}
 
-        <h2 className="login-title">Login to your MSCSNet account</h2>
+        <h2 className="login-title">Login to your Abacus account</h2>
 
         <form className="login-form" onSubmit={this.handleSubmit}>
           <div className="form-group">
@@ -462,9 +462,9 @@ class Login extends Component<{}, LoginPageState> {
           .
         </div>
 
-        <div className="login-logo">
+        <Link to="/home" className="login-logo">
           <img className="login-logo__img" src={img} alt="School logo" />
-        </div>
+        </Link>
       </div>
     );
   }
