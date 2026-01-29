@@ -1,12 +1,8 @@
-# TA-Bot
+# Abacus
 
-This project was originally developed and maintained by Jack Forden and Alex Gebhard.
+# How to install Abacus
 
-It is currently maintained by Sam Mazzone.
-
-# How to install TA-Bot
-
-## Install WSL Ubuntu
+## Install WSL Ubuntu (if on Windows)
 
 Download Ubuntu App from Windows Store
 
@@ -48,9 +44,9 @@ Make it so you don't have to run sudo everytime in docker:
 
 ```docker run hello-world```
 
-## Install TA-Bot:
+## Install Abacus:
 
-```git clone https://github.com/musyslab/TA-Bot.git```
+```git clone https://github.com/musyslab/Abacus.git```
 
 Enter Github username and personal access token (not password)
 
@@ -64,7 +60,7 @@ Add the following line to that file: ```VITE_API_URL=http://localhost:5000/api``
 
 (Or different URL for Production)
 
-## Run TA-Bot
+## Run Abacus
 
 Go up a directory (from the frontend folder) and run:
 

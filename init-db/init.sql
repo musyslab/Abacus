@@ -84,9 +84,9 @@ CREATE TABLE `LoginAttempts` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `Time` datetime NOT NULL,
   `IPAddress` varchar(39) NOT NULL,
-  `Username` varchar(45) NOT NULL,
+  `Email` varchar(256) NOT NULL,
   PRIMARY KEY (`Id`),
-  KEY `fk_LoginAttempts_1_idx` (`Username`)
+  KEY `fk_LoginAttempts_1_idx` (`Email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=95 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
@@ -270,16 +270,16 @@ DROP TABLE IF EXISTS `Users`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `Users` (
   `Id` int NOT NULL AUTO_INCREMENT,
-  `Username` varchar(45) NOT NULL,
   `Role` int NOT NULL,
   `Firstname` varchar(45) NOT NULL,
   `Lastname` varchar(45) NOT NULL,
   `Email` varchar(256) NOT NULL,
-  `StudentNumber` varchar(45) NOT NULL,
+  `School` varchar(64) NOT NULL DEFAULT 'Unknown',
+  `PasswordHash` varchar(255) DEFAULT NULL,
   `IsLocked` tinyint(1) NOT NULL,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `idusers_UNIQUE` (`Id`),
-  UNIQUE KEY `username_UNIQUE` (`Username`)
+  UNIQUE KEY `email_UNIQUE` (`Email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=176 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This is a table to store website login''s and all users';
 
 --

@@ -16,6 +16,7 @@ from datetime import datetime
 from dependency_injector.wiring import inject, Provide
 from container import Container
 from src.constants import ADMIN_ROLE
+from werkzeug.security import generate_password_hash, check_password_hash
 
 auth_api = Blueprint('auth_api', __name__)
 
@@ -48,39 +49,48 @@ def user_lookup_callback(_jwt_header, jwt_data):
 @inject
 def auth(auth_service: PAMAuthenticationService = Provide[Container.auth_service], user_repo: UserRepository = Provide[Container.user_repo]):
     input_json = request.get_json()
-    username = get_value_or_empty(input_json, 'username')
+    email = get_value_or_empty(input_json, 'email')
     password = get_value_or_empty(input_json, 'password')
 
-    if(user_repo.can_user_login(username) >= current_app.config['MAX_FAILED_LOGINS']):
-        user_repo.lock_user_account(username)
+    if(user_repo.can_user_login(email) >= current_app.config['MAX_FAILED_LOGINS']):
+        user_repo.lock_user_account(email)
         message = {
             'message': 'Your account has been locked! Please contact an administrator!'
         }
         return make_response(message, HTTPStatus.FORBIDDEN)
 
-    exist = user_repo.doesUserExist(username)
+    exist = user_repo.does_email_exist(email)
 
-    if not auth_service.login(username, password):
+    if not exist:
+        message = {
+            'message': 'No account found for that email.'
+        }
+        return make_response(message, HTTPStatus.NOT_FOUND)
+
+    user = user_repo.get_user_by_email(email)
+
+    # Prefer local password if present; otherwise fall back to external auth for legacy accounts
+    has_local_password = getattr(user, "PasswordHash", None) is not None and getattr(user, "PasswordHash", "") != ""
+
+    auth_ok = False
+    if has_local_password:
+        auth_ok = check_password_hash(user.PasswordHash, password)
+    else:
+        auth_ok = auth_service.login(email, password)
+
+    if not auth_ok:
         ipadr = request.remote_addr
         now = datetime.now()
         dt_string = now.strftime("%Y/%m/%d %H:%M:%S")
-        if(exist):
-            user_repo.send_attempt_data(username, ipadr, dt_string)
+        user_repo.send_attempt_data(email, ipadr, dt_string)
         message = {
             'message': 'Invalid username and/or password!  Please try again!'
         }
         return make_response(message, HTTPStatus.FORBIDDEN)
 
-    if not exist:
-        message = {
-            'message': 'New User'
-        }
-        return make_response(message, HTTPStatus.OK)
-
-    user = user_repo.getUserByName(username)
     role = user.Role
 
-    user_repo.clear_failed_attempts(username)
+    user_repo.clear_failed_attempts(email)
     access_token = create_access_token(identity=user)
     message = {
         'message': 'Success',
@@ -89,20 +99,54 @@ def auth(auth_service: PAMAuthenticationService = Provide[Container.auth_service
     }
     return make_response(message, HTTPStatus.OK)
 
+@auth_api.route('/register', methods=['POST'])
+@inject
+def register_user(user_repo: UserRepository = Provide[Container.user_repo]):
+    input_json = request.get_json()
+
+    first_name = get_value_or_empty(input_json, 'fname')
+    last_name = get_value_or_empty(input_json, 'lname')
+    school = get_value_or_empty(input_json, 'school')
+    email = get_value_or_empty(input_json, 'email')
+    password = get_value_or_empty(input_json, 'password')
+
+    if not (first_name and last_name and school and email and password):
+        message = {'message': 'Missing required data. All fields are required.'}
+        return make_response(message, HTTPStatus.NOT_ACCEPTABLE)
+
+    if user_repo.does_email_exist(email):
+        message = {'message': 'User already exists'}
+        return make_response(message, HTTPStatus.NOT_ACCEPTABLE)
+
+    password_hash = generate_password_hash(password)  # PBKDF2 by default in Werkzeug
+
+    # You must update user_repo.create_user(...) to accept the new fields
+    user_repo.create_user(email, first_name, last_name, school, password_hash)
+
+    user = user_repo.get_user_by_email(email)
+    access_token = create_access_token(identity=user)
+
+    message = {
+        'message': 'Success',
+        'access_token': access_token,
+        'role': 0
+    }
+    return make_response(message, HTTPStatus.OK)
+
 @auth_api.route('/create', methods=['POST'])
 @inject
 def create_user(auth_service: PAMAuthenticationService = Provide[Container.auth_service], user_repo: UserRepository = Provide[Container.user_repo], class_repo: ClassRepository = Provide[Container.class_repo]):
     input_json = request.get_json()
-    username = get_value_or_empty(input_json, 'username')
+    email = get_value_or_empty(input_json, 'email')
     password = get_value_or_empty(input_json, 'password')
 
-    if user_repo.doesUserExist(username):
+    if user_repo.does_email_exist(email):
         message = {
             'message': 'User already exists'
         }
         return make_response(message, HTTPStatus.NOT_ACCEPTABLE)
 
-    if not auth_service.login(username, password):
+    if not auth_service.login(email, password):
         message = {
             'message': 'Invalid username and/or password!  Please try again!'
         }
@@ -111,13 +155,13 @@ def create_user(auth_service: PAMAuthenticationService = Provide[Container.auth_
 
     first_name = get_value_or_empty(input_json, 'fname')
     last_name = get_value_or_empty(input_json, 'lname')
-    student_number = get_value_or_empty(input_json, 'id')
+    school = get_value_or_empty(input_json, 'school') or 'Unknown'
     email = get_value_or_empty(input_json, 'email')
     class_id = get_value_or_empty(input_json, 'class_id')
     lab_id= get_value_or_empty(input_json, 'lab_id')
     lecture_id = get_value_or_empty(input_json, 'lecture_id')
 
-    if not (first_name and last_name and student_number and email and class_id and lab_id and lecture_id):
+    if not (first_name and last_name and email and class_id and lab_id and lecture_id):
         message = {
             'message': 'Missing required data.  All fields are required'
         }
@@ -129,9 +173,9 @@ def create_user(auth_service: PAMAuthenticationService = Provide[Container.auth_
         }
         return make_response(message, HTTPStatus.NOT_ACCEPTABLE)
 
-    user_repo.create_user(username,first_name,last_name,email,student_number)
+    user_repo.create_user(email, first_name, last_name, school, None)
 
-    user = user_repo.getUserByName(username)
+    user = user_repo.get_user_by_email(email)
     
     #Create ClassAssignment
     class_repo.create_assignments(int(class_id), int(lab_id), int(user.Id), int(lecture_id))
@@ -162,7 +206,7 @@ def add_class(auth_service: PAMAuthenticationService = Provide[Container.auth_se
     lecture_Id = class_repo.get_lecture_id_withName(lecture_name)
     user_id = current_user.Id
 
-    user = user_repo.get_user_by_id(user_id)    
+    user = user_repo.get_user_by_id(user_id)
     #Create ClassAssignment
     class_repo.add_class_assignment(class_id, int(lab_id), int(user.Id), int(lecture_Id))
 
@@ -174,5 +218,3 @@ def add_class(auth_service: PAMAuthenticationService = Provide[Container.auth_se
         'role': 0
     }
     return make_response(message, HTTPStatus.OK)
-
-
