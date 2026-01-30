@@ -1,7 +1,7 @@
 // Similar to admin/AdminProjectList.tsx
 
-import DirectoryBreadcrumbs from "pages/components/DirectoryBreadcrumbs"
-import MenuComponent from "pages/components/MenuComponent"
+import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs"
+import MenuComponent from "../components/MenuComponent"
 import { Helmet } from "react-helmet"
 
 const ProblemList = () => {

@@ -25,11 +25,11 @@ import AdminViewStudentCode from './pages/admin/AdminViewStudentCode';
 
 import TeacherRoster from './pages/abacus/TeacherRoster';
 import StudentRoster from './pages/abacus/StudentRoster';
-import ProblemList from 'pages/abacus/ProblemList';
-import ProblemCreate from 'pages/abacus/ProblemCreate';
-import StudentSubmit from 'pages/abacus/StudentSubmit';
-import StudentSubmissions from 'pages/abacus/StudentSubmissions';
-import StudentDiff from 'pages/abacus/StudentDiff';
+import ProblemList from './pages/abacus/ProblemList';
+import ProblemCreate from './pages/abacus/ProblemCreate';
+import StudentSubmit from './pages/abacus/StudentSubmit';
+import StudentSubmissions from './pages/abacus/StudentSubmissions';
+import StudentDiff from './pages/abacus/StudentDiff';
 
 import ProtectedRoute from './pages/components/ProtectedRoute';
 
