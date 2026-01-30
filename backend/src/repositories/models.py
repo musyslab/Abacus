@@ -25,11 +25,11 @@ class Projects(db.Model):
 class Users(db.Model):
     __tablename__ = "Users"
     Id = Column(Integer, primary_key=True, autoincrement=True)
-    Username = Column(String)
     Firstname = Column(String)
     Lastname = Column(String)
-    Email = Column(String)
-    StudentNumber = Column(String)
+    Email = Column(String(256), unique=True, nullable=False)
+    School = Column(String)
+    PasswordHash = Column(String)
     Role = Column(Integer)
     IsLocked = Column(Boolean)
     Submissions=relationship('Submissions')
@@ -53,7 +53,7 @@ class LoginAttempts(db.Model):
     Id = Column(Integer, primary_key=True)
     Time = Column(Date)
     IPAddress = Column(String)
-    Username = Column(String, ForeignKey('Users.Username'))
+    Email = Column(String(256), ForeignKey('Users.Email'), nullable=False)
 
 class Classes(db.Model):
     __tablename__ = "Classes"

@@ -4,6 +4,7 @@ import axios from 'axios';
 
 import HomePage from './pages/public/Home';
 import LoginPage from './pages/public/Login';
+import RegisterPage from './pages/public/Register';
 import LandingPage from './pages/public/Landing';
 import NotFound from './pages/public/NotFound';
 
@@ -45,6 +46,7 @@ class App extends Component {
                 <Routes>
                     <Route path="/home" element={<HomePage />} />
                     <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/admin/classes" element={
                         <ProtectedRoute>
