@@ -41,10 +41,11 @@ class MenuComponent extends Component<MenuComponentProps> {
                 },
             })
             .then((res) => {
-                const role = parseInt(res.data, 10);
-                const path = role === 1 ? "/admin/classes" : "/student/classes";
+                const role = Number(res.data?.role);
+                const path = role === 1 ? "/admin/team-manage" : "/student/classes";
                 window.location.replace(path);
-            });
+            })
+            .catch(() => window.location.replace("/home"));
     };
 
     // Compute dynamic class upload ID (more general: any /class/:id/... path)
@@ -126,35 +127,6 @@ class MenuComponent extends Component<MenuComponentProps> {
                             >
                                 <img className="menu__brandImg menu__brandImg--inline" src={abacusLogo} alt="Abacus logo" />
                             </button>
-
-
-                            {this.props.showAdminUpload && (
-                                <>
-                                    <a className="menu__item" href="/admin/upload">
-                                        <FaUpload className="menu__icon" aria-hidden="true" />
-                                        <span className="menu__text">Admin Upload</span>
-                                    </a>
-
-                                    <a className="menu__item" href="/admin/OfficeHours">
-                                        <FaClock className="menu__icon" aria-hidden="true" />
-                                        <span className="menu__text">Office Hours</span>
-                                    </a>
-                                </>
-                            )}
-
-                            {this.props.showLast && (
-                                <>
-                                    <a className="menu__item" href={officeHoursPath}>
-                                        <FaClock className="menu__icon" aria-hidden="true" />
-                                        <span className="menu__text">Office Hours</span>
-                                    </a>
-
-                                    <a className="menu__item" href="/student/PastSubmissions">
-                                        <FaClipboardList className="menu__icon" aria-hidden="true" />
-                                        <span className="menu__text">Submissions</span>
-                                    </a>
-                                </>
-                            )}
 
                             <div className="menu__right">
                                 <button

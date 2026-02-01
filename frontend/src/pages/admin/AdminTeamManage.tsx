@@ -1,0 +1,984 @@
+// src/pages/admin/AdminTeamManage.tsx
+
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import axios from "axios";
+import { Helmet } from "react-helmet";
+
+import MenuComponent from "../components/MenuComponent";
+import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
+import "../../styling/AdminTeamManage.scss";
+
+type ApiTeamMember = {
+    studentId: number;
+    memberId: number; // 1..4
+    emailHash: string; // sha256 hex, stored in DB (no plaintext email)
+    hasAccount: boolean; // PasswordHash is set
+    isLocked: boolean;
+};
+
+type ApiTeam = {
+    teamId: number;
+    isDraft: boolean;
+    members: ApiTeamMember[];
+};
+
+type InviteMeta = {
+    sentCount: number;
+    lastSentAt?: string; // ISO
+    openedAt?: string; // future (email tracking not implemented)
+};
+
+type MemberSlot = {
+    memberId: number; // 1..4
+    studentId?: number;
+    emailHash?: string;
+    emailInput: string; // only for unsaved slot
+    hasAccount: boolean;
+    isLocked: boolean;
+    isSaving: boolean;
+    error?: string;
+};
+
+type TeamVm = {
+    teamId: number;
+    isDraft: boolean;
+    members: MemberSlot[]; // always 4 slots
+};
+
+const INVITE_META_KEY = "AUTOTA_TEAM_INVITES_V1";
+
+function safeJsonParse<T>(raw: string | null, fallback: T): T {
+    if (!raw) return fallback;
+    try {
+        return JSON.parse(raw) as T;
+    } catch {
+        return fallback;
+    }
+}
+
+function loadInviteMetaMap(): Record<string, InviteMeta> {
+    return safeJsonParse<Record<string, InviteMeta>>(localStorage.getItem(INVITE_META_KEY), {});
+}
+
+function saveInviteMetaMap(map: Record<string, InviteMeta>) {
+    localStorage.setItem(INVITE_META_KEY, JSON.stringify(map));
+}
+
+async function sha256Hex(input: string): Promise<string> {
+    const normalized = input.trim().toLowerCase();
+    const buf = new TextEncoder().encode(normalized);
+    const digest = await crypto.subtle.digest("SHA-256", buf);
+    return Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+}
+
+function buildTeamVm(teamId: number, apiMembers: ApiTeamMember[], isDraft = false): TeamVm {
+    const slots: MemberSlot[] = [1, 2, 3, 4].map((memberId) => {
+        const found = apiMembers.find((m) => m.memberId === memberId);
+        return {
+            memberId,
+            studentId: found?.studentId,
+            emailHash: found?.emailHash,
+            emailInput: "",
+            hasAccount: found?.hasAccount ?? false,
+            isLocked: found?.isLocked ?? false,
+            isSaving: false,
+            error: undefined,
+        };
+    });
+    return { teamId, isDraft, members: slots };
+}
+
+export default function AdminTeamManage() {
+    const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+
+    function authConfig() {
+        const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
+        return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    }
+
+    const [teams, setTeams] = useState<TeamVm[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [pageError, setPageError] = useState("");
+
+    // Controls how many member rows are visible per team.
+    // Required behavior: if a team has 0 saved members, show only 1 member row.
+    const [teamVisibleCounts, setTeamVisibleCounts] = useState<Record<number, number>>({});
+
+    const [resendModal, setResendModal] = useState<{
+        teamId: number;
+        memberId: number;
+        emailHash: string;
+        email: string;
+        error: string;
+        isSending: boolean;
+    } | null>(null);
+
+    const [saveConfirmModal, setSaveConfirmModal] = useState<{
+        teamId: number;
+        memberId: number;
+        email: string;
+        acknowledged: boolean;
+        error: string;
+        isSaving: boolean;
+    } | null>(null);
+
+    const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
+        teamId: number;
+        memberId: number;
+        isSaved: boolean;
+        isDeleting: boolean;
+        error: string;
+    } | null>(null);
+
+    const bodyOverflowRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        const hasModal = !!saveConfirmModal || !!deleteConfirmModal || !!resendModal;
+        if (hasModal) {
+            if (bodyOverflowRef.current === null) bodyOverflowRef.current = document.body.style.overflow;
+            document.body.style.overflow = "hidden";
+        } else if (bodyOverflowRef.current !== null) {
+            document.body.style.overflow = bodyOverflowRef.current;
+            bodyOverflowRef.current = null;
+        }
+    }, [saveConfirmModal, deleteConfirmModal, resendModal]);
+
+    useEffect(() => {
+        return () => {
+            if (bodyOverflowRef.current !== null) {
+                document.body.style.overflow = bodyOverflowRef.current;
+                bodyOverflowRef.current = null;
+            }
+        };
+    }, []);
+
+    function getTeamSavedCount(team: TeamVm) {
+        return team.members.filter((m) => !!m.studentId).length;
+    }
+
+    function getTeamMembersToShow(team: TeamVm) {
+        const saved = team.members.filter((m) => !!m.studentId);
+        const empty = team.members.filter((m) => !m.studentId).sort((a, b) => a.memberId - b.memberId);
+
+        const savedCount = saved.length;
+        // show 1 row for brand-new team, otherwise show saved + next empty.
+        const defaultVisible = Math.min(4, Math.max(1, savedCount + 1));
+        const totalVisible = Math.max(teamVisibleCounts[team.teamId] ?? 0, defaultVisible);
+
+        const emptyToShow = Math.min(empty.length, Math.max(0, totalVisible - savedCount));
+        return [...saved, ...empty.slice(0, emptyToShow)].sort((a, b) => a.memberId - b.memberId);
+    }
+
+    function canAddMoreMembers(team: TeamVm) {
+        const savedCount = getTeamSavedCount(team);
+        const defaultVisible = Math.min(4, Math.max(1, savedCount + 1));
+        const totalVisible = Math.max(teamVisibleCounts[team.teamId] ?? 0, defaultVisible);
+        return totalVisible < 4;
+    }
+
+    function addMemberRow(teamId: number) {
+        setTeamVisibleCounts((prev) => ({
+            ...prev,
+            [teamId]: Math.min(4, (prev[teamId] ?? 1) + 1),
+        }));
+    }
+
+    async function fetchTeams() {
+        setIsLoading(true);
+        setPageError("");
+        try {
+            const res = await axios.get<ApiTeam[]>(`${apiBase}/auth/student/teams`, authConfig());
+            const data = Array.isArray(res.data) ? res.data : [];
+            const mapped = data
+                .slice()
+                .sort((a, b) => a.teamId - b.teamId)
+                .map((t) => buildTeamVm(t.teamId, t.members || []));
+
+            setTeams((prev) => {
+                // Preserve locally created, unsaved teams (not returned by backend yet).
+                const drafts = prev.filter((t) => t.isDraft);
+                const merged = [...mapped, ...drafts.filter((d) => !mapped.some((m) => m.teamId === d.teamId))].sort(
+                    (a, b) => a.teamId - b.teamId
+                );
+                return merged;
+            });
+
+            setTeamVisibleCounts((prev) => {
+                const next = { ...prev };
+
+                const mergedTeams = [
+                    ...mapped,
+                    ...teams.filter((t) => t.isDraft && !mapped.some((m) => m.teamId === t.teamId)),
+                ].sort((a, b) => a.teamId - b.teamId);
+
+                for (const t of mergedTeams) {
+                    const savedCount = t.members.filter((m) => !!m.studentId).length;
+                    const defaultVisible = Math.min(4, Math.max(1, savedCount + 1));
+                    next[t.teamId] = Math.max(next[t.teamId] ?? 0, defaultVisible);
+                }
+                return next;
+            });
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || "Failed to load teams.";
+            setPageError(msg);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    useEffect(() => {
+        fetchTeams();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [apiBase]);
+
+    const nextTeamId = useMemo(() => {
+        const max = teams.reduce((acc, t) => Math.max(acc, t.teamId), 0);
+        return max + 1;
+    }, [teams]);
+
+    function ensureTeamExists(teamId: number) {
+        setTeams((prev) => {
+            if (prev.some((t) => t.teamId === teamId)) return prev;
+            return [...prev, buildTeamVm(teamId, [], true)].sort((a, b) => a.teamId - b.teamId);
+        });
+    }
+
+    function deleteDraftTeam(teamId: number) {
+        setTeams((prev) => prev.filter((t) => t.teamId !== teamId));
+        setTeamVisibleCounts((prev) => {
+            const next = { ...prev };
+            delete next[teamId];
+            return next;
+        });
+        if (resendModal?.teamId === teamId) setResendModal(null);
+        if (saveConfirmModal?.teamId === teamId) setSaveConfirmModal(null);
+        if (deleteConfirmModal?.teamId === teamId) setDeleteConfirmModal(null);
+    }
+
+    function updateMember(teamId: number, memberId: number, patch: Partial<MemberSlot>) {
+        setTeams((prev) =>
+            prev.map((t) => {
+                if (t.teamId !== teamId) return t;
+                return {
+                    ...t,
+                    members: t.members.map((m) => (m.memberId === memberId ? { ...m, ...patch } : m)),
+                };
+            })
+        );
+    }
+
+    function openSaveConfirmModal(teamId: number, memberId: number, emailRaw: string) {
+        const email = (emailRaw || "").trim().toLowerCase();
+        if (!email) {
+            updateMember(teamId, memberId, { error: "Email is required." });
+            return;
+        }
+        setSaveConfirmModal({
+            teamId,
+            memberId,
+            email,
+            acknowledged: false,
+            error: "",
+            isSaving: false,
+        });
+    }
+
+    function openDeleteConfirmModal(teamId: number, memberId: number, isSaved: boolean) {
+        setDeleteConfirmModal({
+            teamId,
+            memberId,
+            isSaved,
+            isDeleting: false,
+            error: "",
+        });
+    }
+
+    async function confirmSaveFromModal() {
+        if (!saveConfirmModal) return;
+        if (!saveConfirmModal.acknowledged) {
+            setSaveConfirmModal({ ...saveConfirmModal, error: "Please confirm you wrote the information down." });
+            return;
+        }
+
+        setSaveConfirmModal({ ...saveConfirmModal, isSaving: true, error: "" });
+        const res = await handleSaveMember(saveConfirmModal.teamId, saveConfirmModal.memberId, saveConfirmModal.email);
+        if (res.ok) {
+            setSaveConfirmModal(null);
+            return;
+        }
+        setSaveConfirmModal({
+            ...saveConfirmModal,
+            isSaving: false,
+            error: res.message || "Save failed.",
+        });
+    }
+
+    async function confirmDeleteFromModal() {
+        if (!deleteConfirmModal) return;
+        setDeleteConfirmModal({ ...deleteConfirmModal, isDeleting: true, error: "" });
+        const res = await handleDeleteMember(deleteConfirmModal.teamId, deleteConfirmModal.memberId);
+        if (res.ok) {
+            setDeleteConfirmModal(null);
+            return;
+        }
+        setDeleteConfirmModal({
+            ...deleteConfirmModal,
+            isDeleting: false,
+            error: res.message || "Delete failed.",
+        });
+    }
+
+    async function handleSaveMember(
+        teamId: number,
+        memberId: number,
+        emailOverride?: string
+    ): Promise<{ ok: boolean; message?: string }> {
+        const team = teams.find((t) => t.teamId === teamId) || buildTeamVm(teamId, []);
+        const slot = team.members.find((m) => m.memberId === memberId);
+        if (!slot) return { ok: false, message: "Member slot not found." };
+
+        const email = (emailOverride ?? slot.emailInput).trim().toLowerCase();
+        if (!email) {
+            updateMember(teamId, memberId, { error: "Email is required." });
+            return { ok: false, message: "Email is required." };
+        }
+
+        updateMember(teamId, memberId, { isSaving: true, error: undefined });
+
+        try {
+            const emailHash = await sha256Hex(email);
+
+            const res = await axios.post(
+                `${apiBase}/auth/student/create`,
+                {
+                    email_hash: emailHash,
+                    team_id: teamId,
+                    member_id: memberId,
+                },
+                authConfig()
+            );
+
+            const studentId = res?.data?.student_id as number | undefined;
+            if (!studentId) {
+                throw new Error(res?.data?.message || "Save failed.");
+            }
+
+            // Attempt to send the invite email immediately while we still have the plaintext email.
+            // If this fails, the member is still saved, but the progress view will show "Not sent yet".
+            let inviteSendError: string | undefined = undefined;
+            try {
+                await axios.post(
+                    `${apiBase}/auth/student/invite`,
+                    {
+                        team_id: teamId,
+                        member_id: memberId,
+                        email,
+                    },
+                    authConfig()
+                );
+
+                const map = loadInviteMetaMap();
+                const current = map[emailHash] || { sentCount: 0 };
+                map[emailHash] = {
+                    ...current,
+                    sentCount: (current.sentCount || 0) + 1,
+                    lastSentAt: new Date().toISOString(),
+                };
+                saveInviteMetaMap(map);
+            } catch (err: any) {
+                inviteSendError =
+                    err?.response?.data?.message ||
+                    "Member saved, but invite email failed to send. Use Resend email.";
+            }
+
+            setTeams((prev) => prev.map((t) => (t.teamId === teamId ? { ...t, isDraft: false } : t)));
+
+            updateMember(teamId, memberId, {
+                studentId,
+                emailHash,
+                emailInput: "",
+                hasAccount: false,
+                isLocked: false,
+                isSaving: false,
+                error: inviteSendError,
+            });
+
+            // After saving one member, ensure the next row is visible (saved + next).
+            setTeamVisibleCounts((prev) => {
+                const next = { ...prev };
+                const t = teams.find((x) => x.teamId === teamId) || buildTeamVm(teamId, []);
+                const savedCount = t.members.filter((m) => !!m.studentId).length + 1; // include newly saved
+                next[teamId] = Math.max(next[teamId] ?? 0, Math.min(4, savedCount + 1));
+                return next;
+            });
+
+            return { ok: true };
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || err?.message || "Save failed.";
+            updateMember(teamId, memberId, { isSaving: false, error: msg });
+            return { ok: false, message: msg };
+        }
+    }
+
+    async function handleDeleteMember(teamId: number, memberId: number): Promise<{ ok: boolean; message?: string }> {
+        const team = teams.find((t) => t.teamId === teamId);
+        const slot = team?.members.find((m) => m.memberId === memberId);
+
+        // Unsaved rows are local-only. "Delete" clears the draft row and collapses
+        // any extra visible member rows that were manually added.
+        if (!slot?.studentId) {
+            updateMember(teamId, memberId, {
+                studentId: undefined,
+                emailHash: undefined,
+                emailInput: "",
+                hasAccount: false,
+                isLocked: false,
+                isSaving: false,
+                error: undefined,
+            });
+
+            setTeamVisibleCounts((prev) => {
+                const next = { ...prev };
+                const t = teams.find((x) => x.teamId === teamId) || buildTeamVm(teamId, []);
+                const savedCount = t.members.filter((m) => !!m.studentId).length;
+                const defaultVisible = Math.min(4, Math.max(1, savedCount + 1));
+                const currentVisible = Math.max(prev[teamId] ?? 0, defaultVisible);
+                next[teamId] = Math.max(defaultVisible, currentVisible - 1);
+                return next;
+            });
+
+            return { ok: true };
+        }
+
+        updateMember(teamId, memberId, { isSaving: true, error: undefined });
+        try {
+            await axios.delete(`${apiBase}/auth/student/delete`, {
+                ...authConfig(),
+                data: { team_id: teamId, member_id: memberId },
+            });
+
+            const teamNow = teams.find((t) => t.teamId === teamId);
+            const emailHash = teamNow?.members.find((m) => m.memberId === memberId)?.emailHash;
+            if (emailHash) {
+                const map = loadInviteMetaMap();
+                delete map[emailHash];
+                saveInviteMetaMap(map);
+            }
+
+            updateMember(teamId, memberId, {
+                studentId: undefined,
+                emailHash: undefined,
+                emailInput: "",
+                hasAccount: false,
+                isLocked: false,
+                isSaving: false,
+                error: undefined,
+            });
+
+            // If team now has 0 saved members, revert to showing 1 row.
+            setTeamVisibleCounts((prev) => {
+                const next = { ...prev };
+                const t = teams.find((x) => x.teamId === teamId) || buildTeamVm(teamId, []);
+                const savedCount = t.members.filter((m) => !!m.studentId).length - 1; // include deletion
+                const defaultVisible = Math.min(4, Math.max(1, Math.max(0, savedCount) + 1));
+                next[teamId] = Math.max(1, defaultVisible);
+                return next;
+            });
+
+            return { ok: true };
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || "Delete failed.";
+            updateMember(teamId, memberId, { isSaving: false, error: msg });
+            return { ok: false, message: msg };
+        }
+    }
+
+    function openResendModal(teamId: number, memberId: number, emailHash: string) {
+        setResendModal({
+            teamId,
+            memberId,
+            emailHash,
+            email: "",
+            error: "",
+            isSending: false,
+        });
+    }
+
+    async function confirmResendInvite() {
+        if (!resendModal) return;
+        const email = resendModal.email.trim().toLowerCase();
+        if (!email) {
+            setResendModal({ ...resendModal, error: "Email is required to resend." });
+            return;
+        }
+        setResendModal({ ...resendModal, isSending: true, error: "" });
+
+        try {
+            const h = await sha256Hex(email);
+            if (h !== resendModal.emailHash) {
+                setResendModal({
+                    ...resendModal,
+                    isSending: false,
+                    error: "That email does not match the hashed email saved for this member.",
+                });
+                return;
+            }
+
+            await axios.post(
+                `${apiBase}/auth/student/invite`,
+                {
+                    team_id: resendModal.teamId,
+                    member_id: resendModal.memberId,
+                    email,
+                },
+                authConfig()
+            );
+
+            const map = loadInviteMetaMap();
+            const current = map[resendModal.emailHash] || { sentCount: 0 };
+            map[resendModal.emailHash] = {
+                ...current,
+                sentCount: (current.sentCount || 0) + 1,
+                lastSentAt: new Date().toISOString(),
+            };
+            saveInviteMetaMap(map);
+
+            setResendModal(null);
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || "Invite resend failed.";
+            setResendModal({ ...resendModal, isSending: false, error: msg });
+        }
+    }
+
+    function getInviteMeta(emailHash?: string): InviteMeta {
+        if (!emailHash) return { sentCount: 0 };
+        const map = loadInviteMetaMap();
+        return map[emailHash] || { sentCount: 0 };
+    }
+
+    return (
+        <>
+            <Helmet>
+                <title>[Admin] Abacus</title>
+            </Helmet>
+
+            <MenuComponent
+                showUpload={false}
+                showAdminUpload={true}
+                showHelp={false}
+                showCreate={false}
+                showLast={false}
+                showReviewButton={false}
+            />
+
+            <div className="admin-team-manage-root">
+                <DirectoryBreadcrumbs items={[{ label: "Team Manage" }]} trailingSeparator={true} />
+                <div className="pageTitle">Team Manage</div>
+
+                <div className="admin-team-manage-content">
+                    <div className="callout callout--warning">
+                        <div className="callout__title">Important: write this down</div>
+                        <div className="callout__body">
+                            After you save a member, Abacus cannot show their email again (emails are stored as hashes). For each
+                            student, you must record:
+                            <ul>
+                                <li>
+                                    <strong>Team number</strong>
+                                </li>
+                                <li>
+                                    <strong>Member ID (1 to 4)</strong>
+                                </li>
+                                <li>
+                                    <strong>Student name</strong> (recorded outside Abacus)
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    {pageError ? <div className="callout callout--error">{pageError}</div> : null}
+
+                    <div className="toolbar">
+                        <div>
+                            <div className="toolbar__title">Teams</div>
+                            <div className="toolbar__subtitle muted">Create teams, then add 2 to 4 members each.</div>
+                        </div>
+                    </div>
+
+                    {teams.length === 0 ? (
+                        <div className="callout callout--info">No teams yet. Create one to get started.</div>
+                    ) : null}
+
+                    <div className="team-panels">
+                        {teams.map((team) => {
+                            const savedCount = getTeamSavedCount(team);
+                            const membersToShow = getTeamMembersToShow(team);
+                            const showAddMember = canAddMoreMembers(team);
+                            const canDeleteTeam = team.isDraft && savedCount === 0;
+
+                            return (
+                                <div key={team.teamId} className="panel">
+                                    <div className="panel__header">
+                                        <div>
+                                            <div className="panel__title">Team {team.teamId}</div>
+                                            <div className="panel__subtitle">
+                                                Members saved: <strong>{savedCount}</strong> (minimum 2, maximum 4)
+                                            </div>
+                                        </div>
+                                        {canDeleteTeam ? (
+                                            <div className="panel__header-actions">
+                                                <button
+                                                    className="btn btn--danger"
+                                                    type="button"
+                                                    onClick={() => deleteDraftTeam(team.teamId)}
+                                                >
+                                                    Delete team
+                                                </button>
+                                            </div>
+                                        ) : null}
+                                    </div>
+
+                                    {savedCount < 2 ? (
+                                        <div className="callout callout--info">
+                                            This team is not complete yet. Save at least <strong>2</strong> members before distributing
+                                            team information.
+                                        </div>
+                                    ) : null}
+
+                                    <ol className="member-list">
+                                        {membersToShow.map((m) => {
+                                            const saved = !!m.studentId;
+                                            const invite = getInviteMeta(m.emailHash);
+
+                                            const openedLabel = invite.openedAt
+                                                ? `Invite opened (${new Date(invite.openedAt).toLocaleString()})`
+                                                : "";
+
+                                            return (
+                                                <li key={m.memberId} className="member-row">
+                                                    <div className="member-row__top">
+                                                        <div className="member-row__title">
+                                                            Member <span className="mono">{m.memberId}</span>
+                                                        </div>
+                                                        <div className="member-row__badges">
+                                                            <span className={`badge ${saved ? "badge--success" : "badge--error"}`}>
+                                                                {saved ? "Saved" : "Not saved"}
+                                                            </span>
+
+                                                            {saved ? (
+                                                                <span className={`badge ${m.hasAccount ? "badge--success" : "badge--info"}`}>
+                                                                    {m.hasAccount ? "Account active" : "Account setup pending"}
+                                                                </span>
+                                                            ) : null}
+
+                                                            {saved ? (
+                                                                <span
+                                                                    className={`badge ${invite.sentCount > 0 ? "badge--success" : "badge--warning"
+                                                                        }`}
+                                                                >
+                                                                    {invite.sentCount > 0 ? "Invite sent" : "Invite not sent"}
+                                                                </span>
+                                                            ) : null}
+
+                                                            {invite.openedAt ? (
+                                                                <span className="badge badge--muted">{openedLabel}</span>
+                                                            ) : null}
+
+                                                            {m.isLocked ? <span className="badge badge--error">Locked</span> : null}
+                                                        </div>
+                                                    </div>
+
+                                                    {saved ? (
+                                                        <div className="member-row__saved">
+                                                            <div className="member-progress">
+                                                                <div className="progress-row">
+                                                                    <div className="progress-row__label">Invite email</div>
+                                                                    <div
+                                                                        className={`progress-row__value ${invite.sentCount > 0 ? "is-ok" : "is-pending"
+                                                                            }`}
+                                                                    >
+                                                                        {invite.sentCount > 0
+                                                                            ? `Sent ${invite.sentCount}x${invite.lastSentAt
+                                                                                ? ` (last: ${new Date(
+                                                                                    invite.lastSentAt
+                                                                                ).toLocaleString()})`
+                                                                                : ""
+                                                                            }`
+                                                                            : "Not sent yet"}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="progress-row">
+                                                                    <div className="progress-row__label">Account setup</div>
+                                                                    <div
+                                                                        className={`progress-row__value ${m.hasAccount ? "is-ok" : "is-pending"
+                                                                            }`}
+                                                                    >
+                                                                        {m.hasAccount ? "Created" : "Not created yet"}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {m.error ? <div className="inline-error">{m.error}</div> : null}
+
+                                                            <div className="member-row__actions">
+                                                                <button
+                                                                    className="btn btn--secondary"
+                                                                    type="button"
+                                                                    disabled={m.isSaving || !m.emailHash}
+                                                                    onClick={() =>
+                                                                        openResendModal(team.teamId, m.memberId, m.emailHash || "")
+                                                                    }
+                                                                >
+                                                                    Resend email
+                                                                </button>
+                                                                <button
+                                                                    className="btn btn--danger"
+                                                                    type="button"
+                                                                    disabled={m.isSaving}
+                                                                    onClick={() => openDeleteConfirmModal(team.teamId, m.memberId, true)}
+                                                                >
+                                                                    Delete member
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="member-row__edit">
+                                                            <div className="field">
+                                                                <label className="field__label" htmlFor={`email-${team.teamId}-${m.memberId}`}>
+                                                                    Student email (required)
+                                                                </label>
+                                                                <input
+                                                                    id={`email-${team.teamId}-${m.memberId}`}
+                                                                    className="field__input"
+                                                                    type="email"
+                                                                    placeholder="student@school.edu"
+                                                                    value={m.emailInput}
+                                                                    onChange={(e) =>
+                                                                        updateMember(team.teamId, m.memberId, {
+                                                                            emailInput: e.target.value,
+                                                                            error: undefined,
+                                                                        })
+                                                                    }
+                                                                    autoComplete="off"
+                                                                />
+                                                                <div className="field__help">After saving, the email will not be displayed again.</div>
+                                                            </div>
+
+                                                            {m.error ? <div className="inline-error">{m.error}</div> : null}
+
+                                                            <div className="member-row__actions">
+                                                                <button
+                                                                    className="btn btn--primary"
+                                                                    type="button"
+                                                                    disabled={m.isSaving}
+                                                                    onClick={() => {
+                                                                        ensureTeamExists(team.teamId);
+                                                                        openSaveConfirmModal(team.teamId, m.memberId, m.emailInput);
+                                                                    }}
+                                                                >
+                                                                    {m.isSaving ? "Saving…" : "Save member"}
+                                                                </button>
+                                                                <button
+                                                                    className="btn btn--danger"
+                                                                    type="button"
+                                                                    disabled={m.isSaving}
+                                                                    onClick={() => openDeleteConfirmModal(team.teamId, m.memberId, false)}
+                                                                >
+                                                                    Delete member
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </li>
+                                            );
+                                        })}
+                                    </ol>
+
+                                    {showAddMember ? (
+                                        <div className="add-member-row">
+                                            <button className="btn btn--secondary" type="button" onClick={() => addMemberRow(team.teamId)}>
+                                                Add member
+                                            </button>
+                                        </div>
+                                    ) : null}
+
+                                    <div className="footer-note">
+                                        Tip: If you need to resend an invite later, you must re-enter the student email. Abacus stores only
+                                        a hash, so it cannot recover the original email address.
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="new-team-footer">
+                        <button
+                            className="btn btn--primary new-team-btn"
+                            type="button"
+                            disabled={isLoading}
+                            onClick={() => {
+                                const id = nextTeamId;
+                                ensureTeamExists(id);
+                                setTeamVisibleCounts((prev) => ({ ...prev, [id]: 1 }));
+                            }}
+                        >
+                            New team
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {saveConfirmModal ? (
+                <div className="modal-overlay" role="dialog" aria-modal="true">
+                    <div className="modal modal--dramatic">
+                        <div className="modal__title">Stop and write this down</div>
+                        <div className="modal__body">
+                            <div className="callout callout--warning">
+                                <div className="callout__title">This information will NOT be stored</div>
+                                <div className="callout__body">
+                                    After saving, Abacus cannot show the student email again and does not store the student name. Record
+                                    these now.
+                                </div>
+                            </div>
+
+                            <div className="kv">
+                                <div className="kv__row">
+                                    <div className="kv__label">Team</div>
+                                    <div className="kv__value mono">{saveConfirmModal.teamId}</div>
+                                </div>
+                                <div className="kv__row">
+                                    <div className="kv__label">Member ID</div>
+                                    <div className="kv__value mono">{saveConfirmModal.memberId}</div>
+                                </div>
+                                <div className="kv__row">
+                                    <div className="kv__label">Email entered</div>
+                                    <div className="kv__value mono">{saveConfirmModal.email}</div>
+                                </div>
+                                <div className="kv__row">
+                                    <div className="kv__label">Student name</div>
+                                    <div className="kv__value muted">Write this in your notes (not stored in Abacus).</div>
+                                </div>
+                            </div>
+
+                            <label className="ack-row">
+                                <input
+                                    type="checkbox"
+                                    checked={saveConfirmModal.acknowledged}
+                                    onChange={(e) =>
+                                        setSaveConfirmModal({ ...saveConfirmModal, acknowledged: e.target.checked, error: "" })
+                                    }
+                                    disabled={saveConfirmModal.isSaving}
+                                />
+                                <span>I wrote down the Team number, Member ID, and the student name.</span>
+                            </label>
+
+                            {saveConfirmModal.error ? <div className="inline-error">{saveConfirmModal.error}</div> : null}
+                        </div>
+                        <div className="modal__actions">
+                            <button
+                                className="btn btn--secondary"
+                                type="button"
+                                onClick={() => setSaveConfirmModal(null)}
+                                disabled={saveConfirmModal.isSaving}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn btn--primary"
+                                type="button"
+                                onClick={confirmSaveFromModal}
+                                disabled={saveConfirmModal.isSaving || !saveConfirmModal.acknowledged}
+                            >
+                                {saveConfirmModal.isSaving ? "Saving…" : "Save member"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {deleteConfirmModal ? (
+                <div className="modal-overlay" role="dialog" aria-modal="true">
+                    <div className="modal modal--danger">
+                        <div className="modal__title">Confirm delete</div>
+                        <div className="modal__body">
+                            <div className="callout callout--error">
+                                <div className="callout__title">This cannot be undone</div>
+                                <div className="callout__body">
+                                    You are about to delete Team <strong>{deleteConfirmModal.teamId}</strong>, Member{" "}
+                                    <strong>{deleteConfirmModal.memberId}</strong>.
+                                    {deleteConfirmModal.isSaved ? " This removes the saved member record." : " This clears the unsaved row."}
+                                </div>
+                            </div>
+
+                            {deleteConfirmModal.error ? <div className="inline-error">{deleteConfirmModal.error}</div> : null}
+                        </div>
+                        <div className="modal__actions">
+                            <button
+                                className="btn btn--secondary"
+                                type="button"
+                                onClick={() => setDeleteConfirmModal(null)}
+                                disabled={deleteConfirmModal.isDeleting}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="btn btn--danger"
+                                type="button"
+                                onClick={confirmDeleteFromModal}
+                                disabled={deleteConfirmModal.isDeleting}
+                            >
+                                {deleteConfirmModal.isDeleting ? "Deleting…" : "Delete member"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {resendModal ? (
+                <div className="modal-overlay" role="dialog" aria-modal="true">
+                    <div className="modal">
+                        <div className="modal__title">
+                            Resend invite for Team {resendModal.teamId}, Member {resendModal.memberId}
+                        </div>
+                        <div className="modal__body">
+                            <div className="muted">
+                                Because Abacus stores only a hash, you must re-enter the email to resend. We will verify it matches the
+                                saved hash.
+                            </div>
+
+                            <label className="field__label" htmlFor="resend-email">
+                                Student email
+                            </label>
+                            <input
+                                id="resend-email"
+                                className="field__input"
+                                type="email"
+                                placeholder="student@school.edu"
+                                value={resendModal.email}
+                                onChange={(e) => setResendModal({ ...resendModal, email: e.target.value, error: "" })}
+                                autoComplete="off"
+                            />
+
+                            {resendModal.error ? <div className="inline-error">{resendModal.error}</div> : null}
+                        </div>
+                        <div className="modal__actions">
+                            <button
+                                className="btn btn--secondary"
+                                type="button"
+                                onClick={() => setResendModal(null)}
+                                disabled={resendModal.isSending}
+                            >
+                                Cancel
+                            </button>
+                            <button className="btn btn--primary" type="button" onClick={confirmResendInvite} disabled={resendModal.isSending}>
+                                {resendModal.isSending ? "Sending…" : "Resend email"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+        </>
+    );
+}

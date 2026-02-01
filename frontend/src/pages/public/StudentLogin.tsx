@@ -150,7 +150,14 @@ class StudentLogin extends Component<{}, StudentLoginPageState> {
           ) : null}
 
           <div className="login-links">
-            Student accounts are created by teachers
+                      <div>Student accounts are created by teachers.</div>
+            <div>
+              Need to set or reset your password?{" "}
+              <Link className="login-links__link" to="/student-reset-password">
+                Email me a reset link
+              </Link>
+              .
+            </div>
           </div>
 
           <div className="login-logo">

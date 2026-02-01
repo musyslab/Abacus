@@ -23,6 +23,8 @@ services:
     restart: unless-stopped
     build:
       context: backend
+    env_file:
+      - ./backend/.env.backend
     environment:
       DB_USER: "user"
       DB_PASSWORD: "password"

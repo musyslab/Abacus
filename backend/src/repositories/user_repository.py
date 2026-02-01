@@ -68,9 +68,47 @@ class UserRepository:
         admin.IsLocked = True
         db.session.commit()
 
+    def set_admin_password_and_unlock(self, admin_id: int, password_hash: str) -> None:
+        """
+        Sets an admin password, unlocks the account, and clears failed login attempts.
+        """
+        admin = AdminUsers.query.filter(AdminUsers.Id == admin_id).one()
+        admin.PasswordHash = password_hash
+        admin.IsLocked = False
+        db.session.commit()
+
+        attempts = LoginAttempts.query.filter(LoginAttempts.Email == admin.Email).all()
+        for attempt in attempts:
+            db.session.delete(attempt)
+        db.session.commit()
+
     # -----------------------------
     # Student operations
     # -----------------------------
+
+    def get_students_for_teacher(self, teacher_id: int) -> List[StudentUsers]:
+        return (
+            StudentUsers.query.filter(StudentUsers.TeacherId == teacher_id)
+            .order_by(StudentUsers.TeamId.asc(), StudentUsers.MemberId.asc())
+            .all()
+        )
+
+    def get_student_by_team_member(self, teacher_id: int, team_id: int, member_id: int) -> Optional[StudentUsers]:
+        return (
+            StudentUsers.query.filter(
+                StudentUsers.TeacherId == teacher_id,
+                StudentUsers.TeamId == team_id,
+                StudentUsers.MemberId == member_id,
+            )
+            .one_or_none()
+        )
+
+    def count_team_members(self, teacher_id: int, team_id: int) -> int:
+        return (
+            StudentUsers.query.filter(StudentUsers.TeacherId == teacher_id, StudentUsers.TeamId == team_id)
+            .count()
+        )
+
     def get_student_by_emailhash(self, email_hash: str) -> Optional[StudentUsers]:
         return StudentUsers.query.filter(StudentUsers.EmailHash == email_hash).one_or_none()
 
@@ -122,11 +160,32 @@ class UserRepository:
         student.IsLocked = True
         db.session.commit()
 
+    def delete_student(self, student_id: int) -> None:
+        student = StudentUsers.query.filter(StudentUsers.Id == student_id).one_or_none()
+        if not student:
+            return
+        db.session.delete(student)
+        db.session.commit()
+
     def unlock_student_account(self, student_id: int):
         """
         Unlocks a student account and clears login attempts stored under that student's EmailHash.
         """
         student = StudentUsers.query.filter(StudentUsers.Id == student_id).one()
+        student.IsLocked = False
+        db.session.commit()
+
+        attempts = LoginAttempts.query.filter(LoginAttempts.Email == student.EmailHash).all()
+        for attempt in attempts:
+            db.session.delete(attempt)
+        db.session.commit()
+
+    def set_student_password_and_unlock(self, student_id: int, password_hash: str) -> None:
+        """
+        Sets a student password, unlocks the account, and clears failed login attempts.
+        """
+        student = StudentUsers.query.filter(StudentUsers.Id == student_id).one()
+        student.PasswordHash = password_hash
         student.IsLocked = False
         db.session.commit()
 
