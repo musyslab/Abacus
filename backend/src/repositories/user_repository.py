@@ -1,258 +1,185 @@
 import datetime
-import re
-from operator import and_
-from typing import Dict, List, Optional
-
-from sqlalchemy import asc, desc
+from typing import List, Optional, Union
 
 from src.repositories.database import db
-from .models import ClassAssignments, LectureSections, Users, LoginAttempts, Labs
+from .models import AdminUsers, StudentUsers, Schools, LoginAttempts
 from flask_jwt_extended import current_user
 
 
-class UserRepository():
+UserModel = Union[AdminUsers, StudentUsers]
 
+
+class UserRepository:
     def get_user_status(self) -> str:
-        return str(current_user.Role)
+        if isinstance(current_user, AdminUsers):
+            return "admin"
+        if isinstance(current_user, StudentUsers):
+            return "student"
+        return "unknown"
 
-    def get_user_by_email(self, email: str) -> Users:
-        """
-        Returns a user object from the database based on the given email.
-        
-        Args:
-        - email (str): the email of the user to retrieve
-        
-        Returns:
-        - Users: the user object corresponding to the given email, or None if no such user exists
-        """
+    # -----------------------------
+    # Admin (Teacher) operations
+    # -----------------------------
+    def get_admin_by_email(self, email: str) -> Optional[AdminUsers]:
+        return AdminUsers.query.filter(AdminUsers.Email == email).one_or_none()
 
-        user = Users.query.filter(Users.Email == email).one_or_none()
-        return user
-    
-    def get_user(self, user_id: int) -> Users:
-        """
-        Retrieves a user from the database by their ID.
+    def get_admin_by_id(self, user_id: int) -> Optional[AdminUsers]:
+        return AdminUsers.query.filter(AdminUsers.Id == user_id).one_or_none()
 
-        Args:
-            user_id (int): The ID of the user to retrieve.
+    def does_admin_email_exist(self, email: str) -> bool:
+        return AdminUsers.query.filter(AdminUsers.Email == email).first() is not None
 
-        Returns:
-            Users: The user object if found, otherwise None.
-        """
-        user = Users.query.filter(Users.Id == user_id).one_or_none()
-        return user
-
-    #TODO: Remove in favor of calling get_user
-    def get_user_by_id(self, user_id: int) -> Users:
-        """
-        Returns the user object given their ID.
-
-        Args:
-            user_id (int): The ID of the user to retrieve.
-
-        Returns:
-            Users: The user object with the given ID, or None.
-        """
-        user = Users.query.filter(Users.Id == user_id).one_or_none()
-        return user
-
-    def does_email_exist(self, email: str) -> bool:
-        """Checks if a user with the given email exists in the database.
-
-        Args:
-            email (str): The email to check.
-
-        Returns:
-            bool: True if a user with the given email exists, False otherwise.
-        """
-        user = Users.query.filter(Users.Email == email).first()
-        
-        return user is not None
-
-    def create_user(self, email: str, first_name: str, last_name: str, school: str, password_hash: Optional[str] = None, role: int = 0):
-        """Creates a new user with the given information and adds it to the database."""
-        user = Users(
+    def create_admin_user(
+        self,
+        email: str,
+        first_name: str,
+        last_name: str,
+        school_id: int,
+        password_hash: str,
+    ) -> AdminUsers:
+        admin = AdminUsers(
             Firstname=first_name,
             Lastname=last_name,
             Email=email,
-            School=school,
+            SchoolId=school_id,
             PasswordHash=password_hash,
-            Role=role,
             IsLocked=False,
         )
-
-        db.session.add(user)
+        db.session.add(admin)
         db.session.commit()
-    def get_all_users(self) -> List[Users]:
-        """Retrieves all users from the database.
+        return admin
 
-        Returns:
-            List[Users]: A list of all user objects in the database.
-        """
-        user = Users.query.all()
-        return user
-    def get_all_users_by_cid(self, class_id) -> List[Users]:
-        """Returns a list of all users associated with a given class ID.
-
-        Args:
-            class_id (int): The ID of the class to retrieve users for.
-
-        Returns:
-            List[Users]: A list of all users associated with the given class ID.
-        """
-        users_in_class = db.session.query(ClassAssignments).join(Users, ClassAssignments.UserId == Users.Id).filter(
-            and_(ClassAssignments.ClassId == class_id, Users.Role != 1)
-        ).all()
-        users = []
-        for user in users_in_class:
-            users.append(Users.query.filter(Users.Id==user.UserId).one_or_none())
-        return users
-
-    def send_attempt_data(self, email: str, ipadr: str, time: datetime):
-        """Adds a new login attempt to the database. This is only triggered should a user fail to sign in, used to prevent brute force attacks
-
-        Args:
-            email (str): The email used in the login attempt.
-            ipadr (str): The IP address of the device used in the login attempt.
-            time (datetime): The date and time of the login attempt.
-
-        Returns:
-            None
-        """
+    def send_admin_attempt_data(self, email: str, ipadr: str, time: datetime.datetime):
         login_attempt = LoginAttempts(IPAddress=ipadr, Email=email, Time=time)
         db.session.add(login_attempt)
         db.session.commit()
 
-    def can_user_login(self, email: str) -> int:
-        """Returns the number of login attempts made by a user with the given email.
+    def can_admin_login(self, email: str) -> int:
+        return LoginAttempts.query.filter(LoginAttempts.Email == email).count()
 
-        Args:
-            email (str): The email of the user to check.
-
-        Returns:
-            int: The number of login attempts made by the user.
-        """
-        number = LoginAttempts.query.filter(LoginAttempts.Email == email).count()
-        return number
-        
-    def clear_failed_attempts(self, email: str):
-        """Deletes all login attempts for a given email from the database. This should trigger when a student logs in successfully.
-
-        Args:
-            email (str): The email for which to delete login attempts.
-
-        Returns:
-            None
-        """
+    def clear_admin_failed_attempts(self, email: str):
         attempts = LoginAttempts.query.filter(LoginAttempts.Email == email).all()
         for attempt in attempts:
             db.session.delete(attempt)
         db.session.commit()
 
-    def lock_user_account(self, email: str):
-        """Locks the user account associated with the given email. This triggers if the same email fails to login 5 times in a row.
-
-        Args:
-            email (str): The email of the user account to be locked.
-
-        Returns:
-            None
-        """
-        query = Users.query.filter(Users.Email == email).one()
-        query.IsLocked=True
+    def lock_admin_account(self, email: str):
+        admin = AdminUsers.query.filter(AdminUsers.Email == email).one()
+        admin.IsLocked = True
         db.session.commit()
-    
-    def get_user_lectures(self, userIds: List[int], class_id) -> Dict[int, ClassAssignments]:
-        """Returns a dictionary of lecture names for each user in the given list of user IDs.
-        
-        Args:
-            userIds (List[int]): A list of user IDs for which to retrieve lecture names.
-            
-        Returns:
-            Dict[int, ClassAssignments]: A dictionary where the keys are user IDs and the values are the names of the lectures
-            assigned to each user.
-        """
-        #TODO: Do we still use this? seems to only work for single class submissions.
-        class_assignments = ClassAssignments.query.filter(and_(ClassAssignments.UserId.in_(userIds), ClassAssignments.ClassId == class_id)).all()
-        
-        user_lectures_dict={}
-        for class_assignment in class_assignments:
-            user_lectures_dict[class_assignment.UserId] = LectureSections.query.filter(LectureSections.Id == class_assignment.LectureId).one().Name
 
-        return user_lectures_dict
+    # -----------------------------
+    # Student operations
+    # -----------------------------
+    def get_student_by_emailhash(self, email_hash: str) -> Optional[StudentUsers]:
+        return StudentUsers.query.filter(StudentUsers.EmailHash == email_hash).one_or_none()
 
-    def get_user_labs(self, userIds: List[int], class_id) -> Dict[int, int]:
-        """
-        Returns a dictionary mapping each userId to their Lab number for the given class.
-        If a user has no lab assigned, the value is -1.
+    def get_student_by_id(self, user_id: int) -> Optional[StudentUsers]:
+        return StudentUsers.query.filter(StudentUsers.Id == user_id).one_or_none()
 
-        Args:
-            userIds (List[int]): Users to look up.
-            class_id (int): Class context for the assignments.
+    def does_student_emailhash_exist(self, email_hash: str) -> bool:
+        return StudentUsers.query.filter(StudentUsers.EmailHash == email_hash).first() is not None
 
-        Returns:
-            Dict[int, int]: { user_id: lab_number }
-        """
-        # Start with all users defaulting to -1 to avoid KeyErrors in callers.
-        user_labs_dict: Dict[int, int] = {uid: -1 for uid in userIds}
-
-        # Fetch class assignments for these users within this class.
-        class_assignments = ClassAssignments.query.filter(
-            and_(ClassAssignments.UserId.in_(userIds), ClassAssignments.ClassId == class_id)
-        ).all()
-
-        for ca in class_assignments:
-            lab_number = -1
-
-            # Expecting ClassAssignments to have a LabId foreign key to Labs.Id.
-            lab_id = getattr(ca, "LabId", None)
-            if lab_id is not None:
-                lab = Labs.query.filter(Labs.Id == lab_id).one_or_none()
-                if lab is not None:
-                    # Prefer an explicit numeric column if it exists (e.g., Labs.Number).
-                    if hasattr(lab, "Number") and lab.Number is not None:
-                        try:
-                            lab_number = int(lab.Number)
-                        except (TypeError, ValueError):
-                            lab_number = -1
-                    # Fallback: try to parse a number from a name like "Lab 3"
-                    elif hasattr(lab, "Name") and lab.Name:
-                        m = re.search(r"\d+", str(lab.Name))
-                        if m:
-                            lab_number = int(m.group(0))
-
-            user_labs_dict[ca.UserId] = lab_number
-
-        return user_labs_dict
-        
-    def get_user_email(self, userId) -> str:
-        """
-        Retrieves the email of a user with the given userId.
-
-        Args:
-            userId (int): The ID of the user to retrieve the email for.
-
-        Returns:
-            str: The email of the user with the given userId.
-        """
-        query = Users.query.filter(Users.Id==userId).one()
-        email = query.Email
-        return email
-
-    def unlock_student_account(self, user_id):
-        """
-        Unlocks the account of a student with the given user_id. A user's account can be locked if they fail to login 5 times in a row.
-
-        Args:
-        - user_id: int, the id of the user whose account is to be unlocked.
-
-        Returns:
-        - None
-        """
-        query = Users.query.filter(Users.Id==user_id).one()
-        query.IsLocked = 0
+    def create_student_user(
+        self,
+        email_hash: str,
+        teacher_id: int,
+        school_id: int,
+        team_id: int,
+        member_id: int,
+        password_hash: Optional[str] = None,
+    ) -> StudentUsers:
+        student = StudentUsers(
+            EmailHash=email_hash,
+            TeacherId=teacher_id,
+            SchoolId=school_id,
+            TeamId=team_id,
+            MemberId=member_id,
+            PasswordHash=password_hash,
+            IsLocked=False,
+        )
+        db.session.add(student)
         db.session.commit()
-        query = LoginAttempts.query.filter(LoginAttempts.Email == query.Email).all()
-        for attempt in query:
+        return student
+
+    # Student login attempts use EmailHash as the identifier stored in LoginAttempts.Email
+    def send_student_attempt_data(self, email_hash: str, ipadr: str, time: datetime.datetime):
+        login_attempt = LoginAttempts(IPAddress=ipadr, Email=email_hash, Time=time)
+        db.session.add(login_attempt)
+        db.session.commit()
+
+    def can_student_login(self, email_hash: str) -> int:
+        return LoginAttempts.query.filter(LoginAttempts.Email == email_hash).count()
+
+    def clear_student_failed_attempts(self, email_hash: str):
+        attempts = LoginAttempts.query.filter(LoginAttempts.Email == email_hash).all()
+        for attempt in attempts:
             db.session.delete(attempt)
         db.session.commit()
+
+    def lock_student_account(self, email_hash: str):
+        student = StudentUsers.query.filter(StudentUsers.EmailHash == email_hash).one()
+        student.IsLocked = True
+        db.session.commit()
+
+    def unlock_student_account(self, student_id: int):
+        """
+        Unlocks a student account and clears login attempts stored under that student's EmailHash.
+        """
+        student = StudentUsers.query.filter(StudentUsers.Id == student_id).one()
+        student.IsLocked = False
+        db.session.commit()
+
+        attempts = LoginAttempts.query.filter(LoginAttempts.Email == student.EmailHash).all()
+        for attempt in attempts:
+            db.session.delete(attempt)
+        db.session.commit()
+
+    # -----------------------------
+    # School operations (kept here because your auth flow uses them)
+    # -----------------------------
+    def create_school(self, name: str) -> Schools:
+        school = Schools(Name=name, TeacherID=None)
+        db.session.add(school)
+        db.session.commit()
+        return school
+
+    def set_school_teacher(self, school_id: int, teacher_id: int) -> None:
+        school = Schools.query.filter(Schools.Id == school_id).one()
+        school.TeacherID = teacher_id
+        db.session.commit()
+
+    # -----------------------------
+    # Compatibility helpers / old call sites
+    # -----------------------------
+    def get_user(self, user_id: int) -> Optional[UserModel]:
+        """
+        Compatibility method: returns an AdminUsers or StudentUsers with this ID, or None.
+        Prefer get_admin_by_id / get_student_by_id when you know the type.
+        """
+        admin = self.get_admin_by_id(user_id)
+        if admin is not None:
+            return admin
+        return self.get_student_by_id(user_id)
+
+    def get_user_by_id(self, user_id: int) -> Optional[UserModel]:
+        """
+        Compatibility alias for older code.
+        """
+        return self.get_user(user_id)
+
+    def get_all_users(self) -> List[UserModel]:
+        """
+        Returns all users across both tables.
+        """
+        return list(AdminUsers.query.all()) + list(StudentUsers.query.all())
+
+    def get_user_email(self, user_id: int) -> str:
+        """
+        AdminUsers store Email in plaintext.
+        StudentUsers do not (they store EmailHash only), so return "" for students.
+        """
+        admin = self.get_admin_by_id(user_id)
+        if admin is not None:
+            return admin.Email
+        return ""

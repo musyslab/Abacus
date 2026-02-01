@@ -3,8 +3,9 @@ import axios from "axios";
 import { Helmet } from "react-helmet";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
-import img from "../../images/MUCS-tag.png";
+import img from "../../images/AbacusLogo.png";
 import "../../styling/Login.scss";
+import MenuComponent from "../components/MenuComponent";
 
 type RegisterResponse = {
   message: string;
@@ -71,131 +72,154 @@ export default function Register() {
   }
 
   return (
-    <div className="login-page">
-      <Helmet>
-        <title>Abacus</title>
-      </Helmet>
+    <>
+      <MenuComponent
+        showUpload={false}
+        showAdminUpload={false}
+        showHelp={false}
+        showCreate={false}
+        showReviewButton={false}
+        showLast={false}
+        variant="public"
+      />
 
-      <h2 className="login-title">Create your Abacus account</h2>
+      <div className="login-page">
+        <Helmet>
+          <title>Abacus</title>
+        </Helmet>
 
-      <form className="login-form" onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label className="form-label" htmlFor="fname">
-            First name
-          </label>
-          <input
-            id="fname"
-            type="text"
-            className="form-input"
-            placeholder="First name"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-            autoComplete="given-name"
-            required
-          />
+        <h2 className="login-title">Register your school</h2>
+
+        <div className="login-switch">
+          <span className="login-switch__label">Already registered?</span>
+          <Link className="login-switch__link" to="/teacher-login">
+            Teacher login
+          </Link>
+          <span className="login-switch__sep">|</span>
+          <Link className="login-switch__link" to="/student-login">
+            Student login
+          </Link>
         </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="lname">
-            Last name
-          </label>
-          <input
-            id="lname"
-            type="text"
-            className="form-input"
-            placeholder="Last name"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-            autoComplete="family-name"
-            required
-          />
+        <form className="login-form" onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label className="form-label" htmlFor="fname">
+              First name
+            </label>
+            <input
+              id="fname"
+              type="text"
+              className="form-input"
+              placeholder="First name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              autoComplete="given-name"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="lname">
+              Last name
+            </label>
+            <input
+              id="lname"
+              type="text"
+              className="form-input"
+              placeholder="Last name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              autoComplete="family-name"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="school">
+              School
+            </label>
+            <input
+              id="school"
+              type="text"
+              className="form-input"
+              placeholder="Marquette"
+              value={school}
+              onChange={(e) => setSchool(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="email">
+              School Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              className="form-input"
+              placeholder="first.last@marquette.edu"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="password">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              className="form-input"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="confirmPassword">
+              Confirm password
+            </label>
+            <input
+              id="confirmPassword"
+              type="password"
+              className="form-input"
+              placeholder="Confirm password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+              required
+            />
+          </div>
+
+          <button className="btn btn--primary login-form__submit" type="submit" disabled={isLoading}>
+            {isLoading ? "Creating account…" : "Create account"}
+          </button>
+        </form>
+
+        {errorMessage ? (
+          <div className="alert alert--error" role="alert" aria-live="assertive">
+            {errorMessage}
+          </div>
+        ) : null}
+
+        <div className="login-links">
+          Already have a teacher account?{" "}
+          <Link className="login-links__link" to="/teacher-login">
+            Log in
+          </Link>
+          .
         </div>
 
-        <div className="form-group">
-          <label className="form-label" htmlFor="school">
-            School
-          </label>
-          <input
-            id="school"
-            type="text"
-            className="form-input"
-            placeholder="Marquette"
-            value={school}
-            onChange={(e) => setSchool(e.target.value)}
-            required
-          />
+        <div className="login-logo">
+          <img className="login-logo__img" src={img} alt="School logo" />
         </div>
-
-        <div className="form-group">
-          <label className="form-label" htmlFor="email">
-            School Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            className="form-input"
-            placeholder="first.last@marquette.edu"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-            required
-          />
-        </div>
-
-        <div className="form-group">
-          <label className="form-label" htmlFor="password">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            className="form-input"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="new-password"
-            required
-          />
-        </div>
-
-        <div className="form-group">
-          <label className="form-label" htmlFor="confirmPassword">
-            Confirm password
-          </label>
-          <input
-            id="confirmPassword"
-            type="password"
-            className="form-input"
-            placeholder="Confirm password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            autoComplete="new-password"
-            required
-          />
-        </div>
-
-        <button className="btn btn--primary login-form__submit" type="submit" disabled={isLoading}>
-          {isLoading ? "Creating account…" : "Create account"}
-        </button>
-      </form>
-
-      {errorMessage ? (
-        <div className="alert alert--error" role="alert" aria-live="assertive">
-          {errorMessage}
-        </div>
-      ) : null}
-
-      <div className="login-links">
-        Already have an account?{" "}
-        <Link className="login-links__link" to="/login">
-          Log in
-        </Link>
-        .
       </div>
-
-      <Link to="/home" className="login-logo">
-        <img className="login-logo__img" src={img} alt="School logo" />
-      </Link>
-    </div>
+    </>
   );
 }

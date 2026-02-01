@@ -1,54 +1,116 @@
 /* MenuComponent.scss */
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-
-/* Base menu */
+/* Root menu bar */
 .menu {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  box-sizing: border-box;
-
   background: #111;
   color: #fff;
 
+  width: 100%;
+  height: 90px;
+
+  display: flex;
+  align-items: center;
+
+  box-sizing: border-box;
   border-bottom: 1px solid #2a2a2a;
 
-  /* Bigger navbar */
-  min-height: 88px;
-  font-size: 20px;
+  /* Make ALL text bigger + same weight everywhere */
+  font-size: 19px;
+  font-weight: 600;
 
+  /* Inner container */
   .menu__container {
     width: 95%;
     margin: 0 auto;
+
+    height: 100%;
+
     display: flex;
     align-items: center;
     gap: 10px;
 
-    padding: 16px 0;
     box-sizing: border-box;
+    padding: 0;
   }
 
-  /* All menu items: same text size + normal weight */
-  .menu__item {
+  /* Brand button/logo */
+  .menu__brand {
+    width: 90px;
+    height: 90px;
+
     display: inline-flex;
     align-items: center;
-    gap: 12px;
+    justify-content: center;
 
-    padding: 16px 18px;
-    border: 0;
+    margin-right: 10px;
+    padding: 0;
+
     background: transparent;
-    color: inherit;
+    border: 0;
 
-    text-decoration: none;
     cursor: pointer;
+    flex: 0 0 auto;
+  }
+
+  .menu__brandImg {
+    width: 90px;
+    height: 90px;
+
+    display: block;
+    object-fit: contain;
+  }
+
+  .menu__brand--public {
+    width: 90px;
+    height: 90px;
+  }
+
+  .menu__brand--public .menu__brandImg {
+    width: 90px;
+    height: 90px;
+  }
+
+  .menu__brand--static {
+    cursor: default;
+  }
+
+  /* Spacer to push right-side items */
+  .menu__spacer {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* Right section */
+  .menu__right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* Shared menu item styles */
+  .menu__item {
+    height: 52px;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 0 12px;
+
+    background: transparent;
+    border: 0;
     border-radius: 12px;
+
+    color: inherit;
+    text-decoration: none;
+
+    cursor: pointer;
     line-height: 1;
 
+    /* Force uniform size + weight for every menu item */
     font-size: 1em;
-    font-weight: 500;
+    font-weight: inherit;
 
     transition: background 120ms ease, transform 120ms ease;
 
@@ -67,27 +129,15 @@ body {
     }
   }
 
-  /* Only TA-Bot text bold */
-  .menu__item--header {
-    font-weight: 800;
-    letter-spacing: 0.2px;
-    margin-right: 6px;
-    padding-left: 0;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.12);
-    }
-  }
-
-  /* Keep same size and normal weight for links and logout */
+  /* Keep modifiers but do NOT change typography */
   .menu__item--link {
-    font-weight: 500;
     font-size: 1em;
+    font-weight: inherit;
   }
 
   .menu__logout {
-    font-weight: 500;
     font-size: 1em;
+    font-weight: inherit;
     padding-right: 0;
 
     &:hover {
@@ -99,28 +149,17 @@ body {
     }
   }
 
-  .menu__icon {
-    width: 20px;
-    height: 20px;
-    display: inline-block;
-  }
-
   .menu__text {
     display: inline-block;
     white-space: nowrap;
+
+    /* Force uniform size + weight for nested text spans */
     font-size: 1em;
     font-weight: inherit;
   }
-
-  .menu__right {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
 }
 
-/* Modifier classes */
+/* Modifiers */
 .menu--top {
   position: fixed;
   top: 0;
@@ -140,16 +179,7 @@ body {
 }
 
 .menu--huge {
-  font-size: 20px;
-}
-
-/* Keep same text size for all items, even in huge */
-.menu--huge .menu__item {
-  font-size: 1em;
-  padding: 18px 20px;
-}
-
-/* Push content down so it doesn't sit under the fixed navbar */
-.main-grid {
-  padding-top: 96px;
+  /* Ensure this modifier does not diverge from base sizing */
+  font-size: 19px;
+  font-weight: 600;
 }

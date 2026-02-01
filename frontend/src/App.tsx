@@ -3,7 +3,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import axios from 'axios';
 
 import HomePage from './pages/public/Home';
-import LoginPage from './pages/public/Login';
+import TeacherLoginPage from './pages/public/TeacherLogin';
+import StudentLoginPage from './pages/public/StudentLogin';
 import RegisterPage from './pages/public/Register';
 import LandingPage from './pages/public/Landing';
 import NotFound from './pages/public/NotFound';
@@ -44,7 +45,7 @@ class App extends Component {
             function (error) {
                 if (error.response && (error.response.status === 401 || error.response.status === 422 || error.response.status === 419)) {
                     localStorage.removeItem("AUTOTA_AUTH_TOKEN");
-                    window.location.href = "/login";
+                    window.location.href = "/home";
                 }
                 return Promise.reject(error);
             });
@@ -53,10 +54,11 @@ class App extends Component {
             <BrowserRouter>
                 <Routes>
                     <Route path="/home" element={<HomePage />} />
-                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/teacher-login" element={<TeacherLoginPage />} />
+                    <Route path="/student-login" element={<StudentLoginPage />} />
                     <Route path="/register" element={<RegisterPage />} />
                     <Route path="/" element={<LandingPage />} />
-                {/* Start Abacus Routes */}
+                    {/* Start Abacus Routes */}
                     <Route path="/admin/teachers" element={
                         <ProtectedRoute>
                             <TeacherRoster />
@@ -150,7 +152,7 @@ class App extends Component {
                             <StudentDiff />
                         </ProtectedRoute>
                     } />
-                {/* End Abacus Routes */}
+                    {/* End Abacus Routes */}
                     <Route path="/admin/classes" element={
                         <ProtectedRoute>
                             <AdminClassSelection />

@@ -1,10 +1,10 @@
-from src.repositories.class_repository import ClassRepository
+import hashlib
 from http import HTTPStatus
 from flask import Blueprint
 from flask import request
 from flask import make_response
 from src.services.authentication_service import PAMAuthenticationService
-from src.repositories.models import Users
+from src.repositories.models import AdminUsers, StudentUsers, Schools
 from flask_jwt_extended import create_access_token
 from src.jwt_manager import jwt
 from src.repositories.user_repository import UserRepository
@@ -25,7 +25,11 @@ auth_api = Blueprint('auth_api', __name__)
 # identity when creating JWTs and converts it to a JSON serializable format.
 @jwt.user_identity_loader
 def user_identity_lookup(user):
-    return user.Id
+    if isinstance(user, AdminUsers):
+        return {"type": "admin", "id": user.Id}
+    if isinstance(user, StudentUsers):
+        return {"type": "student", "id": user.Id}
+    return {"type": "unknown", "id": getattr(user, "Id", None)}
 
 @auth_api.route('/get-role', methods=['GET'])
 @jwt_required()
@@ -40,64 +44,64 @@ def get_user_role(user_repo: UserRepository = Provide[Container.user_repo]):
 # if the user has been deleted from the database).
 @jwt.user_lookup_loader
 def user_lookup_callback(_jwt_header, jwt_data):
-    identity = jwt_data["sub"]
-    user = Users.query.filter_by(Id=identity).one_or_none()
-    return user
+    identity = jwt_data["sub"] or {}
+    user_type = identity.get("type")
+    user_id = identity.get("id")
+    if user_type == "admin":
+        return AdminUsers.query.filter_by(Id=user_id).one_or_none()
+    if user_type == "student":
+        return StudentUsers.query.filter_by(Id=user_id).one_or_none()
+    return None
 
 
-@auth_api.route('/login', methods=['POST'])
+@auth_api.route('/admin/login', methods=['POST'])
 @inject
-def auth(auth_service: PAMAuthenticationService = Provide[Container.auth_service], user_repo: UserRepository = Provide[Container.user_repo]):
+def admin_login(user_repo: UserRepository = Provide[Container.user_repo]):
     input_json = request.get_json()
-    email = get_value_or_empty(input_json, 'email')
+    email = get_value_or_empty(input_json, 'email').strip().lower()
     password = get_value_or_empty(input_json, 'password')
 
-    if(user_repo.can_user_login(email) >= current_app.config['MAX_FAILED_LOGINS']):
-        user_repo.lock_user_account(email)
-        message = {
-            'message': 'Your account has been locked! Please contact an administrator!'
-        }
-        return make_response(message, HTTPStatus.FORBIDDEN)
+    if user_repo.can_admin_login(email) >= current_app.config['MAX_FAILED_LOGINS']:
+        user_repo.lock_admin_account(email)
+        return make_response({'message': 'Your account has been locked! Please contact an administrator!'}, HTTPStatus.FORBIDDEN)
 
-    exist = user_repo.does_email_exist(email)
+    admin = user_repo.get_admin_by_email(email)
+    if not admin:
+        return make_response({'message': 'No teacher account found for that email.'}, HTTPStatus.NOT_FOUND)
 
-    if not exist:
-        message = {
-            'message': 'No account found for that email.'
-        }
-        return make_response(message, HTTPStatus.NOT_FOUND)
+    if not check_password_hash(admin.PasswordHash or "", password):
+        user_repo.send_admin_attempt_data(email, request.remote_addr, datetime.now())
+        return make_response({'message': 'Invalid email and/or password! Please try again!'}, HTTPStatus.FORBIDDEN)
 
-    user = user_repo.get_user_by_email(email)
+    user_repo.clear_admin_failed_attempts(email)
+    access_token = create_access_token(identity=admin)
+    return make_response({'message': 'Success', 'access_token': access_token, 'role': 1}, HTTPStatus.OK)
 
-    # Prefer local password if present; otherwise fall back to external auth for legacy accounts
-    has_local_password = getattr(user, "PasswordHash", None) is not None and getattr(user, "PasswordHash", "") != ""
 
-    auth_ok = False
-    if has_local_password:
-        auth_ok = check_password_hash(user.PasswordHash, password)
-    else:
-        auth_ok = auth_service.login(email, password)
+@auth_api.route('/student/login', methods=['POST'])
+@inject
+def student_login(user_repo: UserRepository = Provide[Container.user_repo]):
+    input_json = request.get_json()
+    email = get_value_or_empty(input_json, 'email').strip().lower()
+    password = get_value_or_empty(input_json, 'password')
 
-    if not auth_ok:
-        ipadr = request.remote_addr
-        now = datetime.now()
-        dt_string = now.strftime("%Y/%m/%d %H:%M:%S")
-        user_repo.send_attempt_data(email, ipadr, dt_string)
-        message = {
-            'message': 'Invalid username and/or password!  Please try again!'
-        }
-        return make_response(message, HTTPStatus.FORBIDDEN)
+    email_hash = hashlib.sha256(email.encode("utf-8")).hexdigest()
 
-    role = user.Role
+    if user_repo.can_student_login(email_hash) >= current_app.config['MAX_FAILED_LOGINS']:
+        user_repo.lock_student_account(email_hash)
+        return make_response({'message': 'Your account has been locked! Please contact an administrator!'}, HTTPStatus.FORBIDDEN)
 
-    user_repo.clear_failed_attempts(email)
-    access_token = create_access_token(identity=user)
-    message = {
-        'message': 'Success',
-        'access_token': access_token,
-        'role': role
-    }
-    return make_response(message, HTTPStatus.OK)
+    student = user_repo.get_student_by_emailhash(email_hash)
+    if not student:
+        return make_response({'message': 'No student account found for that email.'}, HTTPStatus.NOT_FOUND)
+
+    if not check_password_hash(student.PasswordHash or "", password):
+        user_repo.send_student_attempt_data(email_hash, request.remote_addr, datetime.now())
+        return make_response({'message': 'Invalid email and/or password! Please try again!'}, HTTPStatus.FORBIDDEN)
+
+    user_repo.clear_student_failed_attempts(email_hash)
+    access_token = create_access_token(identity=student)
+    return make_response({'message': 'Success', 'access_token': access_token, 'role': 0}, HTTPStatus.OK)
 
 @auth_api.route('/register', methods=['POST'])
 @inject
@@ -114,107 +118,55 @@ def register_user(user_repo: UserRepository = Provide[Container.user_repo]):
         message = {'message': 'Missing required data. All fields are required.'}
         return make_response(message, HTTPStatus.NOT_ACCEPTABLE)
 
-    if user_repo.does_email_exist(email):
-        message = {'message': 'User already exists'}
+    if user_repo.does_admin_email_exist(email):
+        message = {'message': 'Teacher already exists'}
         return make_response(message, HTTPStatus.NOT_ACCEPTABLE)
 
     password_hash = generate_password_hash(password)  # PBKDF2 by default in Werkzeug
 
-    # You must update user_repo.create_user(...) to accept the new fields
-    user_repo.create_user(email, first_name, last_name, school, password_hash)
+    # Create school first, then the admin user, then bind TeacherID on the school
+    school_obj = user_repo.create_school(school)
+    admin = user_repo.create_admin_user(email, first_name, last_name, school_obj.Id, password_hash)
+    user_repo.set_school_teacher(school_obj.Id, admin.Id)
 
-    user = user_repo.get_user_by_email(email)
-    access_token = create_access_token(identity=user)
-
-    message = {
-        'message': 'Success',
-        'access_token': access_token,
-        'role': 0
-    }
-    return make_response(message, HTTPStatus.OK)
-
-@auth_api.route('/create', methods=['POST'])
-@inject
-def create_user(auth_service: PAMAuthenticationService = Provide[Container.auth_service], user_repo: UserRepository = Provide[Container.user_repo], class_repo: ClassRepository = Provide[Container.class_repo]):
-    input_json = request.get_json()
-    email = get_value_or_empty(input_json, 'email')
-    password = get_value_or_empty(input_json, 'password')
-
-    if user_repo.does_email_exist(email):
-        message = {
-            'message': 'User already exists'
-        }
-        return make_response(message, HTTPStatus.NOT_ACCEPTABLE)
-
-    if not auth_service.login(email, password):
-        message = {
-            'message': 'Invalid username and/or password!  Please try again!'
-        }
-        return make_response(message, HTTPStatus.FORBIDDEN)
-
-
-    first_name = get_value_or_empty(input_json, 'fname')
-    last_name = get_value_or_empty(input_json, 'lname')
-    school = get_value_or_empty(input_json, 'school') or 'Unknown'
-    email = get_value_or_empty(input_json, 'email')
-    class_id = get_value_or_empty(input_json, 'class_id')
-    lab_id= get_value_or_empty(input_json, 'lab_id')
-    lecture_id = get_value_or_empty(input_json, 'lecture_id')
-
-    if not (first_name and last_name and email and class_id and lab_id and lecture_id):
-        message = {
-            'message': 'Missing required data.  All fields are required'
-        }
-        return make_response(message, HTTPStatus.NOT_ACCEPTABLE)
-
-    if int(class_id) == -1 or int(lab_id) == -1 or int(lecture_id) == -1:
-        message = {
-            'message': 'Please fill in valid class data'
-        }
-        return make_response(message, HTTPStatus.NOT_ACCEPTABLE)
-
-    user_repo.create_user(email, first_name, last_name, school, None)
-
-    user = user_repo.get_user_by_email(email)
-    
-    #Create ClassAssignment
-    class_repo.create_assignments(int(class_id), int(lab_id), int(user.Id), int(lecture_id))
-
-    access_token = create_access_token(identity=user)
+    access_token = create_access_token(identity=admin)
 
     message = {
         'message': 'Success',
         'access_token': access_token,
-        'role': 0
+        'role': 1
     }
     return make_response(message, HTTPStatus.OK)
 
-
-
-
-#TODO: Remove? Called in NewUserModal...but why?
-@auth_api.route('/create_newclass', methods=['POST'])
+@auth_api.route('/student/create', methods=['POST'])
 @jwt_required()
 @inject
-def add_class(auth_service: PAMAuthenticationService = Provide[Container.auth_service], user_repo: UserRepository = Provide[Container.user_repo], class_repo: ClassRepository = Provide[Container.class_repo]):
+def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]):
+    # Must be called by an admin (teacher)
+    if not isinstance(current_user, AdminUsers):
+        return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
     input_json = request.get_json()
-    class_name = get_value_or_empty(input_json, 'classid')
-    lab_name = get_value_or_empty(input_json, 'labid')
-    lecture_name = get_value_or_empty(input_json, 'lectureid')
-    class_id = class_repo.get_class_id(class_name)
-    lab_id = class_repo.get_lab_id_withName(lab_name)
-    lecture_Id = class_repo.get_lecture_id_withName(lecture_name)
-    user_id = current_user.Id
+    email = get_value_or_empty(input_json, 'email').strip().lower()
+    password = get_value_or_empty(input_json, 'password')
+    team_id = int(get_value_or_empty(input_json, 'team_id') or 0)
+    member_id = int(get_value_or_empty(input_json, 'member_id') or 0)
 
-    user = user_repo.get_user_by_id(user_id)
-    #Create ClassAssignment
-    class_repo.add_class_assignment(class_id, int(lab_id), int(user.Id), int(lecture_Id))
+    if not (email and password):
+        return make_response({'message': 'Missing required data. Email and password are required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
-    access_token = create_access_token(identity=user)
+    email_hash = hashlib.sha256(email.encode("utf-8")).hexdigest()
+    if user_repo.does_student_emailhash_exist(email_hash):
+        return make_response({'message': 'Student already exists'}, HTTPStatus.NOT_ACCEPTABLE)
 
-    message = {
-        'message': 'Success',
-        'access_token': access_token,
-        'role': 0
-    }
-    return make_response(message, HTTPStatus.OK)
+    password_hash = generate_password_hash(password)
+    student = user_repo.create_student_user(
+        email_hash=email_hash,
+        teacher_id=current_user.Id,
+        school_id=current_user.SchoolId,
+        team_id=team_id,
+        member_id=member_id,
+        password_hash=password_hash,
+    )
+
+    return make_response({'message': 'Success', 'student_id': student.Id}, HTTPStatus.OK)

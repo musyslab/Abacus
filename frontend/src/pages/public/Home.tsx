@@ -1,11 +1,11 @@
-import React, {Component} from "react";
+import React, { Component } from "react";
 import { Link } from "react-router-dom";
 import { Helmet } from "react-helmet";
 
 import "../../styling/Home.scss";
-import img from "../../images/acmmu.png";
 
-import { FaGithub, FaInstagram, FaSignInAlt } from "react-icons/fa";
+import { FaGithub, FaInstagram } from "react-icons/fa";
+import MenuComponent from "../components/MenuComponent";
 
 class Home extends Component {
 
@@ -15,8 +15,8 @@ class Home extends Component {
         // References for sections
         const heroRef = React.createRef<HTMLElement>()
         const aboutRef = React.createRef<HTMLElement>()
-        const abacusRef =  React.createRef<HTMLElement>()
-        const footerRef =  React.createRef<HTMLElement>()
+        const abacusRef = React.createRef<HTMLElement>()
+        const footerRef = React.createRef<HTMLElement>()
 
         // Scroll to section helper
         const scrollToSection = (section: HTMLElement) => {
@@ -30,51 +30,38 @@ class Home extends Component {
                     <title>Abacus</title>
                 </Helmet>
 
-                <nav className="nav-bar">
-                    <div className="nav-container">
-                        <div className="nav-logo"
-                            onClick={() => (heroRef.current !== null ? scrollToSection(heroRef.current) : null)}
-                        >
-                            <img className="nav-img" src={img} alt="ACM logo" />
-                        </div>
-                        <div className="nav-item nav-head"
-                            onClick={() => (aboutRef.current !== null ? scrollToSection(aboutRef.current) : null)}
-                        >
-                            About
-                        </div>
-                        <div className="nav-item"
-                            onClick={() => (abacusRef.current !== null ? scrollToSection(abacusRef.current) : null)}
-                        >
-                            Abacus
-                        </div>
-                        <div className="nav-item"
-                            onClick={() => (footerRef.current !== null ? scrollToSection(footerRef.current) : null)}
-                        >
-                            Contact
-                        </div>
-
-                        <div className="nav-right">
-                            <Link to="/login" className="nav-item">
-                                <FaSignInAlt className="nav-icon" aria-hidden="true" />
-                                Log In
-                            </Link>
-                        </div>
-                    </div>
-                </nav>
+                <MenuComponent
+                    showUpload={false}
+                    showAdminUpload={false}
+                    showHelp={false}
+                    showCreate={false}
+                    showReviewButton={false}
+                    showLast={false}
+                    variant="home"
+                    onScrollToSection={(key) => {
+                        if (key === "hero" && heroRef.current) scrollToSection(heroRef.current)
+                        if (key === "about" && aboutRef.current) scrollToSection(aboutRef.current)
+                        if (key === "abacus" && abacusRef.current) scrollToSection(abacusRef.current)
+                        if (key === "contact" && footerRef.current) scrollToSection(footerRef.current)
+                    }}
+                />
 
                 <section className="sec sec-hero" ref={heroRef}>
                     <h1 className="hero-title">{year} Wisconsin Dairy-land Programming Competition</h1>
                     <p className="hero-subtitle">
                         A team-based high school competition with multiple divisions and automatic grading through Abacus.
-                        <br/>
+                        <br />
                         Hosted by CSTA Wisconsin-Dairyland and Marquette University ACM and UPE.
                     </p>
                     <div className="action-btns">
                         <Link to="/register" className="register-btn home-btn">
                             Register Your School
                         </Link>
-                        <Link to="/login" className="login-btn home-btn">
-                            Log In
+                        <Link to="/teacher-login" className="login-btn home-btn">
+                            Teacher Login
+                        </Link>
+                        <Link to="/student-login" className="login-btn home-btn">
+                            Student Login
                         </Link>
                     </div>
                 </section>
@@ -82,45 +69,45 @@ class Home extends Component {
                     <h2 className="sec-title">About the Competition</h2>
                     <p className="sec-text">
                         The competition supports both in-person and virtual participation, making it easy for schools to take part regardless of location.
-                            Teachers can register teams, manage participation, and focus on supporting their students while the competition infrastructure 
-                            handles submissions and evaluation. After the competition teachers receive student submission reports to help guide future learning.
+                        Teachers can register teams, manage participation, and focus on supporting their students while the competition infrastructure
+                        handles submissions and evaluation. After the competition teachers receive student submission reports to help guide future learning.
                     </p>
                     <p className="sec-text">
                         The competition is offered in two divisions:
                     </p>
                     <div className="sec-subtitle"><span className="blue-div">Blue Division</span> &#8212; Java & Python</div>
-                        <p className="sec-text">
-                            A traditional, team-based programming competition modeled after the ACM International Collegiate Programming Contest. Teams of three or 
-                            four students have three hours to collaboratively solve problems similar in scope to AP Computer Science exam questions. 
-                            Points are awarded based on the number of problems correctly solved and the time taken, with appropriate penalties for incorrect submissions.
-                        </p>
-                        <p className="sec-text">
-                            The ACM International Collegiate Programming Contest is an algorithmic programming competition for college students in which teams of 
-                            three solve real-world problems under time pressure. It emphasizes collaboration, creativity, innovation, and performance under pressure, 
-                            and is widely recognized as the oldest, largest, and most prestigious programming contest in the world.
-                        </p>
+                    <p className="sec-text">
+                        A traditional, team-based programming competition modeled after the ACM International Collegiate Programming Contest. Teams of three or
+                        four students have three hours to collaboratively solve problems similar in scope to AP Computer Science exam questions.
+                        Points are awarded based on the number of problems correctly solved and the time taken, with appropriate penalties for incorrect submissions.
+                    </p>
+                    <p className="sec-text">
+                        The ACM International Collegiate Programming Contest is an algorithmic programming competition for college students in which teams of
+                        three solve real-world problems under time pressure. It emphasizes collaboration, creativity, innovation, and performance under pressure,
+                        and is widely recognized as the oldest, largest, and most prestigious programming contest in the world.
+                    </p>
                     <div className="sec-subtitle"><span className="gold-div">Gold Division</span> &#8212; Scratch</div>
-                        <p className="sec-text">
-                            A team-based programming competition for high school students who are beginning their programming education. 
-                            Teams of two or three students have three hours to collaboratively solve problems focused on logic, mathematics, and creativity. 
-                            Points are awarded based on the number of problems correctly solved and original creative ideas, with penalties for incorrect submissions or academic dishonesty.
-                        </p>
-                        <p className="sec-text">
-                            All problems are written using Scratch, an event-driven, block-based visual programming language developed at the MIT 
-                            Media Lab at the Massachusetts Institute of Technology.
-                        </p>
+                    <p className="sec-text">
+                        A team-based programming competition for high school students who are beginning their programming education.
+                        Teams of two or three students have three hours to collaboratively solve problems focused on logic, mathematics, and creativity.
+                        Points are awarded based on the number of problems correctly solved and original creative ideas, with penalties for incorrect submissions or academic dishonesty.
+                    </p>
+                    <p className="sec-text">
+                        All problems are written using Scratch, an event-driven, block-based visual programming language developed at the MIT
+                        Media Lab at the Massachusetts Institute of Technology.
+                    </p>
                     <div className="sec-subtitle">Logistics</div>
-                        <div className="sec-text"><span className="bold">Date:</span> Wednesday, April 15th, {year}</div>
-                        <div className="sec-text"><span className="bold">Location:</span> TBD</div>
-                        <div className="sec-text"><span className="bold">Schedule:</span>
-                            <ul className="sec-list">
-                                <li className="sec-text">8:00 - 8:30 AM &#8212; Check-in and Setup</li>
-                                <li className="sec-text">8:30 - 9:00 AM &#8212; Practice Problems</li>
-                                <li className="sec-text">9:00 AM - 12:00 PM &#8212; Competition</li>
-                                <li className="sec-text">12:15 - 1:00 PM &#8212; Lunch Break</li>
-                                <li className="sec-text">1:00 - 2:00 PM &#8212; Awards Ceremony</li>
-                            </ul>
-                        </div>
+                    <div className="sec-text"><span className="bold">Date:</span> Wednesday, April 15th, {year}</div>
+                    <div className="sec-text"><span className="bold">Location:</span> TBD</div>
+                    <div className="sec-text"><span className="bold">Schedule:</span>
+                        <ul className="sec-list">
+                            <li className="sec-text">8:00 - 8:30 AM &#8212; Check-in and Setup</li>
+                            <li className="sec-text">8:30 - 9:00 AM &#8212; Practice Problems</li>
+                            <li className="sec-text">9:00 AM - 12:00 PM &#8212; Competition</li>
+                            <li className="sec-text">12:15 - 1:00 PM &#8212; Lunch Break</li>
+                            <li className="sec-text">1:00 - 2:00 PM &#8212; Awards Ceremony</li>
+                        </ul>
+                    </div>
                 </section>
                 <section className="sec" ref={abacusRef}>
                     <div className="sec-title">Abacus</div>
@@ -141,10 +128,10 @@ class Home extends Component {
                             <div className="footer-title">Follow Us</div>
                             <div className="footer-icons">
                                 <a className="footer-icon" href="https://github.com/musyslab/Abacus">
-                                    <FaGithub/>
+                                    <FaGithub />
                                 </a>
                                 <a className="footer-icon" href="https://www.instagram.com/acm_mu/">
-                                    <FaInstagram/>
+                                    <FaInstagram />
                                 </a>
                             </div>
                         </div>

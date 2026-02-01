@@ -12,10 +12,10 @@ from src.upload import upload_api
 from src.submission import submission_api
 from src.projects import projects_api
 from src.ai_suggestions import ai_api
-from src.classes import class_api
+from src.schools import school_api
 from src.error import error_api
 from src.jwt_manager import jwt
-from src import classes, auth, projects, submission, upload, ai_suggestions
+from src import schools, auth, projects, submission, upload, ai_suggestions
 from src.services import timeout_service
 import os
 
@@ -23,7 +23,7 @@ def create_app():
     app = Flask(__name__)
     container = Container()
     app.container = container
-    container.wire(modules=[classes, auth, projects, submission, upload, ai_suggestions, timeout_service])
+    container.wire(modules=[schools, auth, projects, submission, upload, ai_suggestions, timeout_service])
     
     TEACHER_DIR = "/tabot-files/project-files/teacher-files"
     STUDENT_DIR = "/tabot-files/project-files/student-files"
@@ -54,7 +54,7 @@ def create_app():
     app.register_blueprint(submission_api, url_prefix='/api/submissions')
     app.register_blueprint(projects_api,url_prefix='/api/projects')  
     app.register_blueprint(ai_api, url_prefix='/api/ai')
-    app.register_blueprint(class_api,url_prefix='/api/class')
+    app.register_blueprint(school_api, url_prefix='/api/schools')
     app.register_blueprint(error_api,url_prefix='/api/error')
     
     # Initialize extensions

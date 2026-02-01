@@ -15,7 +15,6 @@ import sys
 import requests
 
 from subprocess import Popen
-from src.repositories.class_repository import ClassRepository
 from src.repositories.user_repository import UserRepository
 from src.repositories.submission_repository import SubmissionRepository
 from flask import Blueprint, Response, send_file, current_app
@@ -918,7 +917,11 @@ def getAssignmentDescription(project_repo: ProjectRepository = Provide[Container
 @projects_api.route('/ProjectGrading', methods=['POST'])
 @jwt_required()
 @inject
-def ProjectGrading(submission_repo: SubmissionRepository = Provide[Container.submission_repo], project_repo: ProjectRepository = Provide[Container.project_repo], class_repo: ClassRepository = Provide[Container.class_repo], user_repo: UserRepository = Provide[Container.user_repo]):
+def ProjectGrading(
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo],
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
     if current_user.Role != ADMIN_ROLE:
         message = {
             'message': 'You do not have permission to do this!'

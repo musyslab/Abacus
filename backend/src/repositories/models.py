@@ -10,7 +10,7 @@ from src.repositories.database import db
 class Projects(db.Model):
     __tablename__ = "Projects"
     Id = Column(Integer, primary_key=True, autoincrement=True)
-    ClassId = Column(Integer, ForeignKey('Classes.Id'))
+    SchoolId = Column(Integer, ForeignKey('Schools.Id'))
     Name = Column(String)
     Start = Column(Date)
     End = Column(Date)
@@ -22,21 +22,6 @@ class Projects(db.Model):
     AsnDescriptionPath = Column(String)
     AdditionalFilePath = Column(String)
 
-class Users(db.Model):
-    __tablename__ = "Users"
-    Id = Column(Integer, primary_key=True, autoincrement=True)
-    Firstname = Column(String)
-    Lastname = Column(String)
-    Email = Column(String(256), unique=True, nullable=False)
-    School = Column(String)
-    PasswordHash = Column(String)
-    Role = Column(Integer)
-    IsLocked = Column(Boolean)
-    Submissions=relationship('Submissions')
-    ClassAssignments=relationship('ClassAssignments')
-    LoginAttempts=relationship('LoginAttempts')
-    StudentUnlocks=relationship('StudentUnlocks') 
-
 class Submissions(db.Model):
     __tablename__ = "Submissions"
     Id = Column(Integer, primary_key=True)
@@ -44,7 +29,7 @@ class Submissions(db.Model):
     CodeFilepath = Column(String)
     IsPassing = Column(Boolean)
     Time = Column(Date)
-    User = Column(Integer, ForeignKey('Users.Id'))
+    User = Column(Integer, ForeignKey('StudentUsers.Id'))
     Project = Column(Integer, ForeignKey('Projects.Id'))
     TestCaseResults=Column(String)
 
@@ -53,38 +38,11 @@ class LoginAttempts(db.Model):
     Id = Column(Integer, primary_key=True)
     Time = Column(Date)
     IPAddress = Column(String)
-    Email = Column(String(256), ForeignKey('Users.Email'), nullable=False)
-
-class Classes(db.Model):
-    __tablename__ = "Classes"
-    Id = Column(Integer, primary_key=True)
-    Name = Column(String)
-    Tid = Column(String)
-
-class Labs(db.Model):
-    __tablename__ = "Labs"
-    Id = Column(Integer, primary_key=True)
-    Name = Column(String)
-    ClassId = Column(Integer, ForeignKey('Classes.Id'))
-    ClassAssignments=relationship('ClassAssignments')
-
-class LectureSections(db.Model):
-    __tablename__ = "LectureSections"
-    Id = Column(Integer, primary_key=True)
-    Name = Column(String)
-    ClassId = Column(Integer, ForeignKey('Classes.Id'), primary_key=True)
-    ClassAssignments=relationship('ClassAssignments')
-
-class ClassAssignments(db.Model):
-    __tablename__ = "ClassAssignments"
-    UserId = Column(Integer, ForeignKey('Users.Id'), primary_key=True)
-    ClassId = Column(Integer, ForeignKey('Classes.Id'), primary_key=True)
-    LabId = Column(Integer, ForeignKey('Labs.Id'))
-    LectureId = Column(Integer, ForeignKey('LectureSections.Id'))
+    Email = Column(String(256), nullable=False)
 
 class StudentUnlocks(db.Model):
     __tablename__ = "StudentUnlocks"
-    UserId = Column(Integer, ForeignKey('Users.Id'), primary_key=True)
+    UserId = Column(Integer, ForeignKey('StudentUsers.Id'), primary_key=True)
     ProjectId = Column(Integer, ForeignKey('Projects.Id'), primary_key=True)
     Time = Column(DateTime)
 
@@ -104,7 +62,7 @@ class OHVisits(db.Model):
     StudentQuestionscol = Column(String)
     ruling = Column(Integer)
     dismissed = Column(Integer)
-    StudentId = Column(Integer, ForeignKey('Users.Id'))
+    StudentId = Column(Integer, ForeignKey('StudentUsers.Id'))
     TimeSubmitted = Column(DateTime)
     projectId = Column(Integer, ForeignKey('Projects.Id'))
     TimeAccepted = Column(DateTime)
@@ -112,7 +70,7 @@ class OHVisits(db.Model):
 
 class StudentGrades(db.Model):
     __tablename__ = "StudentGrades"
-    Sid = Column(Integer, ForeignKey('Users.Id'), primary_key=True)
+    Sid = Column(Integer, ForeignKey('StudentUsers.Id'), primary_key=True)
     Pid = Column(Integer, ForeignKey('Projects.Id'), primary_key=True)
     Grade = Column(Integer)
     SubmissionId = Column(Integer, ForeignKey('Submissions.Id'))
@@ -157,3 +115,31 @@ class SubmissionManualErrors(db.Model):
     ErrorId = Column(String(80))
     Count = Column(Integer)
     Note = Column(String(2000))
+
+class Schools(db.Model):
+    __tablename__ = "Schools"
+    Id = Column(Integer, primary_key=True, autoincrement=True)
+    Name = Column(String(256), nullable=False, unique=True)
+    TeacherID = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=True)
+
+class AdminUsers(db.Model):
+    __tablename__ = "AdminUsers"
+    Id = Column(Integer, primary_key=True, autoincrement=True)
+    Firstname = Column(String)
+    Lastname = Column(String)
+    Email = Column(String(256), unique=True, nullable=False)
+    SchoolId = Column(Integer, ForeignKey('Schools.Id'), nullable=False)
+    PasswordHash = Column(String(255))
+    IsLocked = Column(Boolean, default=False)
+
+class StudentUsers(db.Model):
+    __tablename__ = "StudentUsers"
+    Id = Column(Integer, primary_key=True, autoincrement=True)
+    EmailHash = Column(String(64), unique=True, nullable=False)  # sha256 hex
+    TeacherId = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=False)
+    SchoolId = Column(Integer, ForeignKey('Schools.Id'), nullable=False)
+    TeamId = Column(Integer, nullable=True)
+    MemberId = Column(Integer, nullable=True)
+    PasswordHash = Column(String(255))
+    IsLocked = Column(Boolean, default=False)
+
