@@ -93,10 +93,21 @@ class MenuComponent extends Component<MenuComponentProps> {
 
                             <div className="menu__right">
                                 {loggedIn ? (
-                                    <button type="button" className="menu__item" onClick={this.handleRoleHome}>
-                                        <FaHome className="menu__icon" aria-hidden="true" />
-                                        <span className="menu__text">Go to dashboard</span>
-                                    </button>
+                                    <>
+                                        <button type="button" className="menu__item" onClick={this.handleRoleHome}>
+                                            <FaHome className="menu__icon" aria-hidden="true" />
+                                            <span className="menu__text">Go to dashboard</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="menu__item menu__item--link menu__logout"
+                                            onClick={this.handleLogout}
+                                            title="Log Out"
+                                        >
+                                            <FaSignOutAlt className="menu__icon" aria-hidden="true" />
+                                            <span className="menu__text">Log Out</span>
+                                        </button>
+                                    </>
                                 ) : (
                                     <>
                                         <Link className="menu__item" to="/teacher-login">
