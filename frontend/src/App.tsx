@@ -18,7 +18,6 @@ import StudentClassSelection from './pages/student/StudentClassSelection';
 import StudentOfficeHours from './pages/student/StudentOfficeHours';
 import StudentPastSubmissions from "./pages/student/StudentPastSubmissions";
 
-import AdminClassSelection from './pages/admin/AdminClassSelection';
 import AdminGrading from './pages/admin/AdminGrading';
 import AdminOfficeHours from './pages/admin/AdminOfficeHours';
 import AdminPlagiarism from "./pages/admin/AdminPlagiarism";

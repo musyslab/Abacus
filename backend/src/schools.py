@@ -7,6 +7,17 @@ from src.repositories.school_repository import SchoolRepository
 
 school_api = Blueprint("school_api", __name__)
 
+@school_api.route("/public/all", methods=["GET"])
+@inject
+def public_get_schools(
+    school_repo: SchoolRepository = Provide[Container.school_repo],
+):
+    """
+    Public endpoint: lists all schools for the registration flow.
+    Returns: [{"id": <id>, "name": "<school name>"}]
+    """
+    schools = school_repo.get_all_schools()
+    return jsonify([{"id": s.Id, "name": s.Name} for s in schools])
 
 @school_api.route("/all", methods=["GET"])
 @jwt_required()
