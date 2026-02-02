@@ -672,15 +672,6 @@ export default function AdminTeamManage() {
                                                                 </span>
                                                             ) : null}
 
-                                                            {saved ? (
-                                                                <span
-                                                                    className={`badge ${invite.sentCount > 0 ? "badge--success" : "badge--warning"
-                                                                        }`}
-                                                                >
-                                                                    {invite.sentCount > 0 ? "Invite sent" : "Invite not sent"}
-                                                                </span>
-                                                            ) : null}
-
                                                             {invite.openedAt ? (
                                                                 <span className="badge badge--muted">{openedLabel}</span>
                                                             ) : null}
