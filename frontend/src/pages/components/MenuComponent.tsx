@@ -22,9 +22,34 @@ interface MenuComponentProps {
     onScrollToSection?: (key: "hero" | "about" | "abacus" | "contact") => void;
 }
 
-class MenuComponent extends Component<MenuComponentProps> {
+type DashboardInfo = {
+    label: string;
+    path: string;
+};
+
+interface MenuComponentState {
+    dashboardLabel: string;
+    dashboardPath: string;
+    isRoleLoaded: boolean;
+}
+
+class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
+    constructor(props: MenuComponentProps) {
+        super(props);
+        this.state = {
+            dashboardLabel: "Dashboard",
+            dashboardPath: "/home",
+            isRoleLoaded: false,
+        };
+    }
 
     isLoggedIn = () => localStorage.getItem("AUTOTA_AUTH_TOKEN") !== null;
+
+    componentDidMount() {
+        if (this.isLoggedIn()) {
+            this.fetchDashboardRoute();
+        }
+    }
 
     goHome = () => {
         window.location.replace("/home");
@@ -36,19 +61,54 @@ class MenuComponent extends Component<MenuComponentProps> {
         window.location.replace("/home");
     };
 
-    // Role-based routing when logged in
-    handleRoleHome = () => {
-        axios
-            .get(`${import.meta.env.VITE_API_URL}/auth/get-role`, {
+    fetchDashboardRoute = async (): Promise<DashboardInfo> => {
+        try {
+            const res = await axios.get(`${import.meta.env.VITE_API_URL}/auth/get-role`, {
                 headers: {
                     Authorization: `Bearer ${localStorage.getItem("AUTOTA_AUTH_TOKEN")}`,
                 },
-            })
-            .then((res) => {
-                const role = Number(res.data?.role);
-                const path = role === 1 ? "/admin/team-manage" : "/student/classes";
-                window.location.replace(path);
-            })
+            });
+
+            const status = String(res.data?.status || "");
+            const role = Number(res.data?.role);
+
+            // Students
+            if (status === "student") {
+                const info = { label: "Submit Projects", path: "/student/classes" };
+                this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
+                return info;
+            }
+
+            // AdminUsers: Role 0 = teacher, Role 1 = admin
+            if (status === "admin") {
+                const isAdmin = role === 1;
+                const info = isAdmin
+                    ? { label: "Teacher List", path: "/admin/teachers" }
+                    : { label: "Team Manage", path: "/admin/team-manage" };
+
+                this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
+                return info;
+            }
+
+            const fallback = { label: "Dashboard", path: "/home" };
+            this.setState({ dashboardLabel: fallback.label, dashboardPath: fallback.path, isRoleLoaded: true });
+            return fallback;
+        } catch {
+            const fallback = { label: "Dashboard", path: "/home" };
+            this.setState({ dashboardLabel: fallback.label, dashboardPath: fallback.path, isRoleLoaded: true });
+            return fallback;
+        }
+    };
+
+    // Role-based routing when logged in
+    handleRoleHome = () => {
+        if (this.state.isRoleLoaded) {
+            window.location.replace(this.state.dashboardPath);
+            return;
+        }
+
+        this.fetchDashboardRoute()
+            .then((info) => window.location.replace(info.path))
             .catch(() => window.location.replace("/home"));
     };
 
@@ -81,13 +141,25 @@ class MenuComponent extends Component<MenuComponentProps> {
                                 <img className="menu__brandImg" src={abacusLogo} alt="Abacus logo" />
                             </button>
 
-                            <button type="button" className="menu__item" onClick={() => this.props.onScrollToSection?.("about")}>
+                            <button
+                                type="button"
+                                className="menu__item"
+                                onClick={() => this.props.onScrollToSection?.("about")}
+                            >
                                 About
                             </button>
-                            <button type="button" className="menu__item" onClick={() => this.props.onScrollToSection?.("abacus")}>
+                            <button
+                                type="button"
+                                className="menu__item"
+                                onClick={() => this.props.onScrollToSection?.("abacus")}
+                            >
                                 Abacus
                             </button>
-                            <button type="button" className="menu__item" onClick={() => this.props.onScrollToSection?.("contact")}>
+                            <button
+                                type="button"
+                                className="menu__item"
+                                onClick={() => this.props.onScrollToSection?.("contact")}
+                            >
                                 Contact
                             </button>
 
@@ -96,7 +168,7 @@ class MenuComponent extends Component<MenuComponentProps> {
                                     <>
                                         <button type="button" className="menu__item" onClick={this.handleRoleHome}>
                                             <FaHome className="menu__icon" aria-hidden="true" />
-                                            <span className="menu__text">Go to dashboard</span>
+                                            <span className="menu__text">{this.state.dashboardLabel}</span>
                                         </button>
                                         <button
                                             type="button"
@@ -128,15 +200,25 @@ class MenuComponent extends Component<MenuComponentProps> {
                                 <img className="menu__brandImg" src={abacusLogo} alt="Abacus logo" />
                             </Link>
 
-
                             <div className="menu__spacer" />
 
                             <div className="menu__right">
                                 {loggedIn ? (
-                                    <button type="button" className="menu__item" onClick={this.handleRoleHome}>
-                                        <FaHome className="menu__icon" aria-hidden="true" />
-                                        <span className="menu__text">Go to dashboard</span>
-                                    </button>
+                                    <>
+                                        <button type="button" className="menu__item" onClick={this.handleRoleHome}>
+                                            <FaHome className="menu__icon" aria-hidden="true" />
+                                            <span className="menu__text">{this.state.dashboardLabel}</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="menu__item menu__item--link menu__logout"
+                                            onClick={this.handleLogout}
+                                            title="Log Out"
+                                        >
+                                            <FaSignOutAlt className="menu__icon" aria-hidden="true" />
+                                            <span className="menu__text">Log Out</span>
+                                        </button>
+                                    </>
                                 ) : (
                                     <>
                                         <Link className="menu__item" to="/teacher-login">
@@ -159,7 +241,11 @@ class MenuComponent extends Component<MenuComponentProps> {
                                 onClick={this.goHome}
                                 aria-label="Home"
                             >
-                                <img className="menu__brandImg menu__brandImg--inline" src={abacusLogo} alt="Abacus logo" />
+                                <img
+                                    className="menu__brandImg menu__brandImg--inline"
+                                    src={abacusLogo}
+                                    alt="Abacus logo"
+                                />
                             </button>
 
                             <div className="menu__right">
@@ -170,7 +256,7 @@ class MenuComponent extends Component<MenuComponentProps> {
                                     title="Go to dashboard"
                                 >
                                     <FaHome className="menu__icon" aria-hidden="true" />
-                                    <span className="menu__text">Dashboard</span>
+                                    <span className="menu__text">{this.state.dashboardLabel}</span>
                                 </button>
                                 <button
                                     type="button"
