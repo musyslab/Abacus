@@ -22,7 +22,7 @@ const StudentSubmissions = () => {
         {/* Admin */}
          <DirectoryBreadcrumbs
             items={[
-                { label: 'Teacher List', to:'/admin/teachers' },
+                { label: 'Teacher List', to:'/admin/schools' },
                 { label: 'Student List', to:'/admin/:teacher_id/students' },
                 { label: 'Student Submissions List' },
             ]}
@@ -30,7 +30,7 @@ const StudentSubmissions = () => {
         {/* Judge */}
         <DirectoryBreadcrumbs
             items={[
-                { label: 'Teacher List', to:'/judge/teachers' },
+                { label: 'Teacher List', to:'/judge/schools' },
                 { label: 'Student List', to:'/judge/:teacher_id/students' },
                 { label: 'Student Submissions List' },
 

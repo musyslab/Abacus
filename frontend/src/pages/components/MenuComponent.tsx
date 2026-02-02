@@ -83,7 +83,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
             if (status === "admin") {
                 const isAdmin = role === 1;
                 const info = isAdmin
-                    ? { label: "Teacher List", path: "/admin/teachers" }
+                    ? { label: "School List", path: "/admin/schools" }
                     : { label: "Team Manage", path: "/admin/team-manage" };
 
                 this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });

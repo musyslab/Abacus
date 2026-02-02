@@ -27,7 +27,7 @@ import AdminStudentRoster from './pages/admin/AdminStudentRoster';
 import AdminUpload from './pages/admin/AdminUpload';
 import AdminViewStudentCode from './pages/admin/AdminViewStudentCode';
 
-import TeacherRoster from './pages/abacus/TeacherRoster';
+import AdminSchoolRoster from './pages/abacus/AdminSchoolRoster';
 import StudentRoster from './pages/abacus/StudentRoster';
 import ProblemList from './pages/abacus/ProblemList';
 import ProblemCreate from './pages/abacus/ProblemCreate';
@@ -66,22 +66,22 @@ class App extends Component {
 
                     <Route path="/" element={<LandingPage />} />
                     {/* Start Abacus Routes */}
-                    <Route path="/admin/teachers" element={
+                    <Route path="/admin/schools" element={
                         <ProtectedRoute>
-                            <TeacherRoster />
+                            <AdminSchoolRoster />
                         </ProtectedRoute>
                     } />
-                    <Route path="/admin/:teacher_id/students" element={
+                    <Route path="/admin/:school_id/students" element={
                         <ProtectedRoute>
                             <StudentRoster />
                         </ProtectedRoute>
                     } />
-                    <Route path="/admin/:teacher_id/student/:student_id" element={
+                    <Route path="/admin/:school_id/student/:student_id" element={
                         <ProtectedRoute>
                             <StudentSubmissions />
                         </ProtectedRoute>
                     } />
-                    <Route path="/admin/:teacher_id/student/:student_id/:problem_id/:id" element={
+                    <Route path="/admin/:school_id/student/:student_id/:problem_id/:id" element={
                         <ProtectedRoute>
                             <StudentDiff />
                         </ProtectedRoute>
@@ -97,22 +97,22 @@ class App extends Component {
                         </ProtectedRoute>
                     } />
 
-                    <Route path="/judge/teachers" element={
+                    <Route path="/judge/schools" element={
                         <ProtectedRoute>
-                            <TeacherRoster />
+                            <AdminSchoolRoster />
                         </ProtectedRoute>
                     } />
-                    <Route path="/judge/:teacher_id/students" element={
+                    <Route path="/judge/:school_id/students" element={
                         <ProtectedRoute>
                             <StudentRoster />
                         </ProtectedRoute>
                     } />
-                    <Route path="/judge/:teacher_id/student/:student_id" element={
+                    <Route path="/judge/:school_id/student/:student_id" element={
                         <ProtectedRoute>
                             <StudentSubmissions />
                         </ProtectedRoute>
                     } />
-                    <Route path="/judge/:teacher_id/student/:student_id/:problem_id/:id" element={
+                    <Route path="/judge/:school_id/student/:student_id/:problem_id/:id" element={
                         <ProtectedRoute>
                             <StudentDiff />
                         </ProtectedRoute>

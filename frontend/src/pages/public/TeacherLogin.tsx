@@ -69,7 +69,7 @@ class TeacherLogin extends Component<{}, TeacherLoginPageState> {
 
   render() {
     if (this.state.isLoggedIn) {
-      const redirectPath = this.state.role === 0 ? "/admin/team-manage" : "/admin/teachers";
+      const redirectPath = this.state.role === 0 ? "/admin/team-manage" : "/admin/schools";
       return <Navigate to={redirectPath} replace />;
     }
 

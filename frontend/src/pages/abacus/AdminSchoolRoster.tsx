@@ -4,7 +4,7 @@ import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs"
 import MenuComponent from "../components/MenuComponent"
 import { Helmet } from "react-helmet"
 
-const TeacherRoster = () => {
+const AdminSchoolRoster = () => {
   return (
     <>
         <Helmet>
@@ -22,11 +22,11 @@ const TeacherRoster = () => {
 
         {/* Admin / Judge */}
         <DirectoryBreadcrumbs
-            items={[{ label: 'Teacher List' }]}
+            items={[{ label: 'School List' }]}
             trailingSeparator={true}
         />
     </>
   )
 }
 
-export default TeacherRoster
+export default AdminSchoolRoster

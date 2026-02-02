@@ -27,7 +27,7 @@ const StudentDiff = () => {
         {/* Admin */}
          <DirectoryBreadcrumbs
             items={[
-                { label: 'Teacher List', to:'/admin/teachers' },
+                { label: 'Teacher List', to:'/admin/schools' },
                 { label: 'Student List', to:'/admin/:teacher_id/students' },
                 { label: 'Student Submission List', to:'/admin/:teacher_id/:student_id/student-submissions' },
                 { label: 'Student Diff' },
@@ -36,7 +36,7 @@ const StudentDiff = () => {
         {/* Judge */}
         <DirectoryBreadcrumbs
             items={[
-                { label: 'Teacher List', to:'/judge/teachers' },
+                { label: 'Teacher List', to:'/judge/schools' },
                 { label: 'Student List', to:'/judge/:teacher_id/students' },
                 { label: 'Student Submission List', to:'/judge/:teacher_id/:student_id/student-submissions' },
                 { label: 'Student Diff' },
