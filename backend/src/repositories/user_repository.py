@@ -36,6 +36,7 @@ class UserRepository:
         last_name: str,
         school_id: int,
         password_hash: str,
+        role: int = 0,
     ) -> AdminUsers:
         admin = AdminUsers(
             Firstname=first_name,
@@ -44,6 +45,7 @@ class UserRepository:
             SchoolId=school_id,
             PasswordHash=password_hash,
             IsLocked=False,
+            Role=role,
         )
         db.session.add(admin)
         db.session.commit()

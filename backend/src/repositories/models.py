@@ -131,6 +131,7 @@ class AdminUsers(db.Model):
     SchoolId = Column(Integer, ForeignKey('Schools.Id'), nullable=False)
     PasswordHash = Column(String(255))
     IsLocked = Column(Boolean, default=False)
+    Role = Column(Integer, nullable=False, default=0)
 
 class StudentUsers(db.Model):
     __tablename__ = "StudentUsers"

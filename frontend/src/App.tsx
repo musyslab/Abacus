@@ -24,7 +24,6 @@ import AdminPlagiarism from "./pages/admin/AdminPlagiarism";
 import AdminProjectList from './pages/admin/AdminProjectList';
 import AdminProjectManage from './pages/admin/AdminProjectManage';
 import AdminStudentRoster from './pages/admin/AdminStudentRoster';
-import AdminTeamManage from './pages/admin/AdminTeamManage';
 import AdminUpload from './pages/admin/AdminUpload';
 import AdminViewStudentCode from './pages/admin/AdminViewStudentCode';
 
@@ -35,6 +34,7 @@ import ProblemCreate from './pages/abacus/ProblemCreate';
 import StudentSubmit from './pages/abacus/StudentSubmit';
 import StudentSubmissions from './pages/abacus/StudentSubmissions';
 import StudentDiff from './pages/abacus/StudentDiff';
+import AdminTeamManage from './pages/abacus/AdminTeamManage';
 
 import ProtectedRoute from './pages/components/ProtectedRoute';
 

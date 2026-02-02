@@ -125,7 +125,7 @@ export default function Register() {
       if (res.data.access_token) {
         localStorage.setItem("AUTOTA_AUTH_TOKEN", res.data.access_token);
         const role = res.data.role ?? 0;
-        navigate(role === 0 ? "/student/classes" : "/admin/classes", { replace: true });
+        navigate(role === 0 ? "/admin/team-manage" : "/admin/teachers", { replace: true });
         return;
       }
 

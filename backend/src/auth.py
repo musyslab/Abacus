@@ -127,8 +127,10 @@ def admin_login(user_repo: UserRepository = Provide[Container.user_repo]):
 
     user_repo.clear_admin_failed_attempts(email)
     access_token = create_access_token(identity=admin)
-    return make_response({'message': 'Success', 'access_token': access_token, 'role': 1}, HTTPStatus.OK)
-
+    return make_response(
+        {'message': 'Success', 'access_token': access_token, 'role': int(getattr(admin, "Role", 0) or 0)},
+        HTTPStatus.OK
+    )
 
 @auth_api.route('/student/login', methods=['POST'])
 @inject
@@ -204,14 +206,14 @@ def register_user(user_repo: UserRepository = Provide[Container.user_repo]):
         existing = user_repo.get_school_by_name(school)
         school_obj = existing if existing else user_repo.create_school(school)
 
-    admin = user_repo.create_admin_user(email, first_name, last_name, school_obj.Id, password_hash)
+    admin = user_repo.create_admin_user(email, first_name, last_name, school_obj.Id, password_hash, role=0)
 
     access_token = create_access_token(identity=admin)
 
     message = {
         'message': 'Success',
         'access_token': access_token,
-        'role': 1
+        'role': int(getattr(admin, "Role", 0) or 0)
     }
     return make_response(message, HTTPStatus.OK)
 

@@ -5,7 +5,7 @@ import ErrorBoundary from './ErrorComponent'
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = localStorage.getItem("AUTOTA_AUTH_TOKEN") != null;
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/home" replace />;
   }
   // Optionally, wrap in ErrorBoundary if you want error boundaries for all protected routes:
   return <ErrorBoundary>{children ? children : <Outlet />}</ErrorBoundary>;
