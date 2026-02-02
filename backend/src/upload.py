@@ -18,7 +18,7 @@ from flask_cors import cross_origin
 from src.repositories.submission_repository import SubmissionRepository
 from src.repositories.project_repository import ProjectRepository
 from src.repositories.user_repository import UserRepository
-from src.repositories.class_repository import ClassRepository
+from src.repositories.school_repository import SchoolRepository
 from src.services.timeout_service import on_timeout
 from tap.parser import Parser
 from dependency_injector.wiring import inject, Provide
@@ -66,7 +66,7 @@ def file_upload(
     user_repository: UserRepository = Provide[Container.user_repo],
     submission_repo: SubmissionRepository = Provide[Container.submission_repo],
     project_repo: ProjectRepository = Provide[Container.project_repo],
-    class_repo: ClassRepository = Provide[Container.class_repo]
+    school_repo: SchoolRepository = Provide[Container.school_repo]
 ):
     """[summary]
 
@@ -126,7 +126,7 @@ def file_upload(
             }
             return make_response(message, HTTPStatus.UNSUPPORTED_MEDIA_TYPE)
 
-    classname = class_repo.get_class_name_withId(class_id)
+    schoolname = school_repo.get_school_name_with_id(int(class_id)) if str(class_id).isdigit() else ""
 
     student_base = current_app.config['STUDENT_FILES_DIR']
 

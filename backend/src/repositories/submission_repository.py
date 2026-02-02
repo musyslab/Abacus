@@ -2,10 +2,22 @@ from collections import defaultdict
 import json
 import os
 from src.repositories.database import db
-from .models import StudentGrades, OHVisits, StudentSuggestions, StudentUnlocks, SubmissionChargeRedeptions, SubmissionCharges, Submissions, Projects, Users, SubmissionManualErrors
 from sqlalchemy import desc, and_
 from typing import Dict, List, Tuple
 from datetime import datetime, timedelta
+
+from .models import (
+    StudentGrades,
+    OHVisits,
+    StudentSuggestions,
+    StudentUnlocks,
+    SubmissionChargeRedeptions,
+    SubmissionCharges,
+    Submissions,
+    Projects,
+    StudentUsers,
+    SubmissionManualErrors,
+)
 
 class SubmissionRepository():
 

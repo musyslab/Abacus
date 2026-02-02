@@ -2,6 +2,8 @@ __pycache__/
 
 .env
 
+.env.backend
+
 tabot-files/project-files
 
 frontend/package-lock.json

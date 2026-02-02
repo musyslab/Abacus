@@ -1,151 +1,36 @@
 SET FOREIGN_KEY_CHECKS=0;
 
---
--- Table structure for table `ClassAssignments`
---
-
-DROP TABLE IF EXISTS `ClassAssignments`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `ClassAssignments` (
-  `UserId` int NOT NULL,
-  `ClassId` int NOT NULL,
-  `LabId` int NOT NULL,
-  `LectureId` int NOT NULL,
-  PRIMARY KEY (`UserId`,`ClassId`),
-  KEY `fk_ClassAssignments_1_idx` (`ClassId`),
-  KEY `fk_ClassAssignments_4_idx` (`LectureId`),
-  KEY `fk_ClassAssignments_2_idx` (`LabId`),
-  CONSTRAINT `fk_ClassAssignments_1` FOREIGN KEY (`ClassId`) REFERENCES `Classes` (`Id`),
-  CONSTRAINT `fk_ClassAssignments_2` FOREIGN KEY (`LabId`) REFERENCES `Labs` (`Id`),
-  CONSTRAINT `fk_ClassAssignments_3` FOREIGN KEY (`UserId`) REFERENCES `Users` (`Id`),
-  CONSTRAINT `fk_ClassAssignments_4` FOREIGN KEY (`LectureId`) REFERENCES `LectureSections` (`Id`)
+-- ============================================
+-- Table structure for table `AdminUsers`
+-- ============================================
+CREATE TABLE `AdminUsers` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `Firstname` varchar(45) NOT NULL,
+  `Lastname` varchar(45) NOT NULL,
+  `Email` varchar(256) NOT NULL,
+  `SchoolId` int NOT NULL,
+  `PasswordHash` varchar(255) DEFAULT NULL,
+  `IsLocked` tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `adminusers_email_unique` (`Email`),
+  KEY `fk_adminusers_school_idx` (`SchoolId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
--- Table structure for table `Classes`
---
-
-DROP TABLE IF EXISTS `Classes`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `Classes` (
-  `Id` int NOT NULL AUTO_INCREMENT,
-  `Name` varchar(45) NOT NULL,
-  `Tid` varchar(400) DEFAULT NULL,
-  PRIMARY KEY (`Id`),
-  UNIQUE KEY `Name_UNIQUE` (`Name`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `Labs`
---
-
-DROP TABLE IF EXISTS `Labs`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `Labs` (
-  `Id` int NOT NULL AUTO_INCREMENT,
-  `Name` varchar(45) NOT NULL,
-  `ClassId` int NOT NULL,
-  PRIMARY KEY (`Id`),
-  KEY `fk_Labs_1_idx` (`ClassId`),
-  CONSTRAINT `fk_Labs_1` FOREIGN KEY (`ClassId`) REFERENCES `Classes` (`Id`)
-) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `LectureSections`
---
-
-DROP TABLE IF EXISTS `LectureSections`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `LectureSections` (
-  `Id` int NOT NULL AUTO_INCREMENT,
-  `Name` varchar(45) NOT NULL,
-  `ClassId` int NOT NULL,
-  PRIMARY KEY (`Id`),
-  KEY `fk_LectureSections_1_idx` (`ClassId`),
-  CONSTRAINT `fk_LectureSections_1` FOREIGN KEY (`ClassId`) REFERENCES `Classes` (`Id`)
-) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
+-- ============================================
 -- Table structure for table `LoginAttempts`
---
-
-DROP TABLE IF EXISTS `LoginAttempts`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+-- ============================================
 CREATE TABLE `LoginAttempts` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `Time` datetime NOT NULL,
   `IPAddress` varchar(39) NOT NULL,
   `Email` varchar(256) NOT NULL,
   PRIMARY KEY (`Id`),
-  KEY `fk_LoginAttempts_1_idx` (`Email`)
-) ENGINE=InnoDB AUTO_INCREMENT=95 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `Projects`
---
-
-DROP TABLE IF EXISTS `Projects`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `Projects` (
-  `Id` int NOT NULL AUTO_INCREMENT COMMENT 'Table to keep track of projects',
-  `Name` varchar(1000) NOT NULL,
-  `Start` datetime NOT NULL,
-  `End` datetime NOT NULL,
-  `Language` varchar(45) NOT NULL,
-  `ClassId` int NOT NULL,
-  `solutionpath` varchar(1000) DEFAULT NULL,
-  `AsnDescriptionPath` varchar(1000) DEFAULT NULL,
-  `AdditionalFilePath` varchar(200) DEFAULT NULL,
-  PRIMARY KEY (`Id`),
-  UNIQUE KEY `idProjects_UNIQUE` (`Id`),
-  KEY `fk_Projects_1_idx` (`ClassId`),
-  CONSTRAINT `fk_Projects_1` FOREIGN KEY (`ClassId`) REFERENCES `Classes` (`Id`)
-) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Table structure for table `StudentGrades`
---
-
-DROP TABLE IF EXISTS `StudentGrades`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `StudentGrades` (
-  `Sid` int NOT NULL,
-  `Pid` int NOT NULL,
-  `Grade` int NOT NULL,
-  `SubmissionId` int DEFAULT NULL,
-  `ScoringMode` varchar(20) DEFAULT NULL,
-  `ErrorPointsJson` text,
-  `ErrorDefsJson` text,
-  `UpdatedAt` datetime DEFAULT NULL,
-  PRIMARY KEY (`Sid`,`Pid`),
-  KEY `fk2_idx` (`Pid`),
-  KEY `fk_studentgrades_submission_idx` (`SubmissionId`),
-  CONSTRAINT `fk2` FOREIGN KEY (`Pid`) REFERENCES `Projects` (`Id`),
-  CONSTRAINT `fki` FOREIGN KEY (`Sid`) REFERENCES `Users` (`Id`),
-  CONSTRAINT `fk_studentgrades_submission` FOREIGN KEY (`SubmissionId`) REFERENCES `Submissions` (`Id`) ON DELETE SET NULL
+  KEY `idx_loginattempts_email` (`Email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
 
---
+-- ============================================
 -- Table structure for table `OHVisits`
---
-
-DROP TABLE IF EXISTS `OHVisits`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+-- ============================================
 CREATE TABLE `OHVisits` (
   `Sqid` int NOT NULL AUTO_INCREMENT,
   `StudentQuestionsCol` varchar(10000) DEFAULT NULL,
@@ -157,70 +42,147 @@ CREATE TABLE `OHVisits` (
   `TimeAccepted` datetime DEFAULT NULL,
   `TimeCompleted` datetime DEFAULT NULL,
   PRIMARY KEY (`Sqid`)
-) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
---
+-- ============================================
+-- Table structure for table `Projects`
+-- ============================================
+CREATE TABLE `Projects` (
+  `Id` int NOT NULL AUTO_INCREMENT COMMENT 'Table to keep track of projects',
+  `Name` varchar(1000) NOT NULL,
+  `Start` datetime NOT NULL,
+  `End` datetime NOT NULL,
+  `Language` varchar(45) NOT NULL,
+  `SchoolId` int NOT NULL,
+  `solutionpath` varchar(1000) DEFAULT NULL,
+  `AsnDescriptionPath` varchar(1000) DEFAULT NULL,
+  `AdditionalFilePath` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `idProjects_UNIQUE` (`Id`),
+  KEY `fk_Projects_school_idx` (`SchoolId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================
+-- Table structure for table `Schools`
+-- ============================================
+CREATE TABLE `Schools` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `Name` varchar(256) NOT NULL,
+  `TeacherID` int DEFAULT NULL,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `schools_name_unique` (`Name`),
+  KEY `fk_schools_teacher_idx` (`TeacherID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================
+-- Table structure for table `StudentGrades`
+-- ============================================
+CREATE TABLE `StudentGrades` (
+  `Sid` int NOT NULL,
+  `Pid` int NOT NULL,
+  `Grade` int NOT NULL,
+  `SubmissionId` int DEFAULT NULL,
+  `ScoringMode` varchar(20) DEFAULT NULL,
+  `ErrorPointsJson` text,
+  `ErrorDefsJson` text,
+  `UpdatedAt` datetime DEFAULT NULL,
+  PRIMARY KEY (`Sid`,`Pid`),
+  KEY `fk_studentgrades_pid_idx` (`Pid`),
+  KEY `fk_studentgrades_submission_idx` (`SubmissionId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================
 -- Table structure for table `StudentSuggestions`
---
-
-DROP TABLE IF EXISTS `StudentSuggestions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+-- ============================================
 CREATE TABLE `StudentSuggestions` (
   `idStudentSuggestions` int NOT NULL AUTO_INCREMENT,
   `UserId` int DEFAULT NULL,
   `StudentSuggestionscol` text,
   `TimeSubmitted` varchar(45) DEFAULT NULL,
   PRIMARY KEY (`idStudentSuggestions`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
---
+-- ============================================
+-- Table structure for table `StudentUnlocks`
+-- ============================================
+CREATE TABLE `StudentUnlocks` (
+  `UserId` int NOT NULL,
+  `ProjectId` int NOT NULL,
+  `Time` datetime DEFAULT NULL,
+  PRIMARY KEY (`UserId`,`ProjectId`),
+  KEY `fk_studentunlocks_project_idx` (`ProjectId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================
+-- Table structure for table `StudentUsers`
+-- ============================================
+CREATE TABLE `StudentUsers` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `EmailHash` char(64) NOT NULL,
+  `TeacherId` int NOT NULL,
+  `SchoolId` int NOT NULL,
+  `TeamId` int DEFAULT NULL,
+  `MemberId` int DEFAULT NULL,
+  `PasswordHash` varchar(255) DEFAULT NULL,
+  `IsLocked` tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `studentusers_emailhash_unique` (`EmailHash`),
+  KEY `fk_studentusers_teacher_idx` (`TeacherId`),
+  KEY `fk_studentusers_school_idx` (`SchoolId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================
 -- Table structure for table `SubmissionChargeRedeptions`
---
-
-DROP TABLE IF EXISTS `SubmissionChargeRedeptions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+-- ============================================
 CREATE TABLE `SubmissionChargeRedeptions` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `UserId` int DEFAULT NULL,
-  `ClassId` int DEFAULT NULL,
+  `SchoolId` int DEFAULT NULL,
   `ProjectId` int DEFAULT NULL,
   `Type` varchar(45) DEFAULT NULL,
   `ClaimedTime` datetime DEFAULT NULL,
   `RedeemedTime` datetime DEFAULT NULL,
   `SubmissionId` int DEFAULT NULL,
   `Recouped` varchar(45) DEFAULT NULL,
-  PRIMARY KEY (`Id`)
-) ENGINE=InnoDB AUTO_INCREMENT=191 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
+  PRIMARY KEY (`Id`),
+  KEY `fk_scr_user_idx` (`UserId`),
+  KEY `fk_scr_school_idx` (`SchoolId`),
+  KEY `fk_scr_project_idx` (`ProjectId`),
+  KEY `fk_scr_submission_idx` (`SubmissionId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
---
+-- ============================================
 -- Table structure for table `SubmissionCharges`
---
-
-DROP TABLE IF EXISTS `SubmissionCharges`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+-- ============================================
 CREATE TABLE `SubmissionCharges` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `UserId` int DEFAULT NULL,
-  `ClassId` int DEFAULT NULL,
+  `SchoolId` int DEFAULT NULL,
   `BaseCharge` int DEFAULT NULL,
   `RewardCharge` int DEFAULT NULL,
-  PRIMARY KEY (`Id`)
-) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
+  PRIMARY KEY (`Id`),
+  KEY `fk_sc_user_idx` (`UserId`),
+  KEY `fk_sc_school_idx` (`SchoolId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
---
+-- ============================================
+-- Table structure for table `SubmissionManualErrors`
+-- ============================================
+CREATE TABLE `SubmissionManualErrors` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `SubmissionId` int NOT NULL,
+  `StartLine` int NOT NULL,
+  `EndLine` int NOT NULL,
+  `ErrorId` varchar(45) NOT NULL,
+  `Count` int NOT NULL DEFAULT 1,
+  `Note` text,
+  PRIMARY KEY (`Id`),
+  KEY `fk_sub_errors_idx` (`SubmissionId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================
 -- Table structure for table `Submissions`
---
-
-DROP TABLE IF EXISTS `Submissions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+-- ============================================
 CREATE TABLE `Submissions` (
   `Id` int NOT NULL AUTO_INCREMENT COMMENT 'Table to keep track of submissions from users',
   `User` int NOT NULL,
@@ -232,20 +194,13 @@ CREATE TABLE `Submissions` (
   `TestCaseResults` text,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `idSubmissions_UNIQUE` (`Id`),
-  KEY `iduser_idx` (`User`),
-  KEY `projectmap_idx` (`Project`),
-  CONSTRAINT `iduser` FOREIGN KEY (`User`) REFERENCES `Users` (`Id`),
-  CONSTRAINT `proect` FOREIGN KEY (`Project`) REFERENCES `Projects` (`Id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2507 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
+  KEY `idx_submissions_user` (`User`),
+  KEY `idx_submissions_project` (`Project`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
---
+-- ============================================
 -- Table structure for table `Testcases`
---
-
-DROP TABLE IF EXISTS `Testcases`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
+-- ============================================
 CREATE TABLE `Testcases` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `ProjectId` int DEFAULT NULL,
@@ -256,48 +211,92 @@ CREATE TABLE `Testcases` (
   `Hidden` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `Id_UNIQUE` (`Id`),
-  KEY `tc_fk_idx` (`ProjectId`),
-  CONSTRAINT `tc_fk` FOREIGN KEY (`ProjectId`) REFERENCES `Projects` (`Id`)
-) ENGINE=InnoDB AUTO_INCREMENT=192 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
+  KEY `tc_fk_idx` (`ProjectId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
---
--- Table structure for table `Users`
---
+-- ============================================
+-- Foreign keys (added after all tables exist)
+-- ============================================
 
-DROP TABLE IF EXISTS `Users`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `Users` (
-  `Id` int NOT NULL AUTO_INCREMENT,
-  `Role` int NOT NULL,
-  `Firstname` varchar(45) NOT NULL,
-  `Lastname` varchar(45) NOT NULL,
-  `Email` varchar(256) NOT NULL,
-  `School` varchar(64) NOT NULL DEFAULT 'Unknown',
-  `PasswordHash` varchar(255) DEFAULT NULL,
-  `IsLocked` tinyint(1) NOT NULL,
-  PRIMARY KEY (`Id`),
-  UNIQUE KEY `idusers_UNIQUE` (`Id`),
-  UNIQUE KEY `email_UNIQUE` (`Email`)
-) ENGINE=InnoDB AUTO_INCREMENT=176 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='This is a table to store website login''s and all users';
+ALTER TABLE `AdminUsers`
+  ADD CONSTRAINT `fk_adminusers_school`
+  FOREIGN KEY (`SchoolId`) REFERENCES `Schools` (`Id`);
 
---
--- Table structure for table `SubmissionManualErrors`
---
-DROP TABLE IF EXISTS `SubmissionManualErrors`; 
+ALTER TABLE `Schools`
+  ADD CONSTRAINT `fk_schools_teacher`
+  FOREIGN KEY (`TeacherID`) REFERENCES `AdminUsers` (`Id`)
+  ON DELETE SET NULL;
 
-CREATE TABLE `SubmissionManualErrors` ( 
-  `Id` int NOT NULL AUTO_INCREMENT, 
-  `SubmissionId` int NOT NULL,
-  `StartLine` int NOT NULL,
-  `EndLine` int NOT NULL,
-  `ErrorId` varchar(45) NOT NULL,
-  `Count` int NOT NULL DEFAULT 1,
-  `Note` text,
-  PRIMARY KEY (`Id`), 
-  KEY `fk_sub_errors_idx` (`SubmissionId`), 
-  CONSTRAINT `fk_sub_errors` FOREIGN KEY (`SubmissionId`) REFERENCES `Submissions` (`Id`) ON DELETE CASCADE 
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+ALTER TABLE `Projects`
+  ADD CONSTRAINT `fk_projects_school`
+  FOREIGN KEY (`SchoolId`) REFERENCES `Schools` (`Id`);
+
+ALTER TABLE `StudentUsers`
+  ADD CONSTRAINT `fk_studentusers_teacher`
+  FOREIGN KEY (`TeacherId`) REFERENCES `AdminUsers` (`Id`);
+
+ALTER TABLE `StudentUsers`
+  ADD CONSTRAINT `fk_studentusers_school`
+  FOREIGN KEY (`SchoolId`) REFERENCES `Schools` (`Id`);
+
+ALTER TABLE `Submissions`
+  ADD CONSTRAINT `fk_submissions_student`
+  FOREIGN KEY (`User`) REFERENCES `StudentUsers` (`Id`);
+
+ALTER TABLE `Submissions`
+  ADD CONSTRAINT `fk_submissions_project`
+  FOREIGN KEY (`Project`) REFERENCES `Projects` (`Id`);
+
+ALTER TABLE `StudentGrades`
+  ADD CONSTRAINT `fk_studentgrades_student`
+  FOREIGN KEY (`Sid`) REFERENCES `StudentUsers` (`Id`);
+
+ALTER TABLE `StudentGrades`
+  ADD CONSTRAINT `fk_studentgrades_project`
+  FOREIGN KEY (`Pid`) REFERENCES `Projects` (`Id`);
+
+ALTER TABLE `StudentGrades`
+  ADD CONSTRAINT `fk_studentgrades_submission`
+  FOREIGN KEY (`SubmissionId`) REFERENCES `Submissions` (`Id`) ON DELETE SET NULL;
+
+ALTER TABLE `StudentUnlocks`
+  ADD CONSTRAINT `fk_studentunlocks_student`
+  FOREIGN KEY (`UserId`) REFERENCES `StudentUsers` (`Id`);
+
+ALTER TABLE `StudentUnlocks`
+  ADD CONSTRAINT `fk_studentunlocks_project`
+  FOREIGN KEY (`ProjectId`) REFERENCES `Projects` (`Id`);
+
+ALTER TABLE `Testcases`
+  ADD CONSTRAINT `tc_fk`
+  FOREIGN KEY (`ProjectId`) REFERENCES `Projects` (`Id`);
+
+ALTER TABLE `SubmissionManualErrors`
+  ADD CONSTRAINT `fk_sub_errors`
+  FOREIGN KEY (`SubmissionId`) REFERENCES `Submissions` (`Id`) ON DELETE CASCADE;
+
+ALTER TABLE `SubmissionCharges`
+  ADD CONSTRAINT `fk_submissioncharges_student`
+  FOREIGN KEY (`UserId`) REFERENCES `StudentUsers` (`Id`) ON DELETE SET NULL;
+
+ALTER TABLE `SubmissionCharges`
+  ADD CONSTRAINT `fk_submissioncharges_school`
+  FOREIGN KEY (`SchoolId`) REFERENCES `Schools` (`Id`) ON DELETE SET NULL;
+
+ALTER TABLE `SubmissionChargeRedeptions`
+  ADD CONSTRAINT `fk_submissionchargeredeptions_student`
+  FOREIGN KEY (`UserId`) REFERENCES `StudentUsers` (`Id`) ON DELETE SET NULL;
+
+ALTER TABLE `SubmissionChargeRedeptions`
+  ADD CONSTRAINT `fk_submissionchargeredeptions_school`
+  FOREIGN KEY (`SchoolId`) REFERENCES `Schools` (`Id`) ON DELETE SET NULL;
+
+ALTER TABLE `SubmissionChargeRedeptions`
+  ADD CONSTRAINT `fk_submissionchargeredeptions_project`
+  FOREIGN KEY (`ProjectId`) REFERENCES `Projects` (`Id`) ON DELETE SET NULL;
+
+ALTER TABLE `SubmissionChargeRedeptions`
+  ADD CONSTRAINT `fk_submissionchargeredeptions_submission`
+  FOREIGN KEY (`SubmissionId`) REFERENCES `Submissions` (`Id`) ON DELETE SET NULL;
 
 SET FOREIGN_KEY_CHECKS=1;
