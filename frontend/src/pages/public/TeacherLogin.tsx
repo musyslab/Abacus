@@ -14,6 +14,7 @@ interface TeacherLoginPageState {
   email: string;
   password: string;
   role: number;
+  schoolId: number | null;
   error_message: string;
   isLoading: boolean;
 }
@@ -28,6 +29,7 @@ class TeacherLogin extends Component<{}, TeacherLoginPageState> {
       email: "",
       password: "",
       role: -1,
+      schoolId: null,
       error_message: "",
       isLoading: false,
     };
@@ -57,9 +59,26 @@ class TeacherLogin extends Component<{}, TeacherLoginPageState> {
         password: this.state.password,
         email: this.state.email,
       })
-      .then((res) => {
-        localStorage.setItem("AUTOTA_AUTH_TOKEN", res.data.access_token);
-        this.setState({ isLoggedIn: true, role: res.data.role, isLoading: false });
+      .then(async (res) => {
+        const token = res.data.access_token;
+        const role = Number(res.data.role ?? 0);
+        localStorage.setItem("AUTOTA_AUTH_TOKEN", token);
+
+        if (role === 0) {
+          try {
+            const me = await axios.get(`${baseUrl}/schools/me`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const schoolId = Number(me.data?.id) || null;
+            this.setState({ isLoggedIn: true, role, schoolId, isLoading: false });
+            return;
+          } catch {
+            this.setState({ isLoggedIn: true, role, schoolId: null, isLoading: false });
+            return;
+          }
+        }
+
+        this.setState({ isLoggedIn: true, role, isLoading: false });
       })
       .catch((err) => {
         const msg = err.response?.data?.message || "Login failed.";
@@ -69,8 +88,13 @@ class TeacherLogin extends Component<{}, TeacherLoginPageState> {
 
   render() {
     if (this.state.isLoggedIn) {
-      const redirectPath = this.state.role === 0 ? "/admin/team-manage" : "/admin/schools";
-      return <Navigate to={redirectPath} replace />;
+      if (this.state.role === 0) {
+        if (!this.state.schoolId) {
+          return <div style={{ padding: 24 }}>Loading…</div>;
+        }
+        return <Navigate to={`/admin/${this.state.schoolId}/team-manage`} replace />;
+      }
+      return <Navigate to="/admin/schools" replace />;
     }
 
     return (

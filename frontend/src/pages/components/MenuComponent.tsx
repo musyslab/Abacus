@@ -63,9 +63,10 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
 
     fetchDashboardRoute = async (): Promise<DashboardInfo> => {
         try {
+            const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
             const res = await axios.get(`${import.meta.env.VITE_API_URL}/auth/get-role`, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem("AUTOTA_AUTH_TOKEN")}`,
+                    Authorization: `Bearer ${token}`,
                 },
             });
 
@@ -82,9 +83,21 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
             // AdminUsers: Role 0 = teacher, Role 1 = admin
             if (status === "admin") {
                 const isAdmin = role === 1;
-                const info = isAdmin
-                    ? { label: "School List", path: "/admin/schools" }
-                    : { label: "Team Manage", path: "/admin/team-manage" };
+                if (isAdmin) {
+                    const info = { label: "School List", path: "/admin/schools" };
+                    this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
+                    return info;
+                }
+
+                // Teacher: needs school_id in the route
+                const schoolRes = await axios.get(`${import.meta.env.VITE_API_URL}/schools/me`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const schoolId = Number(schoolRes.data?.id) || 0;
+                const info =
+                    schoolId > 0
+                        ? { label: "Team Manage", path: `/admin/${schoolId}/team-manage` }
+                        : { label: "Team Manage", path: "/admin/schools" };
 
                 this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
                 return info;

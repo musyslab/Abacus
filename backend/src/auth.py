@@ -83,9 +83,13 @@ def user_identity_lookup(user):
 @inject
 def get_user_role(user_repo: UserRepository = Provide[Container.user_repo]):
     status = user_repo.get_user_status()  # "admin" | "student" | "unknown"
-    role = 1 if status == "admin" else 0 if status == "student" else -1
-    return make_response({"role": role, "status": status}, HTTPStatus.OK)
-
+    if status == "admin":
+        # AdminUsers: Role 0 = teacher, Role 1 = admin
+        role = int(getattr(current_user, "Role", 0) or 0)
+        return make_response({"role": role, "status": status}, HTTPStatus.OK)
+    if status == "student":
+        return make_response({"role": 0, "status": status}, HTTPStatus.OK)
+    return make_response({"role": -1, "status": status}, HTTPStatus.OK)
 
 # Register a callback function that loades a user from your database whenever
 # a protected route is accessed. This should return any python object on a
@@ -492,7 +496,14 @@ def complete_password_reset(user_repo: UserRepository = Provide[Container.user_r
         # Refresh
         admin = user_repo.get_admin_by_id(user_id)
         access_token = create_access_token(identity=admin)
-        return make_response({'message': 'Success', 'access_token': access_token, 'role': 1}, HTTPStatus.OK)
+        return make_response(
+            {
+                'message': 'Success',
+                'access_token': access_token,
+                'role': int(getattr(admin, "Role", 0) or 0),
+            },
+            HTTPStatus.OK
+        )
 
     # student
     student = user_repo.get_student_by_id(user_id)

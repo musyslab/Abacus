@@ -25,7 +25,9 @@ export default function SetPassword() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [doneRole, setDoneRole] = useState<number | null>(null);
+
+  // When true, redirect the user back to /home after success
+  const [redirectHome, setRedirectHome] = useState(false);
 
   async function handleSubmit(ev: React.FormEvent<HTMLFormElement>) {
     ev.preventDefault();
@@ -53,18 +55,16 @@ export default function SetPassword() {
 
     setIsLoading(true);
     try {
-      const res = await axios.post<CompletePasswordResponse>(`${apiBase}/auth/password/complete`, {
+      await axios.post<CompletePasswordResponse>(`${apiBase}/auth/password/complete`, {
         token,
         password,
       });
 
-      if (res.data.access_token) {
-        localStorage.setItem("AUTOTA_AUTH_TOKEN", res.data.access_token);
-        setDoneRole(res.data.role ?? 0);
-        return;
-      }
+      // Ensure user must log in again
+      localStorage.removeItem("AUTOTA_AUTH_TOKEN");
 
-      setErrorMessage(res.data.message || "Password update failed.");
+      alert("Password created successfully. Please log back in.");
+      setRedirectHome(true);
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Password update failed.";
       setErrorMessage(msg);
@@ -73,9 +73,8 @@ export default function SetPassword() {
     }
   }
 
-  if (doneRole !== null) {
-    const redirectPath = doneRole === 0 ? "/student/classes" : "/admin/team-manage";
-    return <Navigate to={redirectPath} replace />;
+  if (redirectHome) {
+    return <Navigate to="/home" replace />;
   }
 
   return (
@@ -161,9 +160,7 @@ export default function SetPassword() {
         ) : null}
 
         <div className="login-links">
-          <div>
-            This link expires. If it fails, request a new reset link from the pages above.
-          </div>
+          <div>This link expires. If it fails, request a new reset link from the pages above.</div>
         </div>
 
         <div className="login-logo">

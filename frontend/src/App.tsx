@@ -67,15 +67,16 @@ class App extends Component {
                     <Route path="/" element={<LandingPage />} />
                     {/* Start Abacus Routes */}
                     <Route path="/admin/schools" element={
-                        <ProtectedRoute>
+                        <ProtectedRoute requiredAdminRole={1}>
                             <AdminSchoolRoster />
                         </ProtectedRoute>
                     } />
-                    <Route path="/admin/:school_id/students" element={
+                    <Route path="/admin/:school_id/team-manage" element={
                         <ProtectedRoute>
-                            <StudentRoster />
+                            <AdminTeamManage />
                         </ProtectedRoute>
-                    } />
+                    }
+                    />
                     <Route path="/admin/:school_id/student/:student_id" element={
                         <ProtectedRoute>
                             <StudentSubmissions />
@@ -159,12 +160,6 @@ class App extends Component {
                             <StudentDiff />
                         </ProtectedRoute>
                     } />
-                    <Route path="/admin/team-manage" element={
-                        <ProtectedRoute>
-                            <AdminTeamManage />
-                        </ProtectedRoute>
-                    }
-                    />
                     <Route path="/admin/:id/projects/*" element={
                         <ProtectedRoute>
                             <AdminProjectList />

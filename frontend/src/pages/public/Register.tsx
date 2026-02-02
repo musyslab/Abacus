@@ -123,9 +123,20 @@ export default function Register() {
       const res = await axios.post<RegisterResponse>(`${apiBase}/auth/register`, payload);
 
       if (res.data.access_token) {
-        localStorage.setItem("AUTOTA_AUTH_TOKEN", res.data.access_token);
+        const token = res.data.access_token;
+        localStorage.setItem("AUTOTA_AUTH_TOKEN", token);
         const role = res.data.role ?? 0;
-        navigate(role === 0 ? "/admin/team-manage" : "/admin/schools", { replace: true });
+
+        if (role === 0) {
+          const me = await axios.get(`${apiBase}/schools/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const schoolId = Number(me.data?.id) || 0;
+          navigate(`/admin/${schoolId}/team-manage`, { replace: true });
+          return;
+        }
+
+        navigate("/admin/schools", { replace: true });
         return;
       }
 
