@@ -36,6 +36,7 @@ class UserRepository:
         last_name: str,
         school_id: int,
         password_hash: str,
+        role: int = 0,
     ) -> AdminUsers:
         admin = AdminUsers(
             Firstname=first_name,
@@ -44,6 +45,7 @@ class UserRepository:
             SchoolId=school_id,
             PasswordHash=password_hash,
             IsLocked=False,
+            Role=role,
         )
         db.session.add(admin)
         db.session.commit()
@@ -85,6 +87,29 @@ class UserRepository:
     # -----------------------------
     # Student operations
     # -----------------------------
+
+    def get_students_for_school(self, school_id: int) -> List[StudentUsers]:
+        return (
+            StudentUsers.query.filter(StudentUsers.SchoolId == school_id)
+            .order_by(StudentUsers.TeamId.asc(), StudentUsers.MemberId.asc())
+            .all()
+        )
+
+    def get_student_by_school_team_member(self, school_id: int, team_id: int, member_id: int) -> Optional[StudentUsers]:
+        return (
+            StudentUsers.query.filter(
+                StudentUsers.SchoolId == school_id,
+                StudentUsers.TeamId == team_id,
+                StudentUsers.MemberId == member_id,
+            )
+            .one_or_none()
+        )
+
+    def count_team_members_for_school(self, school_id: int, team_id: int) -> int:
+        return (
+            StudentUsers.query.filter(StudentUsers.SchoolId == school_id, StudentUsers.TeamId == team_id)
+            .count()
+        )
 
     def get_students_for_teacher(self, teacher_id: int) -> List[StudentUsers]:
         return (
@@ -207,6 +232,13 @@ class UserRepository:
         school = Schools.query.filter(Schools.Id == school_id).one()
         school.TeacherID = teacher_id
         db.session.commit()
+
+    def get_school_by_id(self, school_id: int) -> Optional[Schools]:
+        return Schools.query.filter(Schools.Id == school_id).one_or_none()
+
+    def get_school_by_name(self, name: str) -> Optional[Schools]:
+        # Keep simple exact match. Registration UI typically selects by id.
+        return Schools.query.filter(Schools.Name == name).one_or_none()
 
     # -----------------------------
     # Compatibility helpers / old call sites

@@ -83,9 +83,13 @@ def user_identity_lookup(user):
 @inject
 def get_user_role(user_repo: UserRepository = Provide[Container.user_repo]):
     status = user_repo.get_user_status()  # "admin" | "student" | "unknown"
-    role = 1 if status == "admin" else 0 if status == "student" else -1
-    return make_response({"role": role, "status": status}, HTTPStatus.OK)
-
+    if status == "admin":
+        # AdminUsers: Role 0 = teacher, Role 1 = admin
+        role = int(getattr(current_user, "Role", 0) or 0)
+        return make_response({"role": role, "status": status}, HTTPStatus.OK)
+    if status == "student":
+        return make_response({"role": 0, "status": status}, HTTPStatus.OK)
+    return make_response({"role": -1, "status": status}, HTTPStatus.OK)
 
 # Register a callback function that loades a user from your database whenever
 # a protected route is accessed. This should return any python object on a
@@ -127,8 +131,10 @@ def admin_login(user_repo: UserRepository = Provide[Container.user_repo]):
 
     user_repo.clear_admin_failed_attempts(email)
     access_token = create_access_token(identity=admin)
-    return make_response({'message': 'Success', 'access_token': access_token, 'role': 1}, HTTPStatus.OK)
-
+    return make_response(
+        {'message': 'Success', 'access_token': access_token, 'role': int(getattr(admin, "Role", 0) or 0)},
+        HTTPStatus.OK
+    )
 
 @auth_api.route('/student/login', methods=['POST'])
 @inject
@@ -172,10 +178,11 @@ def register_user(user_repo: UserRepository = Provide[Container.user_repo]):
     first_name = get_value_or_empty(input_json, 'fname')
     last_name = get_value_or_empty(input_json, 'lname')
     school = get_value_or_empty(input_json, 'school')
+    school_id_raw = get_value_or_empty(input_json, 'school_id')
     email = get_value_or_empty(input_json, 'email')
     password = get_value_or_empty(input_json, 'password')
 
-    if not (first_name and last_name and school and email and password):
+    if not (first_name and last_name and email and password):
         message = {'message': 'Missing required data. All fields are required.'}
         return make_response(message, HTTPStatus.NOT_ACCEPTABLE)
 
@@ -185,17 +192,32 @@ def register_user(user_repo: UserRepository = Provide[Container.user_repo]):
 
     password_hash = generate_password_hash(password)  # PBKDF2 by default in Werkzeug
 
-    # Create school first, then the admin user, then bind TeacherID on the school
-    school_obj = user_repo.create_school(school)
-    admin = user_repo.create_admin_user(email, first_name, last_name, school_obj.Id, password_hash)
-    user_repo.set_school_teacher(school_obj.Id, admin.Id)
+    # Select an existing school by id, or create (or reuse) by name.
+    school_obj = None
+    if str(school_id_raw or "").strip():
+        try:
+            sid = int(school_id_raw)
+        except Exception:
+            sid = 0
+        if sid <= 0:
+            return make_response({'message': 'Invalid school_id.'}, HTTPStatus.NOT_ACCEPTABLE)
+        school_obj = user_repo.get_school_by_id(sid)
+        if not school_obj:
+            return make_response({'message': 'Selected school not found.'}, HTTPStatus.NOT_ACCEPTABLE)
+    else:
+        if not school:
+            return make_response({'message': 'Missing required data. school (or school_id) is required.'}, HTTPStatus.NOT_ACCEPTABLE)
+        existing = user_repo.get_school_by_name(school)
+        school_obj = existing if existing else user_repo.create_school(school)
+
+    admin = user_repo.create_admin_user(email, first_name, last_name, school_obj.Id, password_hash, role=0)
 
     access_token = create_access_token(identity=admin)
 
     message = {
         'message': 'Success',
         'access_token': access_token,
-        'role': 1
+        'role': int(getattr(admin, "Role", 0) or 0)
     }
     return make_response(message, HTTPStatus.OK)
 
@@ -210,7 +232,12 @@ def list_student_teams(user_repo: UserRepository = Provide[Container.user_repo])
     if not isinstance(current_user, AdminUsers):
         return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
 
-    students = user_repo.get_students_for_teacher(current_user.Id)
+    school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+    if school_id <= 0:
+        return make_response([], HTTPStatus.OK)
+
+    students = user_repo.get_students_for_school(school_id)
+
     teams: Dict[int, List[StudentUsers]] = {}
 
     for s in students:
@@ -270,12 +297,17 @@ def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]
     if user_repo.does_student_emailhash_exist(email_hash):
         return make_response({'message': 'Student already exists'}, HTTPStatus.NOT_ACCEPTABLE)
 
-    # Enforce max 4 members and prevent overwriting a slot
-    existing_slot = user_repo.get_student_by_team_member(current_user.Id, team_id, member_id)
+    school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+    if school_id <= 0:
+        return make_response({'message': 'Missing required data. SchoolId is required.'}, HTTPStatus.NOT_ACCEPTABLE)
+
+    # Enforce max 4 members and prevent overwriting a slot (school-shared teams)
+    existing_slot = user_repo.get_student_by_school_team_member(school_id, team_id, member_id)
+
     if existing_slot is not None:
         return make_response({'message': 'That team/member slot is already in use.'}, HTTPStatus.CONFLICT)
 
-    if user_repo.count_team_members(current_user.Id, team_id) >= 4:
+    if user_repo.count_team_members_for_school(school_id, team_id) >= 4:
         return make_response({'message': 'This team already has 4 members.'}, HTTPStatus.CONFLICT)
 
     password_hash = generate_password_hash(password) if password else None
@@ -283,7 +315,7 @@ def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]
     student = user_repo.create_student_user(
         email_hash=email_hash,
         teacher_id=current_user.Id,
-        school_id=current_user.SchoolId,
+        school_id=school_id,
         team_id=team_id,
         member_id=member_id,
         password_hash=password_hash,
@@ -313,7 +345,12 @@ def delete_student_user(user_repo: UserRepository = Provide[Container.user_repo]
     if team_id <= 0 or member_id <= 0:
         return make_response({'message': 'team_id and member_id are required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
-    student = user_repo.get_student_by_team_member(current_user.Id, team_id, member_id)
+    school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+    if school_id <= 0:
+        return make_response({'message': 'Missing required data. SchoolId is required.'}, HTTPStatus.NOT_ACCEPTABLE)
+
+    student = user_repo.get_student_by_school_team_member(school_id, team_id, member_id)
+
     if not student:
         return make_response({'message': 'Student not found.'}, HTTPStatus.NOT_FOUND)
 
@@ -338,7 +375,12 @@ def invite_student_stub(user_repo: UserRepository = Provide[Container.user_repo]
     if team_id <= 0 or member_id <= 0 or not email:
         return make_response({'message': 'team_id, member_id, and email are required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
-    student = user_repo.get_student_by_team_member(current_user.Id, team_id, member_id)
+    school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+    if school_id <= 0:
+        return make_response({'message': 'Missing required data. SchoolId is required.'}, HTTPStatus.NOT_ACCEPTABLE)
+
+    student = user_repo.get_student_by_school_team_member(school_id, team_id, member_id)
+
     if not student:
         return make_response({'message': 'Student not found.'}, HTTPStatus.NOT_FOUND)
 
@@ -454,7 +496,14 @@ def complete_password_reset(user_repo: UserRepository = Provide[Container.user_r
         # Refresh
         admin = user_repo.get_admin_by_id(user_id)
         access_token = create_access_token(identity=admin)
-        return make_response({'message': 'Success', 'access_token': access_token, 'role': 1}, HTTPStatus.OK)
+        return make_response(
+            {
+                'message': 'Success',
+                'access_token': access_token,
+                'role': int(getattr(admin, "Role", 0) or 0),
+            },
+            HTTPStatus.OK
+        )
 
     # student
     student = user_repo.get_student_by_id(user_id)

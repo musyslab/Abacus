@@ -11,6 +11,7 @@ class Home extends Component {
 
     render() {
         const year = new Date().getFullYear()
+        const loggedIn = localStorage.getItem("AUTOTA_AUTH_TOKEN") !== null
 
         // References for sections
         const heroRef = React.createRef<HTMLElement>()
@@ -53,17 +54,19 @@ class Home extends Component {
                         <br />
                         Hosted by CSTA Wisconsin-Dairyland and Marquette University ACM and UPE.
                     </p>
-                    <div className="action-btns">
-                        <Link to="/register" className="register-btn home-btn">
-                            Register Your School
-                        </Link>
-                        <Link to="/teacher-login" className="login-btn home-btn">
-                            Teacher Login
-                        </Link>
-                        <Link to="/student-login" className="login-btn home-btn">
-                            Student Login
-                        </Link>
-                    </div>
+                    {!loggedIn ? (
+                        <div className="action-btns">
+                            <Link to="/register" className="register-btn home-btn">
+                                Register Your School
+                            </Link>
+                            <Link to="/teacher-login" className="login-btn home-btn">
+                                Teacher Login
+                            </Link>
+                            <Link to="/student-login" className="login-btn home-btn">
+                                Student Login
+                            </Link>
+                        </div>
+                    ) : null}
                 </section>
                 <section className="sec" ref={aboutRef}>
                     <h2 className="sec-title">About the Competition</h2>
@@ -116,9 +119,16 @@ class Home extends Component {
                 <footer className="footer" ref={footerRef}>
                     <div className="footer-content">
                         <div className="footer-section">
-                            <div className="footer-title">Get Started</div>
-                            <Link to="/register" className="footer-link">Register Your School</Link>
-                            <Link to="/login" className="footer-link">Log In</Link>
+                            <div className="footer-title">Explore</div>
+                            <button type="button" className="footer-link" onClick={() => aboutRef.current && scrollToSection(aboutRef.current)}>
+                                About
+                            </button>
+                            <button type="button" className="footer-link" onClick={() => abacusRef.current && scrollToSection(abacusRef.current)}>
+                                Abacus
+                            </button>
+                            <button type="button" className="footer-link" onClick={() => footerRef.current && scrollToSection(footerRef.current)}>
+                                Contact
+                            </button>
                         </div>
                         <div className="footer-section">
                             <div className="footer-title">Contact</div>

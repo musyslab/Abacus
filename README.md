@@ -70,7 +70,7 @@ It will take a while to compile the first time, but once it is ready navigate to
 
 ```http://localhost:3000/```
 
-## View the local TA-Bot Database
+## View the local Abacus Database
 
 Download DBDeaver: https://dbeaver.io/download/
 

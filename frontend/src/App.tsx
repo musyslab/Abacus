@@ -18,24 +18,23 @@ import StudentClassSelection from './pages/student/StudentClassSelection';
 import StudentOfficeHours from './pages/student/StudentOfficeHours';
 import StudentPastSubmissions from "./pages/student/StudentPastSubmissions";
 
-import AdminClassSelection from './pages/admin/AdminClassSelection';
 import AdminGrading from './pages/admin/AdminGrading';
 import AdminOfficeHours from './pages/admin/AdminOfficeHours';
 import AdminPlagiarism from "./pages/admin/AdminPlagiarism";
 import AdminProjectList from './pages/admin/AdminProjectList';
 import AdminProjectManage from './pages/admin/AdminProjectManage';
 import AdminStudentRoster from './pages/admin/AdminStudentRoster';
-import AdminTeamManage from './pages/admin/AdminTeamManage';
 import AdminUpload from './pages/admin/AdminUpload';
 import AdminViewStudentCode from './pages/admin/AdminViewStudentCode';
 
-import TeacherRoster from './pages/abacus/TeacherRoster';
+import AdminSchoolRoster from './pages/abacus/AdminSchoolRoster';
 import StudentRoster from './pages/abacus/StudentRoster';
 import ProblemList from './pages/abacus/ProblemList';
 import ProblemCreate from './pages/abacus/ProblemCreate';
 import StudentSubmit from './pages/abacus/StudentSubmit';
 import StudentSubmissions from './pages/abacus/StudentSubmissions';
 import StudentDiff from './pages/abacus/StudentDiff';
+import AdminTeamManage from './pages/abacus/AdminTeamManage';
 
 import ProtectedRoute from './pages/components/ProtectedRoute';
 
@@ -67,22 +66,23 @@ class App extends Component {
 
                     <Route path="/" element={<LandingPage />} />
                     {/* Start Abacus Routes */}
-                    <Route path="/admin/teachers" element={
-                        <ProtectedRoute>
-                            <TeacherRoster />
+                    <Route path="/admin/schools" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminSchoolRoster />
                         </ProtectedRoute>
                     } />
-                    <Route path="/admin/:teacher_id/students" element={
+                    <Route path="/admin/:school_id/team-manage" element={
                         <ProtectedRoute>
-                            <StudentRoster />
+                            <AdminTeamManage />
                         </ProtectedRoute>
-                    } />
-                    <Route path="/admin/:teacher_id/student/:student_id" element={
+                    }
+                    />
+                    <Route path="/admin/:school_id/student/:student_id" element={
                         <ProtectedRoute>
                             <StudentSubmissions />
                         </ProtectedRoute>
                     } />
-                    <Route path="/admin/:teacher_id/student/:student_id/:problem_id/:id" element={
+                    <Route path="/admin/:school_id/student/:student_id/:problem_id/:id" element={
                         <ProtectedRoute>
                             <StudentDiff />
                         </ProtectedRoute>
@@ -98,22 +98,22 @@ class App extends Component {
                         </ProtectedRoute>
                     } />
 
-                    <Route path="/judge/teachers" element={
+                    <Route path="/judge/schools" element={
                         <ProtectedRoute>
-                            <TeacherRoster />
+                            <AdminSchoolRoster />
                         </ProtectedRoute>
                     } />
-                    <Route path="/judge/:teacher_id/students" element={
+                    <Route path="/judge/:school_id/students" element={
                         <ProtectedRoute>
                             <StudentRoster />
                         </ProtectedRoute>
                     } />
-                    <Route path="/judge/:teacher_id/student/:student_id" element={
+                    <Route path="/judge/:school_id/student/:student_id" element={
                         <ProtectedRoute>
                             <StudentSubmissions />
                         </ProtectedRoute>
                     } />
-                    <Route path="/judge/:teacher_id/student/:student_id/:problem_id/:id" element={
+                    <Route path="/judge/:school_id/student/:student_id/:problem_id/:id" element={
                         <ProtectedRoute>
                             <StudentDiff />
                         </ProtectedRoute>
@@ -160,12 +160,6 @@ class App extends Component {
                             <StudentDiff />
                         </ProtectedRoute>
                     } />
-                    <Route path="/admin/team-manage" element={
-                        <ProtectedRoute>
-                            <AdminTeamManage />
-                        </ProtectedRoute>
-                    }
-                    />
                     <Route path="/admin/:id/projects/*" element={
                         <ProtectedRoute>
                             <AdminProjectList />

@@ -22,7 +22,7 @@ const ProblemCreate = () => {
         {/* Admin */}
          <DirectoryBreadcrumbs
             items={[
-                { label: 'Teacher List', to:'/admin/teachers' },
+                { label: 'Teacher List', to:'/admin/schools' },
                 { label: 'Problem List', to:'/admin/problems' },
                 { label: 'Create Problem' },
             ]}
@@ -30,7 +30,7 @@ const ProblemCreate = () => {
         {/* Judge */}
         <DirectoryBreadcrumbs
             items={[
-                { label: 'Teacher List', to:'/judge/teachers' },
+                { label: 'Teacher List', to:'/judge/schools' },
                 { label: 'Problem List', to:'/judge/problems' },
                 { label: 'Create Problem' },
             ]}

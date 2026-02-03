@@ -23,14 +23,14 @@ const StudentRoster = () => {
         {/* Admin */}
         <DirectoryBreadcrumbs
             items={[
-                { label: 'Teacher List', to:'/admin/teachers' },
+                { label: 'Teacher List', to:'/admin/schools' },
                 { label: 'Student List' },
             ]}
         />
         {/* Judge */}
         <DirectoryBreadcrumbs
             items={[
-                { label: 'Teacher List', to:'/judge/teachers' },
+                { label: 'Teacher List', to:'/judge/schools' },
                 { label: 'Student List' },
             ]}
         />
