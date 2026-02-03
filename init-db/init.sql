@@ -11,6 +11,7 @@ CREATE TABLE `AdminUsers` (
   `SchoolId` int NOT NULL,
   `PasswordHash` varchar(255) DEFAULT NULL,
   `IsLocked` tinyint(1) NOT NULL DEFAULT 0,
+  `Role` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `adminusers_email_unique` (`Email`),
   KEY `fk_adminusers_school_idx` (`SchoolId`)
@@ -125,7 +126,6 @@ CREATE TABLE `StudentUsers` (
   `MemberId` int DEFAULT NULL,
   `PasswordHash` varchar(255) DEFAULT NULL,
   `IsLocked` tinyint(1) NOT NULL DEFAULT 0,
-  `Role` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `studentusers_emailhash_unique` (`EmailHash`),
   KEY `fk_studentusers_teacher_idx` (`TeacherId`),
