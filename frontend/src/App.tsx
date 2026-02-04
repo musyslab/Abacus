@@ -21,7 +21,7 @@ import StudentPastSubmissions from "./pages/student/StudentPastSubmissions";
 import AdminGrading from './pages/admin/AdminGrading';
 import AdminOfficeHours from './pages/admin/AdminOfficeHours';
 import AdminPlagiarism from "./pages/admin/AdminPlagiarism";
-import AdminProjectList from './pages/admin/AdminProjectList';
+import AdminProjectList2 from './pages/admin/AdminProjectList';
 import AdminProjectManage2 from './pages/admin/AdminProjectManage';
 import AdminStudentRoster from './pages/admin/AdminStudentRoster';
 import AdminUpload from './pages/admin/AdminUpload';
@@ -29,7 +29,7 @@ import AdminViewStudentCode from './pages/admin/AdminViewStudentCode';
 
 import AdminSchoolRoster from './pages/abacus/AdminSchoolRoster';
 import StudentRoster from './pages/abacus/StudentRoster';
-import ProblemList from './pages/abacus/ProblemList';
+import AdminProjectList from './pages/abacus/AdminProjectList';
 import AdminProjectManage from './pages/abacus/AdminProjectManage';
 import StudentSubmit from './pages/abacus/StudentSubmit';
 import StudentSubmissions from './pages/abacus/StudentSubmissions';
@@ -89,7 +89,7 @@ class App extends Component {
                     } />
                     <Route path="/admin/problems" element={
                         <ProtectedRoute>
-                            <ProblemList />
+                            <AdminProjectList />
                         </ProtectedRoute>
                     } />
                     <Route path="/admin/problem/manage/:id" element={
@@ -116,7 +116,7 @@ class App extends Component {
 
                     <Route path="/student/problems" element={
                         <ProtectedRoute>
-                            <ProblemList />
+                            <AdminProjectList />
                         </ProtectedRoute>
                     } />
                     <Route path="/student/:problem_id/submit" element={
@@ -131,7 +131,7 @@ class App extends Component {
                     } />
                     <Route path="/admin/:id/projects/*" element={
                         <ProtectedRoute>
-                            <AdminProjectList />
+                            <AdminProjectList2 />
                         </ProtectedRoute>
                     } />
                     <Route path="/admin/:class_id/project/:id" element={

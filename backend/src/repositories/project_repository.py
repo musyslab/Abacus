@@ -49,7 +49,7 @@ class ProjectRepository():
         Returns:
             Projects: A project object sorted by end date.
         """
-        project = Projects.query.order_by(asc(Projects.End)).all()
+        project = Projects.query.order_by(asc(Projects.Id)).all()
         return project
 
     def get_selected_project(self, project_id: int) -> Projects:

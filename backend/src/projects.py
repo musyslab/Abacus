@@ -102,17 +102,15 @@ def is_admin(user_repo: UserRepository) -> bool:
 @projects_api.route('/all_projects', methods=['GET'])
 @jwt_required()
 @inject
-def all_projects(project_repo: ProjectRepository = Provide[Container.project_repo], submission_repo: SubmissionRepository = Provide[Container.submission_repo]):
-    if current_user.Role != ADMIN_ROLE:
-        message = {
-            'message': 'Access Denied'
-        }
-        return make_response(message, HTTPStatus.UNAUTHORIZED)
+def all_projects(project_repo: ProjectRepository = Provide[Container.project_repo], submission_repo: SubmissionRepository = Provide[Container.submission_repo], user_repo: UserRepository = Provide[Container.user_repo]):
+    if not is_admin(user_repo):
+        return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
+
     data = project_repo.get_all_projects()
     new_projects = []
     thisdic = submission_repo.get_total_submission_for_all_projects()
     for proj in data:
-        new_projects.append(ProjectJson(proj.Id, proj.Name, proj.Start.strftime("%x %X"), proj.End.strftime("%x %X"), thisdic[proj.Id]).toJson())
+        new_projects.append(ProjectJson(proj.Id, proj.Name, proj.Language, thisdic[proj.Id]).toJson())
     return jsonify(new_projects)
 
 

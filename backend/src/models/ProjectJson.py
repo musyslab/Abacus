@@ -4,15 +4,13 @@ import datetime
 class ProjectJson:
     Id = -1
     Name = ""
-    Start = ""
-    End = ""
+    Language = ""
     TotalSubmissions = -1
 
-    def __init__(self, id, name, start, end, totalSubmissions):
+    def __init__(self, id, name, language, totalSubmissions):
         self.Id = id
         self.Name = name
-        self.Start = start
-        self.End = end
+        self.Language = language
         self.TotalSubmissions = totalSubmissions
     
     def json_default(self, value):
