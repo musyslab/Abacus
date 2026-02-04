@@ -9,15 +9,11 @@ import {
     FaSignOutAlt,
     FaChalkboardTeacher,
     FaUserCircle,
+    FaList,
 } from "react-icons/fa";
 
 interface MenuComponentProps {
-    showUpload: boolean;
-    showAdminUpload: boolean;
-    showHelp: boolean;
-    showCreate: boolean;
-    showReviewButton: boolean;
-    showLast: boolean;
+    showProblemList?: boolean;
     variant?: "app" | "home" | "public";
     onScrollToSection?: (key: "hero" | "about" | "abacus" | "contact") => void;
 }
@@ -260,6 +256,16 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                                     alt="Abacus logo"
                                 />
                             </button>
+                            {this.props.showProblemList && (
+                                <Link
+                                        to="/admin/problems"
+                                        className="menu__item menu__item--link"
+                                        title="Go to problem list"
+                                    >
+                                        <FaList className="menu__icon" aria-hidden="true" />
+                                        <span className="menu__text">Problem List</span>
+                                </Link>
+                            )}
 
                             <div className="menu__right">
                                 <button

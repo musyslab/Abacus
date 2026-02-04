@@ -10,14 +10,7 @@ class NotFound extends Component {
                     <title>404 Error | TA-Bot</title>
                 </Helmet>
 
-                <MenuComponent
-                    showAdminUpload={false}
-                    showUpload={false}
-                    showHelp={false}
-                    showCreate={false}
-                    showLast={false}
-                    showReviewButton={false}
-                />
+                <MenuComponent/>
 
                 <div className="notfound__grid">
                     <div className="notfound__column">

@@ -10,12 +10,8 @@ from src.repositories.database import db
 class Projects(db.Model):
     __tablename__ = "Projects"
     Id = Column(Integer, primary_key=True, autoincrement=True)
-    SchoolId = Column(Integer, ForeignKey('Schools.Id'))
     Name = Column(String)
-    Start = Column(Date)
-    End = Column(Date)
     Language = Column(String)
-
     Submissions=relationship('Submissions') 
     StudentUnlocks=relationship('StudentUnlocks') 
     solutionpath=Column(String)

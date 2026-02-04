@@ -51,16 +51,12 @@ CREATE TABLE `OHVisits` (
 CREATE TABLE `Projects` (
   `Id` int NOT NULL AUTO_INCREMENT COMMENT 'Table to keep track of projects',
   `Name` varchar(1000) NOT NULL,
-  `Start` datetime NOT NULL,
-  `End` datetime NOT NULL,
   `Language` varchar(45) NOT NULL,
-  `SchoolId` int NOT NULL,
   `solutionpath` varchar(1000) DEFAULT NULL,
   `AsnDescriptionPath` varchar(1000) DEFAULT NULL,
   `AdditionalFilePath` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`Id`),
-  UNIQUE KEY `idProjects_UNIQUE` (`Id`),
-  KEY `fk_Projects_school_idx` (`SchoolId`)
+  UNIQUE KEY `idProjects_UNIQUE` (`Id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
@@ -227,10 +223,6 @@ ALTER TABLE `Schools`
   ADD CONSTRAINT `fk_schools_teacher`
   FOREIGN KEY (`TeacherID`) REFERENCES `AdminUsers` (`Id`)
   ON DELETE SET NULL;
-
-ALTER TABLE `Projects`
-  ADD CONSTRAINT `fk_projects_school`
-  FOREIGN KEY (`SchoolId`) REFERENCES `Schools` (`Id`);
 
 ALTER TABLE `StudentUsers`
   ADD CONSTRAINT `fk_studentusers_teacher`

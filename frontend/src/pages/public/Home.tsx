@@ -32,12 +32,6 @@ class Home extends Component {
                 </Helmet>
 
                 <MenuComponent
-                    showUpload={false}
-                    showAdminUpload={false}
-                    showHelp={false}
-                    showCreate={false}
-                    showReviewButton={false}
-                    showLast={false}
                     variant="home"
                     onScrollToSection={(key) => {
                         if (key === "hero" && heroRef.current) scrollToSection(heroRef.current)

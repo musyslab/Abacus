@@ -565,12 +565,7 @@ export default function AdminTeamManage() {
             </Helmet>
 
             <MenuComponent
-                showUpload={false}
-                showAdminUpload={true}
-                showHelp={false}
-                showCreate={false}
-                showLast={false}
-                showReviewButton={false}
+                showProblemList={true}
             />
 
             <div className="admin-team-manage-root">

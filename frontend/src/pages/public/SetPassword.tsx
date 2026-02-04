@@ -80,12 +80,6 @@ export default function SetPassword() {
   return (
     <>
       <MenuComponent
-        showUpload={false}
-        showAdminUpload={false}
-        showHelp={false}
-        showCreate={false}
-        showReviewButton={false}
-        showLast={false}
         variant="public"
       />
 

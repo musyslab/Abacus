@@ -12,12 +12,7 @@ const AdminSchoolRoster = () => {
         </Helmet>
 
         <MenuComponent
-            showUpload={false}
-            showAdminUpload={false}
-            showHelp={false}
-            showCreate={false}
-            showLast={false}
-            showReviewButton={false}
+            showProblemList={true}
         />
 
         {/* Admin / Judge */}
