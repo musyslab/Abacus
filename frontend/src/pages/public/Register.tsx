@@ -37,8 +37,6 @@ export default function Register() {
   const [newSchoolName, setNewSchoolName] = useState("");
 
   const [email, setEmail] = useState(prefillEmail);
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingSchools, setIsLoadingSchools] = useState(false);
@@ -82,7 +80,7 @@ export default function Register() {
     ev.preventDefault();
     setErrorMessage("");
 
-    if (!firstName || !lastName || !email || !password || !confirmPassword) {
+    if (!firstName || !lastName || !email) {
       setErrorMessage("All fields are required.");
       return;
     }
@@ -99,11 +97,6 @@ export default function Register() {
       }
     }
 
-    if (password !== confirmPassword) {
-      setErrorMessage("Passwords do not match.");
-      return;
-    }
-
     setIsLoading(true);
 
     try {
@@ -111,7 +104,6 @@ export default function Register() {
         fname: firstName,
         lname: lastName,
         email,
-        password,
       };
 
       if (schoolMode === "existing") {
@@ -286,42 +278,15 @@ export default function Register() {
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              className="form-input"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="confirmPassword">
-              Confirm password
-            </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              className="form-input"
-              placeholder="Confirm password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              autoComplete="new-password"
-              required
-            />
-          </div>
 
           <button className="btn btn--primary login-form__submit" type="submit" disabled={isLoading}>
             {isLoading ? "Creating account…" : "Create account"}
           </button>
+
         </form>
+        <div className="login-links">
+          You’ll receive an email to finish setting up your account.
+        </div>
 
         {errorMessage ? (
           <div className="alert alert--error" role="alert" aria-live="assertive">

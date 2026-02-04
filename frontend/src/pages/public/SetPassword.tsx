@@ -14,6 +14,18 @@ type CompletePasswordResponse = {
   role?: number; // 0 student, 1 admin
 };
 
+function hasUppercase(pw: string) {
+  return /[A-Z]/.test(pw);
+}
+
+function hasSpecialChar(pw: string) {
+  return /[!@#$%^&*(),.?":{}|<>]/.test(pw);
+}
+
+function hasMinLength(pw: string) {
+  return pw.length >= 8;
+}
+
 export default function SetPassword() {
   const apiBase = (import.meta.env.VITE_API_URL as string) || "";
   const [searchParams] = useSearchParams();
@@ -29,6 +41,12 @@ export default function SetPassword() {
   // When true, redirect the user back to /home after success
   const [redirectHome, setRedirectHome] = useState(false);
 
+  const ruleMinLength = hasMinLength(password);
+  const ruleUppercase = hasUppercase(password);
+  const ruleSpecial = hasSpecialChar(password);
+
+const isPasswordValid = ruleMinLength && ruleUppercase && ruleSpecial;
+
   async function handleSubmit(ev: React.FormEvent<HTMLFormElement>) {
     ev.preventDefault();
     setErrorMessage("");
@@ -43,8 +61,10 @@ export default function SetPassword() {
       return;
     }
 
-    if (password.length < 8) {
-      setErrorMessage("Password must be at least 8 characters.");
+    if (!isPasswordValid) {
+      setErrorMessage(
+        "Password must be at least 8 characters, contain an uppercase letter, and a special character."
+      );
       return;
     }
 
@@ -122,6 +142,19 @@ export default function SetPassword() {
             </div>
           </div>
 
+          {/* Password Checklist */}
+          <ul style={{ marginTop: 10, paddingLeft: 20, fontSize: 14 }}>
+                      <li style={{ color: ruleMinLength ? "green" : "red" }}>
+                        At least 8 characters
+                      </li>
+                      <li style={{ color: ruleUppercase ? "green" : "red" }}>
+                        At least one uppercase letter
+                      </li>
+                      <li style={{ color: ruleSpecial ? "green" : "red" }}>
+                        At least one special character
+                      </li>
+          </ul>
+
           <div className="form-group">
             <label className="form-label" htmlFor="confirmPassword">
               Confirm password
@@ -142,16 +175,24 @@ export default function SetPassword() {
             </div>
           </div>
 
-          <button className="btn btn--primary login-form__submit" type="submit" disabled={isLoading}>
+          <button
+            className="btn btn--primary login-form__submit"
+            type="submit"
+            disabled={isLoading || !isPasswordValid}
+          >
             {isLoading ? "Saving…" : "Save password"}
           </button>
         </form>
 
-        {errorMessage ? (
-          <div className="alert alert--error" role="alert" aria-live="assertive">
+        {errorMessage && (
+          <div
+            className="alert alert--error"
+            role="alert"
+            aria-live="assertive"
+          >
             {errorMessage}
           </div>
-        ) : null}
+        )}
 
         <div className="login-links">
           <div>This link expires. If it fails, request a new reset link from the pages above.</div>
