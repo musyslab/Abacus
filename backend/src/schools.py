@@ -4,6 +4,8 @@ from dependency_injector.wiring import inject, Provide
 from container import Container
 
 from src.repositories.school_repository import SchoolRepository
+from src.repositories.user_repository import UserRepository
+from src.repositories.models import AdminUsers
 
 school_api = Blueprint("school_api", __name__)
 
@@ -75,6 +77,69 @@ def get_my_school(
 
     return jsonify({"id": school.Id, "name": school.Name, "teacherId": school.TeacherID})
 
+@school_api.route("/admin/summary", methods=["GET"])
+@jwt_required()
+@inject
+def admin_school_summary(
+    school_repo: SchoolRepository = Provide[Container.school_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
+    """
+    Admin-only (Role 1) endpoint: returns summary rows for all schools:
+      - teacher name/email (from Schools.TeacherID)
+      - teamCount (distinct TeamId values among students)
+      - studentCount (total students in the school)
+    """
+    if (not school_repo.is_admin_user(current_user)) or int(getattr(current_user, "Role", 0) or 0) != 1:
+        return jsonify({"message": "Unauthorized"}), 403
+
+    schools = school_repo.get_all_schools()
+    payload = []
+
+    for s in schools:
+        teacher = None
+        teacher_id = getattr(s, "TeacherID", None)
+        if teacher_id is not None:
+            try:
+                teacher = AdminUsers.query.filter_by(Id=int(teacher_id)).one_or_none()
+            except Exception:
+                teacher = None
+
+        teacher_name = None
+        teacher_email = None
+        if teacher:
+            first = (getattr(teacher, "Firstname", "") or "").strip()
+            last = (getattr(teacher, "Lastname", "") or "").strip()
+            teacher_name = (f"{first} {last}").strip() or None
+            teacher_email = (getattr(teacher, "Email", None) or "").strip() or None
+
+        students = user_repo.get_students_for_school(int(s.Id))
+        team_ids = set()
+        for st in students:
+            tid = getattr(st, "TeamId", None)
+            if tid is None:
+                continue
+            try:
+                tid_int = int(tid)
+            except Exception:
+                continue
+            if tid_int > 0:
+                team_ids.add(tid_int)
+
+        payload.append(
+            {
+                "id": int(s.Id),
+                "name": getattr(s, "Name", "") or "",
+                "teacherId": int(teacher.Id) if teacher else None,
+                "teacherName": teacher_name,
+                "teacherEmail": teacher_email,
+                "teamCount": len(team_ids),
+                "studentCount": len(students),
+            }
+        )
+
+    payload.sort(key=lambda x: (x.get("name") or "").lower())
+    return jsonify(payload)
 
 @school_api.route("/id/<int:school_id>", methods=["GET"])
 @jwt_required()
