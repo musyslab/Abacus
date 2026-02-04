@@ -85,15 +85,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                     return info;
                 }
 
-                // Teacher: needs school_id in the route
-                const schoolRes = await axios.get(`${import.meta.env.VITE_API_URL}/schools/me`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                const schoolId = Number(schoolRes.data?.id) || 0;
-                const info =
-                    schoolId > 0
-                        ? { label: "Team Manage", path: `/admin/${schoolId}/team-manage` }
-                        : { label: "Team Manage", path: "/admin/schools" };
+                const info = { label: "Team Manage", path: "/teacher/team-manage" };
 
                 this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
                 return info;

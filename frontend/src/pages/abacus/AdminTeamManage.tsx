@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
+import { useParams } from "react-router-dom";
 
 import MenuComponent from "../components/MenuComponent";
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
@@ -92,10 +93,32 @@ function buildTeamVm(teamId: number, apiMembers: ApiTeamMember[], isDraft = fals
 
 export default function AdminTeamManage() {
     const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+    const { school_id } = useParams();
+    const schoolIdParam = Number(school_id);
+    const isAdminMode = Number.isFinite(schoolIdParam) && schoolIdParam > 0;
+    const managedSchoolId = isAdminMode ? schoolIdParam : null;
+
+    const [schoolName, setSchoolName] = useState<string>("");
 
     function authConfig() {
         const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
         return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    }
+
+    async function fetchSchoolName() {
+        setSchoolName("");
+        try {
+            if (managedSchoolId) {
+                const res = await axios.get(`${apiBase}/schools/id/${managedSchoolId}`, authConfig());
+                const name = Array.isArray(res.data) ? res.data?.[0]?.name : res.data?.name;
+                setSchoolName(String(name || ""));
+                return;
+            }
+            const res = await axios.get(`${apiBase}/schools/me`, authConfig());
+            setSchoolName(String(res.data?.name || ""));
+        } catch {
+            setSchoolName("");
+        }
     }
 
     const [teams, setTeams] = useState<TeamVm[]>([]);
@@ -189,7 +212,13 @@ export default function AdminTeamManage() {
         setIsLoading(true);
         setPageError("");
         try {
-            const res = await axios.get<ApiTeam[]>(`${apiBase}/auth/student/teams`, authConfig());
+            const res = await axios.get<ApiTeam[]>(
+                `${apiBase}/auth/student/teams`,
+                {
+                    ...authConfig(),
+                    params: managedSchoolId ? { school_id: managedSchoolId } : undefined,
+                }
+            );
             const data = Array.isArray(res.data) ? res.data : [];
             const mapped = data
                 .slice()
@@ -229,9 +258,9 @@ export default function AdminTeamManage() {
     }
 
     useEffect(() => {
+        fetchSchoolName();
         fetchTeams();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [apiBase]);
+    }, [apiBase, managedSchoolId]);
 
     const nextTeamId = useMemo(() => {
         const max = teams.reduce((acc, t) => Math.max(acc, t.teamId), 0);
@@ -356,6 +385,7 @@ export default function AdminTeamManage() {
                     email_hash: emailHash,
                     team_id: teamId,
                     member_id: memberId,
+                    ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
                 },
                 authConfig()
             );
@@ -375,6 +405,7 @@ export default function AdminTeamManage() {
                         team_id: teamId,
                         member_id: memberId,
                         email,
+                        ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
                     },
                     authConfig()
                 );
@@ -456,7 +487,7 @@ export default function AdminTeamManage() {
         try {
             await axios.delete(`${apiBase}/auth/student/delete`, {
                 ...authConfig(),
-                data: { team_id: teamId, member_id: memberId },
+                data: { team_id: teamId, member_id: memberId, ...(managedSchoolId ? { school_id: managedSchoolId } : {}) },
             });
 
             const teamNow = teams.find((t) => t.teamId === teamId);
@@ -532,6 +563,7 @@ export default function AdminTeamManage() {
                     team_id: resendModal.teamId,
                     member_id: resendModal.memberId,
                     email,
+                    ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
                 },
                 authConfig()
             );
@@ -561,7 +593,7 @@ export default function AdminTeamManage() {
     return (
         <>
             <Helmet>
-                <title>[Admin] Abacus</title>
+                <title>{managedSchoolId ? "[Admin] Abacus" : "Abacus"}</title>
             </Helmet>
 
             <MenuComponent
@@ -569,8 +601,18 @@ export default function AdminTeamManage() {
             />
 
             <div className="admin-team-manage-root">
-                <DirectoryBreadcrumbs items={[{ label: "Team Manage" }]} trailingSeparator={true} />
-                <div className="pageTitle">Team Manage</div>
+                <DirectoryBreadcrumbs
+                    items={
+                        managedSchoolId
+                            ? [{ label: "School List", to: "/admin/schools" }, { label: "Team Manage" }]
+                            : [{ label: "Team Manage" }]
+                    }
+                    trailingSeparator={!managedSchoolId}
+                />
+                <div className="pageTitle">
+                    {schoolName ? schoolName : "Team Manage"}
+                    {managedSchoolId ? " (Admin)" : ""}
+                </div>
 
                 <div className="admin-team-manage-content">
                     <div className="callout callout--warning">

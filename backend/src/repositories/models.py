@@ -116,7 +116,6 @@ class Schools(db.Model):
     __tablename__ = "Schools"
     Id = Column(Integer, primary_key=True, autoincrement=True)
     Name = Column(String(256), nullable=False, unique=True)
-    TeacherID = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=True)
 
 class AdminUsers(db.Model):
     __tablename__ = "AdminUsers"

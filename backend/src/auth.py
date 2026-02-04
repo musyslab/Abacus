@@ -274,7 +274,21 @@ def list_student_teams(user_repo: UserRepository = Provide[Container.user_repo])
     if not isinstance(current_user, AdminUsers):
         return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
 
+    role = int(getattr(current_user, "Role", 0) or 0)  # 0 = teacher, 1 = admin
     school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+
+    requested_school_raw = (request.args.get("school_id") or "").strip()
+    if requested_school_raw:
+        try:
+            requested_school_id = int(requested_school_raw)
+        except Exception:
+            requested_school_id = 0
+        if requested_school_id > 0:
+            if role == 1:
+                school_id = requested_school_id
+            elif requested_school_id != school_id:
+                return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
     if school_id <= 0:
         return make_response([], HTTPStatus.OK)
 
@@ -325,6 +339,7 @@ def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]
     password = get_value_or_empty(input_json, 'password')  # optional for invite flow
     team_id = int(get_value_or_empty(input_json, 'team_id') or 0)
     member_id = int(get_value_or_empty(input_json, 'member_id') or 0)
+    requested_school_id = int(get_value_or_empty(input_json, 'school_id') or 0)
 
     if team_id <= 0:
         return make_response({'message': 'Missing required data. team_id is required.'}, HTTPStatus.NOT_ACCEPTABLE)
@@ -339,7 +354,14 @@ def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]
     if user_repo.does_student_emailhash_exist(email_hash):
         return make_response({'message': 'Student already exists'}, HTTPStatus.NOT_ACCEPTABLE)
 
+    role = int(getattr(current_user, "Role", 0) or 0)  # 0 = teacher, 1 = admin
     school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+    if requested_school_id > 0:
+        if role == 1:
+            school_id = requested_school_id
+        elif requested_school_id != school_id:
+            return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
     if school_id <= 0:
         return make_response({'message': 'Missing required data. SchoolId is required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
@@ -354,9 +376,20 @@ def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]
 
     password_hash = generate_password_hash(password) if password else None
 
+    teacher_id = current_user.Id
+    if role == 1:
+        teacher = (
+            AdminUsers.query
+            .filter_by(SchoolId=school_id, Role=0)
+            .order_by(AdminUsers.Id.asc())
+            .first()
+        )
+        if teacher:
+            teacher_id = teacher.Id
+
     student = user_repo.create_student_user(
         email_hash=email_hash,
-        teacher_id=current_user.Id,
+        teacher_id=teacher_id,
         school_id=school_id,
         team_id=team_id,
         member_id=member_id,
@@ -384,10 +417,19 @@ def delete_student_user(user_repo: UserRepository = Provide[Container.user_repo]
     input_json = request.get_json() or {}
     team_id = int(get_value_or_empty(input_json, 'team_id') or 0)
     member_id = int(get_value_or_empty(input_json, 'member_id') or 0)
+    requested_school_id = int(get_value_or_empty(input_json, 'school_id') or 0)
+
     if team_id <= 0 or member_id <= 0:
         return make_response({'message': 'team_id and member_id are required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
+    role = int(getattr(current_user, "Role", 0) or 0)  # 0 = teacher, 1 = admin
     school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+    if requested_school_id > 0:
+        if role == 1:
+            school_id = requested_school_id
+        elif requested_school_id != school_id:
+            return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
     if school_id <= 0:
         return make_response({'message': 'Missing required data. SchoolId is required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
@@ -414,10 +456,21 @@ def invite_student_stub(user_repo: UserRepository = Provide[Container.user_repo]
     team_id = int(get_value_or_empty(input_json, 'team_id') or 0)
     member_id = int(get_value_or_empty(input_json, 'member_id') or 0)
     email = get_value_or_empty(input_json, 'email').strip().lower()
+    requested_school_id = int(get_value_or_empty(input_json, 'school_id') or 0)
+
     if team_id <= 0 or member_id <= 0 or not email:
         return make_response({'message': 'team_id, member_id, and email are required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
     school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+
+    role = int(getattr(current_user, "Role", 0) or 0)  # 0 = teacher, 1 = admin
+    school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+    if requested_school_id > 0:
+        if role == 1:
+            school_id = requested_school_id
+        elif requested_school_id != school_id:
+            return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
     if school_id <= 0:
         return make_response({'message': 'Missing required data. SchoolId is required.'}, HTTPStatus.NOT_ACCEPTABLE)
 

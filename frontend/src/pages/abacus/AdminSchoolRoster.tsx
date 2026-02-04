@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
 import { FaSearch } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
 import MenuComponent from "../components/MenuComponent";
@@ -19,6 +20,7 @@ type SchoolSummary = {
 
 const AdminSchoolRoster = () => {
   const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+  const navigate = useNavigate();
 
   const [schools, setSchools] = useState<SchoolSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -193,7 +195,7 @@ const AdminSchoolRoster = () => {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              // TODO: navigate to this school's team-manage page
+                              navigate(`/admin/${s.id}/team-manage`);
                             }}
                           >
                             Team Manage

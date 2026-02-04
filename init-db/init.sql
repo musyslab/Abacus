@@ -65,10 +65,8 @@ CREATE TABLE `Projects` (
 CREATE TABLE `Schools` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `Name` varchar(256) NOT NULL,
-  `TeacherID` int DEFAULT NULL,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `schools_name_unique` (`Name`),
-  KEY `fk_schools_teacher_idx` (`TeacherID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
@@ -218,11 +216,6 @@ CREATE TABLE `Testcases` (
 ALTER TABLE `AdminUsers`
   ADD CONSTRAINT `fk_adminusers_school`
   FOREIGN KEY (`SchoolId`) REFERENCES `Schools` (`Id`);
-
-ALTER TABLE `Schools`
-  ADD CONSTRAINT `fk_schools_teacher`
-  FOREIGN KEY (`TeacherID`) REFERENCES `AdminUsers` (`Id`)
-  ON DELETE SET NULL;
 
 ALTER TABLE `StudentUsers`
   ADD CONSTRAINT `fk_studentusers_teacher`
