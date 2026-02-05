@@ -223,15 +223,10 @@ class UserRepository:
     # School operations (kept here because your auth flow uses them)
     # -----------------------------
     def create_school(self, name: str) -> Schools:
-        school = Schools(Name=name, TeacherID=None)
+        school = Schools(Name=name)
         db.session.add(school)
         db.session.commit()
         return school
-
-    def set_school_teacher(self, school_id: int, teacher_id: int) -> None:
-        school = Schools.query.filter(Schools.Id == school_id).one()
-        school.TeacherID = teacher_id
-        db.session.commit()
 
     def get_school_by_id(self, school_id: int) -> Optional[Schools]:
         return Schools.query.filter(Schools.Id == school_id).one_or_none()

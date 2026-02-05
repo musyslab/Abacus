@@ -66,7 +66,7 @@ CREATE TABLE `Schools` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `Name` varchar(256) NOT NULL,
   PRIMARY KEY (`Id`),
-  UNIQUE KEY `schools_name_unique` (`Name`),
+  UNIQUE KEY `schools_name_unique` (`Name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
