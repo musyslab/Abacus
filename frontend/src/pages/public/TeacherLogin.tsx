@@ -14,7 +14,6 @@ interface TeacherLoginPageState {
   email: string;
   password: string;
   role: number;
-  schoolId: number | null;
   error_message: string;
   isLoading: boolean;
 }
@@ -29,7 +28,6 @@ class TeacherLogin extends Component<{}, TeacherLoginPageState> {
       email: "",
       password: "",
       role: -1,
-      schoolId: null,
       error_message: "",
       isLoading: false,
     };
@@ -64,20 +62,6 @@ class TeacherLogin extends Component<{}, TeacherLoginPageState> {
         const role = Number(res.data.role ?? 0);
         localStorage.setItem("AUTOTA_AUTH_TOKEN", token);
 
-        if (role === 0) {
-          try {
-            const me = await axios.get(`${baseUrl}/schools/me`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            const schoolId = Number(me.data?.id) || null;
-            this.setState({ isLoggedIn: true, role, schoolId, isLoading: false });
-            return;
-          } catch {
-            this.setState({ isLoggedIn: true, role, schoolId: null, isLoading: false });
-            return;
-          }
-        }
-
         this.setState({ isLoggedIn: true, role, isLoading: false });
       })
       .catch((err) => {
@@ -89,10 +73,7 @@ class TeacherLogin extends Component<{}, TeacherLoginPageState> {
   render() {
     if (this.state.isLoggedIn) {
       if (this.state.role === 0) {
-        if (!this.state.schoolId) {
-          return <div style={{ padding: 24 }}>Loading…</div>;
-        }
-        return <Navigate to={`/admin/${this.state.schoolId}/team-manage`} replace />;
+        return <Navigate to="/teacher/team-manage" replace />;
       }
       return <Navigate to="/admin/schools" replace />;
     }

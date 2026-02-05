@@ -9,6 +9,15 @@ from src.repositories.models import AdminUsers
 
 school_api = Blueprint("school_api", __name__)
 
+def teacher_id_for_school(school_id: int) -> int | None:
+    teacher = (
+        AdminUsers.query
+        .filter_by(SchoolId=int(school_id), Role=0)
+        .order_by(AdminUsers.Id.asc())
+        .first()
+    )
+    return int(teacher.Id) if teacher else None
+
 @school_api.route("/public/all", methods=["GET"])
 @inject
 def public_get_schools(
@@ -49,13 +58,29 @@ def get_schools(
     # Allow admins to request all schools if desired.
     if wants_all and school_repo.is_admin_user(current_user):
         schools = school_repo.get_all_schools()
-        return jsonify([{"id": s.Id, "name": s.Name, "teacherId": s.TeacherID} for s in schools])
+        # Teacher is derived from AdminUsers where Role==0 and SchoolId matches.
+        payload = []
+        for s in schools:
+            teacher = (
+                AdminUsers.query
+                .filter_by(SchoolId=int(s.Id), Role=0)
+                .order_by(AdminUsers.Id.asc())
+                .first()
+            )
+            payload.append(
+                {
+                    "id": s.Id,
+                    "name": s.Name,
+                    "teacherId": int(teacher.Id) if teacher else None,
+                }
+            )
+        return jsonify(payload)
 
     school = school_repo.get_school_by_id(int(school_id))
     if not school:
         return jsonify([])
 
-    return jsonify([{"id": school.Id, "name": school.Name, "teacherId": school.TeacherID}])
+    return jsonify([{"id": school.Id, "name": school.Name, "teacherId": teacher_id_for_school(int(school.Id))}])
 
 
 @school_api.route("/me", methods=["GET"])
@@ -75,7 +100,7 @@ def get_my_school(
     if not school:
         return jsonify({}), 404
 
-    return jsonify({"id": school.Id, "name": school.Name, "teacherId": school.TeacherID})
+    return jsonify({"id": school.Id, "name": school.Name, "teacherId": teacher_id_for_school(int(school.Id))})
 
 @school_api.route("/admin/summary", methods=["GET"])
 @jwt_required()
@@ -97,13 +122,13 @@ def admin_school_summary(
     payload = []
 
     for s in schools:
-        teacher = None
-        teacher_id = getattr(s, "TeacherID", None)
-        if teacher_id is not None:
-            try:
-                teacher = AdminUsers.query.filter_by(Id=int(teacher_id)).one_or_none()
-            except Exception:
-                teacher = None
+        # Teacher is the AdminUsers row for this school with Role == 0 (exclude Role 1 admins)
+        teacher = (
+            AdminUsers.query
+            .filter_by(SchoolId=int(s.Id), Role=0)
+            .order_by(AdminUsers.Id.asc())
+            .first()
+        )
 
         teacher_name = None
         teacher_email = None

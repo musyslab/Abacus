@@ -22,6 +22,7 @@ from src.constants import ADMIN_ROLE
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from src.email import send_password_link_email
+import re
 
 auth_api = Blueprint('auth_api', __name__)
 
@@ -39,6 +40,15 @@ def password_token_salt() -> str:
         or current_app.config.get("PASSWORD_TOKEN_SALT")
         or "autota-password-token"
     )
+
+def is_valid_password(password: str) -> bool:
+    if len(password) < 8:
+        return False
+    if not re.search(r"[A-Z]", password):
+        return False
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        return False
+    return True
 
 def password_token_max_age_seconds() -> int:
     raw = os.getenv("PASSWORD_TOKEN_MAX_AGE_SECONDS") or current_app.config.get("PASSWORD_TOKEN_MAX_AGE_SECONDS")
@@ -125,6 +135,14 @@ def admin_login(user_repo: UserRepository = Provide[Container.user_repo]):
     if getattr(admin, "IsLocked", False):
         return make_response({'message': 'Your account has been locked! Please contact an administrator!'}, HTTPStatus.FORBIDDEN)
 
+    if not (admin.PasswordHash or "").strip():
+        return make_response(
+        {
+            'message': 'Account setup pending. Please check your email for a password link.'
+        },
+        HTTPStatus.FORBIDDEN
+    )
+
     if not check_password_hash(admin.PasswordHash or "", password):
         user_repo.send_admin_attempt_data(email, request.remote_addr, datetime.now())
         return make_response({'message': 'Invalid email and/or password! Please try again!'}, HTTPStatus.FORBIDDEN)
@@ -173,26 +191,27 @@ def student_login(user_repo: UserRepository = Provide[Container.user_repo]):
 @auth_api.route('/register', methods=['POST'])
 @inject
 def register_user(user_repo: UserRepository = Provide[Container.user_repo]):
-    input_json = request.get_json()
+    input_json = request.get_json() or {}
 
     first_name = get_value_or_empty(input_json, 'fname')
     last_name = get_value_or_empty(input_json, 'lname')
     school = get_value_or_empty(input_json, 'school')
     school_id_raw = get_value_or_empty(input_json, 'school_id')
-    email = get_value_or_empty(input_json, 'email')
-    password = get_value_or_empty(input_json, 'password')
+    email = get_value_or_empty(input_json, 'email').strip().lower()
 
-    if not (first_name and last_name and email and password):
-        message = {'message': 'Missing required data. All fields are required.'}
-        return make_response(message, HTTPStatus.NOT_ACCEPTABLE)
+    if not (first_name and last_name and email):
+        return make_response(
+            {'message': 'Missing required data. All fields are required.'},
+            HTTPStatus.NOT_ACCEPTABLE
+        )
 
     if user_repo.does_admin_email_exist(email):
-        message = {'message': 'Teacher already exists'}
-        return make_response(message, HTTPStatus.NOT_ACCEPTABLE)
+        return make_response(
+            {'message': 'Teacher already exists'},
+            HTTPStatus.NOT_ACCEPTABLE
+        )
 
-    password_hash = generate_password_hash(password)  # PBKDF2 by default in Werkzeug
-
-    # Select an existing school by id, or create (or reuse) by name.
+    # Resolve school
     school_obj = None
     if str(school_id_raw or "").strip():
         try:
@@ -201,25 +220,48 @@ def register_user(user_repo: UserRepository = Provide[Container.user_repo]):
             sid = 0
         if sid <= 0:
             return make_response({'message': 'Invalid school_id.'}, HTTPStatus.NOT_ACCEPTABLE)
+
         school_obj = user_repo.get_school_by_id(sid)
         if not school_obj:
             return make_response({'message': 'Selected school not found.'}, HTTPStatus.NOT_ACCEPTABLE)
     else:
         if not school:
-            return make_response({'message': 'Missing required data. school (or school_id) is required.'}, HTTPStatus.NOT_ACCEPTABLE)
+            return make_response(
+                {'message': 'Missing required data. school (or school_id) is required.'},
+                HTTPStatus.NOT_ACCEPTABLE
+            )
         existing = user_repo.get_school_by_name(school)
         school_obj = existing if existing else user_repo.create_school(school)
 
-    admin = user_repo.create_admin_user(email, first_name, last_name, school_obj.Id, password_hash, role=0)
+    # IMPORTANT: create teacher WITHOUT a password
+    admin = user_repo.create_admin_user(
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+        school_id=school_obj.Id,
+        password_hash=None,
+        role=0
+    )
 
-    access_token = create_access_token(identity=admin)
+    # Send password setup email
+    try:
+        token = create_password_token("admin", admin.Id, admin.PasswordHash or "")
+        link = build_password_link(token)
+        send_password_link_email(
+            to_email=email,
+            link=link,
+            account_type="admin",
+        )
+    except Exception as e:
+        return make_response(
+            {'message': f'Account created but failed to send email: {str(e)}'},
+            HTTPStatus.INTERNAL_SERVER_ERROR
+        )
 
-    message = {
-        'message': 'Success',
-        'access_token': access_token,
-        'role': int(getattr(admin, "Role", 0) or 0)
-    }
-    return make_response(message, HTTPStatus.OK)
+    return make_response(
+        {'message': 'Account created. Please check your email to set your password.'},
+        HTTPStatus.OK
+    )
 
 @auth_api.route('/student/teams', methods=['GET'])
 @jwt_required()
@@ -232,7 +274,21 @@ def list_student_teams(user_repo: UserRepository = Provide[Container.user_repo])
     if not isinstance(current_user, AdminUsers):
         return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
 
+    role = int(getattr(current_user, "Role", 0) or 0)  # 0 = teacher, 1 = admin
     school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+
+    requested_school_raw = (request.args.get("school_id") or "").strip()
+    if requested_school_raw:
+        try:
+            requested_school_id = int(requested_school_raw)
+        except Exception:
+            requested_school_id = 0
+        if requested_school_id > 0:
+            if role == 1:
+                school_id = requested_school_id
+            elif requested_school_id != school_id:
+                return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
     if school_id <= 0:
         return make_response([], HTTPStatus.OK)
 
@@ -283,6 +339,7 @@ def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]
     password = get_value_or_empty(input_json, 'password')  # optional for invite flow
     team_id = int(get_value_or_empty(input_json, 'team_id') or 0)
     member_id = int(get_value_or_empty(input_json, 'member_id') or 0)
+    requested_school_id = int(get_value_or_empty(input_json, 'school_id') or 0)
 
     if team_id <= 0:
         return make_response({'message': 'Missing required data. team_id is required.'}, HTTPStatus.NOT_ACCEPTABLE)
@@ -297,7 +354,14 @@ def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]
     if user_repo.does_student_emailhash_exist(email_hash):
         return make_response({'message': 'Student already exists'}, HTTPStatus.NOT_ACCEPTABLE)
 
+    role = int(getattr(current_user, "Role", 0) or 0)  # 0 = teacher, 1 = admin
     school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+    if requested_school_id > 0:
+        if role == 1:
+            school_id = requested_school_id
+        elif requested_school_id != school_id:
+            return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
     if school_id <= 0:
         return make_response({'message': 'Missing required data. SchoolId is required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
@@ -312,9 +376,20 @@ def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]
 
     password_hash = generate_password_hash(password) if password else None
 
+    teacher_id = current_user.Id
+    if role == 1:
+        teacher = (
+            AdminUsers.query
+            .filter_by(SchoolId=school_id, Role=0)
+            .order_by(AdminUsers.Id.asc())
+            .first()
+        )
+        if teacher:
+            teacher_id = teacher.Id
+
     student = user_repo.create_student_user(
         email_hash=email_hash,
-        teacher_id=current_user.Id,
+        teacher_id=teacher_id,
         school_id=school_id,
         team_id=team_id,
         member_id=member_id,
@@ -342,10 +417,19 @@ def delete_student_user(user_repo: UserRepository = Provide[Container.user_repo]
     input_json = request.get_json() or {}
     team_id = int(get_value_or_empty(input_json, 'team_id') or 0)
     member_id = int(get_value_or_empty(input_json, 'member_id') or 0)
+    requested_school_id = int(get_value_or_empty(input_json, 'school_id') or 0)
+
     if team_id <= 0 or member_id <= 0:
         return make_response({'message': 'team_id and member_id are required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
+    role = int(getattr(current_user, "Role", 0) or 0)  # 0 = teacher, 1 = admin
     school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+    if requested_school_id > 0:
+        if role == 1:
+            school_id = requested_school_id
+        elif requested_school_id != school_id:
+            return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
     if school_id <= 0:
         return make_response({'message': 'Missing required data. SchoolId is required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
@@ -372,10 +456,21 @@ def invite_student_stub(user_repo: UserRepository = Provide[Container.user_repo]
     team_id = int(get_value_or_empty(input_json, 'team_id') or 0)
     member_id = int(get_value_or_empty(input_json, 'member_id') or 0)
     email = get_value_or_empty(input_json, 'email').strip().lower()
+    requested_school_id = int(get_value_or_empty(input_json, 'school_id') or 0)
+
     if team_id <= 0 or member_id <= 0 or not email:
         return make_response({'message': 'team_id, member_id, and email are required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
     school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+
+    role = int(getattr(current_user, "Role", 0) or 0)  # 0 = teacher, 1 = admin
+    school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+    if requested_school_id > 0:
+        if role == 1:
+            school_id = requested_school_id
+        elif requested_school_id != school_id:
+            return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
     if school_id <= 0:
         return make_response({'message': 'Missing required data. SchoolId is required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
@@ -467,8 +562,17 @@ def complete_password_reset(user_repo: UserRepository = Provide[Container.user_r
     if not token or not password:
         return make_response({'message': 'Missing required data. token and password are required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
-    if len(password) < 8:
-        return make_response({'message': 'Password must be at least 8 characters.'}, HTTPStatus.NOT_ACCEPTABLE)
+    if not is_valid_password(password):
+        return make_response(
+        {
+            'message': (
+                'Password must be at least 8 characters long, '
+                'contain at least one uppercase letter, '
+                'and one special character.'
+            )
+        },
+        HTTPStatus.NOT_ACCEPTABLE
+    )
 
     try:
         data = decode_password_token(token)
