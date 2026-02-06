@@ -102,6 +102,12 @@ class App extends Component {
                         </ProtectedRoute>
                     } />
 
+                    <Route path="/teacher/team-manage" element={
+                        <ProtectedRoute requiredAdminRole={0}>
+                            <AdminTeamManage />
+                        </ProtectedRoute>
+                    } />
+
                     <Route path="/student/problems" element={
                         <ProtectedRoute>
                             <AdminProjectList />
