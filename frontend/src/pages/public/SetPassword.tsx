@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
-import { FaLock } from "react-icons/fa";
+import { FaEye, FaEyeSlash, FaLock } from "react-icons/fa";
 
 import img from "../../images/AbacusLogo.png";
 import "../../styling/Login.scss";
@@ -37,6 +37,9 @@ export default function SetPassword() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
 
   // When true, redirect the user back to /home after success
   const [redirectHome, setRedirectHome] = useState(false);
@@ -131,7 +134,7 @@ const isPasswordValid = ruleMinLength && ruleUppercase && ruleSpecial;
               <input
                 id="password"
                 name="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
                 placeholder="New password"
                 autoComplete="new-password"
@@ -139,6 +142,11 @@ const isPasswordValid = ruleMinLength && ruleUppercase && ruleSpecial;
                 onChange={(e) => setPassword(e.target.value)}
                 className="form-input"
               />
+              {showPassword ? (
+                <FaEye className="input-with-icon__icon-right" onClick={() => setShowPassword(!showPassword)} />
+              ) : (
+                <FaEyeSlash className="input-with-icon__icon-right" onClick={() => setShowPassword(!showPassword)} />
+              )}
             </div>
           </div>
 
@@ -164,7 +172,7 @@ const isPasswordValid = ruleMinLength && ruleUppercase && ruleSpecial;
               <input
                 id="confirmPassword"
                 name="confirmPassword"
-                type="password"
+                type={showConfirmPassword ? "text" : "password"}
                 required
                 placeholder="Confirm password"
                 autoComplete="new-password"
@@ -172,6 +180,11 @@ const isPasswordValid = ruleMinLength && ruleUppercase && ruleSpecial;
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="form-input"
               />
+              {showConfirmPassword ? (
+                <FaEye className="input-with-icon__icon-right" onClick={() => setShowConfirmPassword(!showConfirmPassword)} />
+              ) : (
+                <FaEyeSlash className="input-with-icon__icon-right" onClick={() => setShowConfirmPassword(!showConfirmPassword)} />
+              )}
             </div>
           </div>
 

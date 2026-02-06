@@ -3,7 +3,6 @@ import axios from 'axios'
 import MenuComponent from '../components/MenuComponent'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingAnimation from '../components/LoadingAnimation'
-import Countdown from 'react-countdown'
 import { Helmet } from 'react-helmet'
 import { useParams } from 'react-router-dom'
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
@@ -12,13 +11,10 @@ import '../../styling/FileUploadCommon.scss'
 
 import {
     FaAlignJustify,
-    FaBan,
-    FaClock,
     FaCloudUploadAlt,
     FaCode,
     FaDownload,
     FaExchangeAlt,
-    FaHandshake,
     FaRegFile,
     FaTimesCircle,
 } from 'react-icons/fa'
@@ -251,7 +247,6 @@ const AdminUpload = () => {
             <DirectoryBreadcrumbs
                 items={[
                     { label: "School List", to: "/admin/schools" },
-                    { label: "Problem List", to: "/admin/problems" },
                     { label: "Admin Upload" },
                 ]}
             />

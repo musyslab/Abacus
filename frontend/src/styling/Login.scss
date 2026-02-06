@@ -107,6 +107,16 @@ body {
           pointer-events: none;
         }
 
+        .input-with-icon__icon-right {
+          position: absolute;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #6b7280;
+          font-size: 16px;
+          cursor: pointer;
+        }
+
         .form-input {
           padding-left: 40px;
         }

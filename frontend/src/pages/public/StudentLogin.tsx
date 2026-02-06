@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
 import { Link, Navigate } from "react-router-dom";
-import { FaUser, FaLock } from "react-icons/fa";
+import { FaUser, FaLock, FaEyeSlash, FaEye } from "react-icons/fa";
 
 import img from "../../images/AbacusLogo.png";
 import "../../styling/Login.scss";
@@ -16,6 +16,7 @@ interface StudentLoginPageState {
   role: number;
   error_message: string;
   isLoading: boolean;
+  showPassword: boolean;
 }
 
 class StudentLogin extends Component<{}, StudentLoginPageState> {
@@ -30,6 +31,7 @@ class StudentLogin extends Component<{}, StudentLoginPageState> {
       role: -1,
       error_message: "",
       isLoading: false,
+      showPassword: false,
     };
 
     this.handleSubmit = this.handleSubmit.bind(this);
@@ -122,13 +124,18 @@ class StudentLogin extends Component<{}, StudentLoginPageState> {
                 <input
                   id="password"
                   name="password"
-                  type="password"
+                  type={this.state.showPassword ? "text" : "password"}
                   required
                   placeholder="Password"
                   autoComplete="current-password"
                   onChange={this.handlePasswordChange}
                   className="form-input"
                 />
+                {this.state.showPassword ? (
+                  <FaEye className="input-with-icon__icon-right" onClick={() => this.setState({ showPassword: false })} />
+                ) : (
+                  <FaEyeSlash className="input-with-icon__icon-right" onClick={() => this.setState({ showPassword: true })} />
+                )}
               </div>
             </div>
 
