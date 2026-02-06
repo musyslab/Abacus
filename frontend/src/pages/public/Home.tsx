@@ -93,6 +93,16 @@ class Home extends Component {
                         All problems are written using Scratch, an event-driven, block-based visual programming language developed at the MIT
                         Media Lab at the Massachusetts Institute of Technology.
                     </p>
+                    <div className="sec-subtitle"><span className="eagle-div">Eagle Division</span> &#8212; AP Computer Science Principles</div>
+                    <p className="sec-text">
+                        Teams of two to four students will be working together to solve a problem that is present in society and is awaiting a technological solution.
+                         The students then have three hours to develop a solution using their knowledge of computer science principles and technologies.
+                          Students are not required to write code or create a working prototype, but rather have a flushed out, technical solution.
+                    </p>
+                    <p className="sec-text">
+                        At the end of the three hours, each team will present (5 – 10 minutes) their solution to a small board of faculty members.
+                         The faculty will ask a few questions and ultimately vote on a winner.
+                    </p>
                     <div className="sec-subtitle">Logistics</div>
                     <div className="sec-text"><span className="bold">Date:</span> Wednesday, April 15th, {year}</div>
                     <div className="sec-text"><span className="bold">Location:</span> TBD</div>
