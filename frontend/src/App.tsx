@@ -24,17 +24,16 @@ import AdminPlagiarism from "./pages/admin/AdminPlagiarism";
 import AdminProjectList2 from './pages/admin/AdminProjectList';
 import AdminProjectManage2 from './pages/admin/AdminProjectManage';
 import AdminStudentRoster from './pages/admin/AdminStudentRoster';
-import AdminUpload from './pages/admin/AdminUpload';
 import AdminViewStudentCode from './pages/admin/AdminViewStudentCode';
 
 import AdminSchoolRoster from './pages/abacus/AdminSchoolRoster';
-import StudentRoster from './pages/abacus/StudentRoster';
 import AdminProjectList from './pages/abacus/AdminProjectList';
 import AdminProjectManage from './pages/abacus/AdminProjectManage';
 import StudentSubmit from './pages/abacus/StudentSubmit';
 import StudentSubmissions from './pages/abacus/StudentSubmissions';
 import StudentDiff from './pages/abacus/StudentDiff';
 import AdminTeamManage from './pages/abacus/AdminTeamManage';
+import AdminUpload from './pages/abacus/AdminUpload';
 
 import ProtectedRoute from './pages/components/ProtectedRoute';
 
@@ -88,34 +87,18 @@ class App extends Component {
                         </ProtectedRoute>
                     } />
                     <Route path="/admin/problems" element={
-                        <ProtectedRoute>
+                        <ProtectedRoute requiredAdminRole={1}>
                             <AdminProjectList />
                         </ProtectedRoute>
                     } />
                     <Route path="/admin/problem/manage/:id" element={
-                        <ProtectedRoute>
+                        <ProtectedRoute requiredAdminRole={1}>
                             <AdminProjectManage />
                         </ProtectedRoute>
                     } />
-
-                    <Route path="/teacher/students" element={
-                        <ProtectedRoute>
-                            <StudentRoster />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/teacher/team-manage" element={
-                        <ProtectedRoute requiredAdminRole={0}>
-                            <AdminTeamManage />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/teacher/student/:student_id" element={
-                        <ProtectedRoute>
-                            <StudentSubmissions />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/teacher/student/:student_id/:problem_id/:id" element={
-                        <ProtectedRoute>
-                            <StudentDiff />
+                    <Route path="/admin/upload" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminUpload />
                         </ProtectedRoute>
                     } />
 
@@ -167,11 +150,6 @@ class App extends Component {
                     <Route path="/admin/OfficeHours" element={
                         <ProtectedRoute>
                             <AdminOfficeHours />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/upload" element={
-                        <ProtectedRoute>
-                            <AdminUpload />
                         </ProtectedRoute>
                     } />
 

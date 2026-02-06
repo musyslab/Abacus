@@ -10,10 +10,12 @@ import {
     FaChalkboardTeacher,
     FaUserCircle,
     FaList,
+    FaUpload,
 } from "react-icons/fa";
 
 interface MenuComponentProps {
     showProblemList?: boolean;
+    showAdminUpload?: boolean;
     variant?: "app" | "home" | "public";
     onScrollToSection?: (key: "hero" | "about" | "abacus" | "contact") => void;
 }
@@ -248,18 +250,28 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                                     alt="Abacus logo"
                                 />
                             </button>
-                            {this.props.showProblemList && (
-                                <Link
+
+                            <div className="menu__right">
+                                {this.props.showProblemList && (
+                                    <Link
                                         to="/admin/problems"
                                         className="menu__item menu__item--link"
                                         title="Go to problem list"
                                     >
                                         <FaList className="menu__icon" aria-hidden="true" />
                                         <span className="menu__text">Problem List</span>
-                                </Link>
-                            )}
-
-                            <div className="menu__right">
+                                    </Link>
+                                )}
+                                {this.props.showAdminUpload && (
+                                    <Link
+                                        to="/admin/upload"
+                                        className="menu__item menu__item--link"
+                                        title="Go to Admin Upload"
+                                    >
+                                        <FaUpload className="menu__icon" aria-hidden="true" />
+                                        <span className="menu__text">Admin Upload</span>
+                                    </Link>
+                                )}
                                 <button
                                     type="button"
                                     className="menu__item menu__item--link"

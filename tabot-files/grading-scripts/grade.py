@@ -427,7 +427,6 @@ def main() -> int:
     parser.add_argument("paths", metavar="paths", type=str, help="student path (file or directory)")
     parser.add_argument("additional_file_path", metavar="additional_file_path", type=str, help="additional file path")
     parser.add_argument("project_id", metavar="project_name", type=str, help="name of the current project")
-    parser.add_argument("class_id", metavar="class_id_name", type=str, help="name of the current class")
     parser.add_argument(
         "-r",
         "--root",

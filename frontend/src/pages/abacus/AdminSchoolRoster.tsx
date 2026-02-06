@@ -77,7 +77,7 @@ const AdminSchoolRoster = () => {
         <title>Abacus</title>
       </Helmet>
 
-      <MenuComponent showProblemList={true} />
+      <MenuComponent showProblemList={true} showAdminUpload={true} />
 
       <div className="admin-school-roster-root">
         <DirectoryBreadcrumbs

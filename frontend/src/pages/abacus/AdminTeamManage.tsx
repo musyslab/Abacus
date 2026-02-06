@@ -597,7 +597,8 @@ export default function AdminTeamManage() {
             </Helmet>
 
             <MenuComponent
-                showProblemList={true}
+                showProblemList={isAdminMode}
+                showAdminUpload={isAdminMode}
             />
 
             <div className="admin-team-manage-root">

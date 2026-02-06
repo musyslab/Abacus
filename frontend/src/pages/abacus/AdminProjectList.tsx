@@ -18,29 +18,23 @@ interface ProjectObject {
 }
 
 const AdminProjectList = () => {
+    const API = (import.meta.env.VITE_API_URL as string) || "";
     const [projects, setProjects] = useState<ProjectObject[]>([]);
 
-    useEffect(() => {
-        let isMounted = true;
+    function authConfig() {
+        const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
+        return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    }
 
+    useEffect(() => {
         axios
-            .get(`${import.meta.env.VITE_API_URL}/projects/all_projects`, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem("AUTOTA_AUTH_TOKEN")}`,
-                },
-            })
+            .get(`${API}/projects/all_projects`, authConfig())
             .then((res) => {
-                const parsed: ProjectObject[] = (res.data as any[]).map(
-                    (str: any) => JSON.parse(str) as ProjectObject
-                );
-                if (isMounted) setProjects(parsed);
+                setProjects(res.data);
             })
             .catch((err) => console.log(err));
-
-        return () => {
-            isMounted = false;
-        };
-    });
+    }, []);
+    
     return (
     <>
         <Helmet>
@@ -49,6 +43,7 @@ const AdminProjectList = () => {
 
         <MenuComponent
             showProblemList={true}
+            showAdminUpload={true}
         />
 
         <div className="admin-problem-list-root">
@@ -71,42 +66,39 @@ const AdminProjectList = () => {
                         </tr>
                     </thead>
                     <tbody className="projects-table-body">
-                        {projects.map((project) => {
-                            return (
-                                <tr
-                                    className="project-row is-active"
-                                    key={project.Id}
-                                    aria-current="true"
-                                >
-                                    <td className="project-name">
-                                        {project.Name}
-                                        <span
-                                            className="badge-active"
-                                            title="Project is active today"
-                                            aria-label="Project is active today"
-                                        >
-                                            ● Active
-                                        </span>
-                                    </td>
-                                    <td className="project-language">{project.Language}</td>
-                                    <td className="project-total-submissions">{project.TotalSubmissions}</td>
-    
-                                    <td className="project-edit">
-                                        <Link className="button button-edit" to={`/admin/problem/manage/${project.Id}`}>
-                                            <FaEdit aria-hidden="true" />
-                                            <span className="button-text">Edit</span>
-                                        </Link>
-                                    </td>
-                                </tr>
-                            );
-                        })}
+                        {projects.map((project) => (
+                            <tr
+                                className="project-row is-active"
+                                key={project.Id}
+                                aria-current="true"
+                            >
+                                <td className="project-name">
+                                    {project.Name}
+                                    <span
+                                        className="badge-active"
+                                        title="Project is active today"
+                                        aria-label="Project is active today"
+                                    >
+                                        ● Active
+                                    </span>
+                                </td>
+                                <td className="project-language">{project.Language}</td>
+                                <td className="project-total-submissions">{project.TotalSubmissions}</td>
+
+                                <td className="project-edit">
+                                    <Link className="button button-edit" to={`/admin/problem/manage/${project.Id}`}>
+                                        <FaEdit aria-hidden="true" />
+                                        <span className="button-text">Edit</span>
+                                    </Link>
+                                </td>
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
 
-                <tbody className="projects-table-body"></tbody>
                 <Link className="button button-create-assignment" to={`/admin/problem/manage/0`}>
                     <FaPlusCircle aria-hidden="true" />
-                    <span className="button-text">Create new assignment</span>
+                    <span className="button-text">Create new problem</span>
                 </Link>
             </div>
         </div>

@@ -60,7 +60,7 @@ const AdminProjectManage = () => {
     const [ProjectName, setProjectName] = useState<string>('')
     const [ProjectLanguage, setProjectLanguage] = useState<string>('')
     const [serverProjectLanguageSnapshot, setServerProjectLanguageSnapshot] = useState<string>('')
-    const [SubmitButton, setSubmitButton] = useState<string>('Create new assignment')
+    const [SubmitButton, setSubmitButton] = useState<string>('Create new problem')
     const [SolutionFiles, setSolutionFiles] = useState<File[]>([])
     const [serverSolutionFileNames, setServerSolutionFileNames] = useState<string[]>([])
     const [serverSolutionFileNamesSnapshot, setServerSolutionFileNamesSnapshot] = useState<string[]>([])
@@ -513,7 +513,7 @@ const AdminProjectManage = () => {
             return
         }
         if (SolutionFiles.length === 0 || !AssignmentDesc) {
-            window.alert('Please upload your solution file(s) and the assignment description.')
+            window.alert('Please upload your solution file(s) and the problem description.')
             return
         }
 
@@ -732,7 +732,7 @@ const AdminProjectManage = () => {
             a.remove()
         } catch (err) {
             console.log(err)
-            window.alert('Could not download the assignment description.')
+            window.alert('Could not download the problem description.')
         }
     }
 
@@ -905,7 +905,7 @@ const AdminProjectManage = () => {
     const fsShowMainTag = ProjectLanguage === 'java' && fsUniqueJavaNames.length > 1 && !!mainJavaFileName
     const showFullScreenLoader = submittingProject || submittingTestcase || submittingJson
     const loaderMessage =
-        (submittingProject && (edit ? 'Saving assignment...' : 'Creating assignment...')) ||
+        (submittingProject && (edit ? 'Saving problem...' : 'Creating problem...')) ||
         (submittingTestcase && 'Submitting test case...') ||
         (submittingJson && 'Uploading test cases...') ||
         'Loading...'
@@ -918,6 +918,7 @@ const AdminProjectManage = () => {
 
             <MenuComponent
                 showProblemList={true}
+                showAdminUpload={true}
             />
 
             <DirectoryBreadcrumbs
@@ -931,7 +932,7 @@ const AdminProjectManage = () => {
             <div className="main-grid">
                 <>
                     <div className={`admin-project-config-container${modalOpen ? ' blurred' : ''}`}>
-                        <div className="pageTitle">{edit ? 'Edit Assignment' : 'Create Assignment'}</div>
+                        <div className="pageTitle">{edit ? 'Edit Problem' : 'Create Problem'}</div>
 
                         <div className="tab-menu">
                             <button
@@ -1110,8 +1111,8 @@ const AdminProjectManage = () => {
                                                 <div className="info-segment">
                                                     <h1 className="info-title">
                                                         {edit
-                                                            ? 'Download or Change Assignment Description File' + serverDescFileName + ' end'
-                                                            : 'Upload assignment description'}
+                                                            ? 'Download or Change Problem Description File' + serverDescFileName + ' end'
+                                                            : 'Upload problem description'}
                                                     </h1>
                                                     <div
                                                         className="file-drop-area"

@@ -16,6 +16,9 @@ class UserRepository:
         if isinstance(current_user, StudentUsers):
             return "student"
         return "unknown"
+    
+    def is_admin(self) -> bool:
+        return isinstance(current_user, AdminUsers) and int(getattr(current_user, "Role", 0) or 0) == 1
 
     # -----------------------------
     # Admin (Teacher) operations
@@ -87,6 +90,9 @@ class UserRepository:
     # -----------------------------
     # Student operations
     # -----------------------------
+
+    def get_all_students(self) -> List[StudentUsers]:
+        return StudentUsers.query.order_by(StudentUsers.Id.asc()).all()
 
     def get_students_for_school(self, school_id: int) -> List[StudentUsers]:
         return (

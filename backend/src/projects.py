@@ -94,23 +94,23 @@ def seed_version_dir(dest_dir: str, *, seed_from_dir: str | None, seed_solution_
         if p and os.path.isfile(p):
             shutil.copy2(p, os.path.join(dest_dir, os.path.basename(p)))
 
-def is_admin(user_repo: UserRepository) -> bool:
-    status = user_repo.get_user_status()
-    role = int(getattr(current_user, "Role", 0) or 0)
-    return status == "admin" and role == 1
-
 @projects_api.route('/all_projects', methods=['GET'])
 @jwt_required()
 @inject
 def all_projects(project_repo: ProjectRepository = Provide[Container.project_repo], submission_repo: SubmissionRepository = Provide[Container.submission_repo], user_repo: UserRepository = Provide[Container.user_repo]):
-    if not is_admin(user_repo):
+    if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
     data = project_repo.get_all_projects()
-    new_projects = []
     thisdic = submission_repo.get_total_submission_for_all_projects()
-    for proj in data:
-        new_projects.append(ProjectJson(proj.Id, proj.Name, proj.Language, thisdic[proj.Id]).toJson())
+    new_projects = [
+        ProjectJson(
+            proj.Id,
+            proj.Name,
+            proj.Language,
+            thisdic.get(proj.Id, 0)
+        ).to_dict() for proj in data
+    ]
     return jsonify(new_projects)
 
 
@@ -118,7 +118,7 @@ def all_projects(project_repo: ProjectRepository = Provide[Container.project_rep
 @jwt_required()
 @inject
 def list_solution_files(project_repo: ProjectRepository = Provide[Container.project_repo], user_repo: UserRepository = Provide[Container.user_repo]):
-    if not is_admin(user_repo):
+    if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
     pid_str = (request.args.get("id", "") or "").strip()
@@ -248,7 +248,7 @@ def create_project(project_repo: ProjectRepository = Provide[Container.project_r
         # normalize and remove unsafe chars; also collapse spaces
         return secure_filename(s or "").replace(" ", "_")
 
-    if not is_admin(user_repo):
+    if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
     # Validate solution files (multi-file)
@@ -310,7 +310,7 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
     def safe_name(s: str) -> str:
         return secure_filename(s or "").replace(" ", "_")
 
-    if not is_admin(user_repo):
+    if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
     pid_str = request.form.get("id", "").strip()
@@ -651,7 +651,7 @@ def recompute_expected_outputs(project_repo, project_id, *, solution_override_pa
 @inject
 def list_source_files(project_repo: ProjectRepository = Provide[Container.project_repo], user_repo: UserRepository = Provide[Container.user_repo]):
     """Return list of previewable source files for a project (relative paths if a directory)."""
-    if not is_admin(user_repo):
+    if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
     pid = request.args.get('project_id', '')
@@ -682,7 +682,7 @@ def list_source_files(project_repo: ProjectRepository = Provide[Container.projec
 @inject
 def get_source_file(project_repo: ProjectRepository = Provide[Container.project_repo], user_repo: UserRepository = Provide[Container.user_repo]):
     """Return the text content of a source file for preview."""
-    if not is_admin(user_repo):
+    if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
     pid = request.args.get('project_id', '')
@@ -729,7 +729,7 @@ def get_source_file(project_repo: ProjectRepository = Provide[Container.project_
 @jwt_required()
 @inject
 def get_project(project_repo: ProjectRepository = Provide[Container.project_repo], user_repo: UserRepository = Provide[Container.user_repo]):
-    if not is_admin(user_repo):
+    if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
     project_info=project_repo.get_project(request.args.get('id'))
@@ -739,7 +739,7 @@ def get_project(project_repo: ProjectRepository = Provide[Container.project_repo
 @jwt_required()
 @inject
 def get_testcases(project_repo: ProjectRepository = Provide[Container.project_repo], user_repo: UserRepository = Provide[Container.user_repo]):
-    if not is_admin(user_repo):
+    if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
     project_id = request.args.get('id')
@@ -752,7 +752,7 @@ def get_testcases(project_repo: ProjectRepository = Provide[Container.project_re
 @jwt_required()
 @inject   
 def json_add_testcases(project_repo: ProjectRepository = Provide[Container.project_repo], user_repo: UserRepository = Provide[Container.user_repo]):
-    if not is_admin(user_repo):
+    if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
     file = request.files['file']
@@ -783,7 +783,7 @@ def json_add_testcases(project_repo: ProjectRepository = Provide[Container.proje
 @jwt_required()
 @inject   
 def add_or_update_testcase(project_repo: ProjectRepository = Provide[Container.project_repo], user_repo: UserRepository = Provide[Container.user_repo]):
-    if not is_admin(user_repo):
+    if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
     # Grab all fields safely (defaults prevent NameError)
@@ -832,7 +832,7 @@ def add_or_update_testcase(project_repo: ProjectRepository = Provide[Container.p
 @jwt_required()
 @inject
 def remove_testcase(project_repo: ProjectRepository = Provide[Container.project_repo], user_repo: UserRepository = Provide[Container.user_repo]):
-    if not is_admin(user_repo):
+    if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
     if 'id' in request.form:

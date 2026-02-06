@@ -43,27 +43,28 @@ def allowed_file(filename):
         if filetype in ext[key]:
             return True
 
-@upload_api.route('/total_students_by_cid', methods=['GET'])
+@upload_api.route('/all_students', methods=['GET'])
 @jwt_required()
 @inject
-def total_students(user_repo: UserRepository = Provide[Container.user_repo]):
-    if current_user.Role != ADMIN_ROLE:
-        message = {
-            'message': 'Access Denied'
-        }
-        return make_response(message, HTTPStatus.UNAUTHORIZED)
-    class_id = request.args.get('class_id')
-    users = user_repo.get_all_users_by_cid(class_id)
-    list_of_user_info = []
-    for user in users:
-        list_of_user_info.append({"name": user.Firstname + " " + user.Lastname, "mscsnet": user.Username, "id": user.Id})
-    return jsonify(list_of_user_info)
+def all_students(user_repo: UserRepository = Provide[Container.user_repo]):
+    if not user_repo.is_admin():
+        return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
+    
+    users = user_repo.get_all_students()
+    new_users = [
+        {
+            "Id": u.Id,
+            "TeamId": u.TeamId,
+            "MemberId": u.MemberId
+        } for u in users
+    ]
+    return jsonify(new_users)
 
 @upload_api.route('/', methods=['POST'])
 @jwt_required()
 @inject
 def file_upload(
-    user_repository: UserRepository = Provide[Container.user_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
     submission_repo: SubmissionRepository = Provide[Container.submission_repo],
     project_repo: ProjectRepository = Provide[Container.project_repo],
     school_repo: SchoolRepository = Provide[Container.school_repo]
@@ -78,29 +79,15 @@ def file_upload(
         [HTTP]: [a pass or fail HTTP message]
     """
 
-    class_id = request.form['class_id']
-    username = current_user.Username
-    user_id = current_user.Id
-    if "student_id" in request.form:
-        username = user_repository.get_user_by_id(int(request.form["student_id"]))
-        user_id = user_repository.getUserByName(username).Id
+    user_id = request.form.get("student_id", current_user.Id, type=int)
+    user_id_str = str(user_id)
 
-    project_id = project_repo.get_current_project_by_class(class_id)
-    project = None
-    if "project_id" in request.form:
-        project = project_repo.get_selected_project(int(request.form["project_id"]))
-    else:
-        project = project_repo.get_current_project_by_class(class_id)
-
+    project_id = request.form.get('project_id', None)
+    project = project_repo.get_selected_project(int(project_id)) if project_id else None
     if project is None:
-        message = {
-            'message': 'No active project'
-        }
-        return make_response(message, HTTPStatus.NOT_ACCEPTABLE)
+        return make_response({'message': 'No active project'}, HTTPStatus.NOT_ACCEPTABLE)
 
     # Check to see if student is able to upload or still on timeout
-    if current_user.Role != ADMIN_ROLE:
-        class_id = request.form['class_id']
 
     # Accept either legacy single-file field ("file") or new multi-file field ("files")
     upload_files = request.files.getlist('files')
@@ -126,22 +113,14 @@ def file_upload(
             }
             return make_response(message, HTTPStatus.UNSUPPORTED_MEDIA_TYPE)
 
-    schoolname = school_repo.get_school_name_with_id(int(class_id)) if str(class_id).isdigit() else ""
-
     student_base = current_app.config['STUDENT_FILES_DIR']
 
-    # student-files/<projecttimestamp__projectname>/<username>/<submissiontimestamp>/...
+    # student-files/<projecttimestamp__projectname>/<userId>/<submissiontimestamp>/...
     teacher_proj_dir = os.path.dirname(project.solutionpath)
     teacher_folder_name = os.path.basename(teacher_proj_dir)
     project_bucket = os.path.join(student_base, teacher_folder_name)
 
-    # Inline replacement for _sanitize_fs(username)
-    safe_username = "".join(
-        c if (c.isalnum() or c in "-_") else "_"
-        for c in (username or "").strip()
-    )
-
-    user_bucket = os.path.join(project_bucket, safe_username)
+    user_bucket = os.path.join(project_bucket, user_id_str)
     os.makedirs(user_bucket, exist_ok=True)
 
     if upload_files and all(allowed_file(f.filename) for f in upload_files):
@@ -179,7 +158,6 @@ def file_upload(
 
         grading_script = "/tabot-files/grading-scripts/grade.py"
         project_id_arg = str(project.Id)
-        class_id_arg = str(class_id)
 
         # Include teacher-provided "additional files" in the Judge0 sandbox for student runs.
         # DB stores basenames (or JSON list). Resolve them to absolute paths under the teacher solution folder.
@@ -210,13 +188,12 @@ def file_upload(
 
         cmd = [
             "python", grading_script,
-            username,
+            user_id_str,
             project.Language,
             str(testcase_info_json),
             path,
             add_payload,
-            project_id_arg,
-            class_id_arg
+            project_id_arg
         ]
         result = subprocess.run(cmd, cwd=outputpath)
 
@@ -227,11 +204,11 @@ def file_upload(
             return make_response(message, HTTPStatus.INTERNAL_SERVER_ERROR)
 
         # Step 3: Read grader JSON output from:
-        # student-files/<project>/<username>/<submissiontimestamp>/testcases.json
+        # student-files/<project>/<userId>/<submissiontimestamp>/testcases.json
         json_out = os.path.join(submission_dir, "testcases.json")
         if not os.path.exists(json_out):
             # Back-compat with older output naming
-            alt = os.path.join(submission_dir, f"{username}.json")
+            alt = os.path.join(submission_dir, f"{user_id_str}.json")
             if os.path.exists(alt):
                 json_out = alt
 
@@ -265,8 +242,6 @@ def file_upload(
             errorcount=0,
             testcase_results=TestCaseResults,
         )
-
-        submission_repo.consume_charge(user_id, class_id, project.Id, submissionId)
 
         message = {
             'message': 'Success',
