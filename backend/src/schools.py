@@ -154,6 +154,7 @@ def admin_school_summary(
         payload.append(
             {
                 "id": int(s.Id),
+                "pid": s.PublicId,
                 "name": getattr(s, "Name", "") or "",
                 "teacherId": int(teacher.Id) if teacher else None,
                 "teacherName": teacher_name,
@@ -179,3 +180,10 @@ def get_school_name_from_id(
     """
     name = school_repo.get_school_name_with_id(school_id)
     return jsonify([{"name": name}])
+
+@school_api.route("/admin/getIdfromURL/<int:public_id>", methods=['GET'])
+@jwt_required
+@inject
+def get_Id_from_publicId(public_id: int, school_repo: SchoolRepository = Provide[Container.school_repo]):
+    school_id = school_repo.get_Id_from_publicId(public_id)
+    return jsonify([{"id": school_id}])

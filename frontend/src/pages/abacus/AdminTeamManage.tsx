@@ -93,11 +93,46 @@ function buildTeamVm(teamId: number, apiMembers: ApiTeamMember[], isDraft = fals
 
 export default function AdminTeamManage() {
     const apiBase = (import.meta.env.VITE_API_URL as string) || "";
-    const { school_id } = useParams();
-    const schoolIdParam = Number(school_id);
-    const isAdminMode = Number.isFinite(schoolIdParam) && schoolIdParam > 0;
-    const managedSchoolId = isAdminMode ? schoolIdParam : null;
+    
+    //const { school_id } = useParams();
+    //const schoolIdParam = Number(school_id);
+    //const isAdminMode = Number.isFinite(schoolIdParam) && schoolIdParam > 0;
+    //const managedSchoolId = isAdminMode ? schoolIdParam : null;
 
+    const { public_id } = useParams<{ public_id: string }>();
+    const [resolvedSchoolId, setResolvedSchoolId] = useState<number | null>(null);
+    const [isResolvingId, setIsResolvingId] = useState(true);
+
+    useEffect(() =>{
+        if (!public_id){
+            setIsResolvingId(false);
+            return;
+        }
+        const resolveId = async () => {
+            setIsResolvingId(true);
+            try{
+                const res = await axios.get(`${apiBase}/schools/admin/getIdfromURL/${public_id}`,
+                    { headers: { Authorization: `Bearer: ${localStorage.getItem("AUTOTA_AUTH_TOKEN")}`}}
+                );
+                const realId = Array.isArray(res.data) ? res.data[0]?.id : res.data?.id;
+                if(realId){
+                    setResolvedSchoolId(realId);
+                }
+                else{
+                    console.error("Could not resovlve school ID");
+                }
+
+            } catch (err){
+                console.error("Failed to resolve school ID from public ID.");
+            } finally {
+                setIsResolvingId(false);
+            }
+        };
+        resolveId();
+    }, [public_id, apiBase]);
+    const managedSchoolId = resolvedSchoolId;
+    const isAdminMode = !!managedSchoolId;
+    
     const [schoolName, setSchoolName] = useState<string>("");
 
     function authConfig() {
@@ -108,8 +143,8 @@ export default function AdminTeamManage() {
     async function fetchSchoolName() {
         setSchoolName("");
         try {
-            if (managedSchoolId) {
-                const res = await axios.get(`${apiBase}/schools/id/${managedSchoolId}`, authConfig());
+            if (managedPublicId) {
+                const res = await axios.get(`${apiBase}/schools/id/${managedPublicId}`, authConfig());
                 const name = Array.isArray(res.data) ? res.data?.[0]?.name : res.data?.name;
                 setSchoolName(String(name || ""));
                 return;

@@ -116,6 +116,11 @@ class Schools(db.Model):
     __tablename__ = "Schools"
     Id = Column(Integer, primary_key=True, autoincrement=True)
     Name = Column(String(256), nullable=False, unique=True)
+    PublicId = Column(
+        String(10), 
+        nullable=False, 
+        unique=True
+    )
 
 class AdminUsers(db.Model):
     __tablename__ = "AdminUsers"

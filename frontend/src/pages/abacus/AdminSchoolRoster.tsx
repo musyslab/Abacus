@@ -10,6 +10,7 @@ import "../../styling/AdminSchoolRoster.scss";
 
 type SchoolSummary = {
   id: number;
+  pid: string;
   name: string;
   teacherId: number | null;
   teacherName: string | null;
@@ -195,7 +196,7 @@ const AdminSchoolRoster = () => {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              navigate(`/admin/${s.id}/team-manage`);
+                              navigate(`/admin/${s.pid}/team-manage`);
                             }}
                           >
                             Team Manage

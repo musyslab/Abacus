@@ -5,6 +5,7 @@ from src.repositories.database import db
 from .models import AdminUsers, StudentUsers, Schools, LoginAttempts
 from flask_jwt_extended import current_user
 
+from nanoid import generate
 
 UserModel = Union[AdminUsers, StudentUsers]
 
@@ -229,7 +230,7 @@ class UserRepository:
     # School operations (kept here because your auth flow uses them)
     # -----------------------------
     def create_school(self, name: str) -> Schools:
-        school = Schools(Name=name)
+        school = Schools(Name=name, PublicId = generate(size=10))
         db.session.add(school)
         db.session.commit()
         return school
