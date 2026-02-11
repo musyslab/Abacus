@@ -10,6 +10,7 @@ from src.repositories.models import AdminUsers, StudentUsers, Schools
 from flask_jwt_extended import create_access_token
 from src.jwt_manager import jwt
 from src.repositories.user_repository import UserRepository
+from src.repositories.team_repository import TeamRepository
 from flask_jwt_extended import jwt_required
 from flask_jwt_extended import current_user
 from flask import current_app
@@ -326,7 +327,7 @@ def list_student_teams(user_repo: UserRepository = Provide[Container.user_repo])
 @auth_api.route('/student/create', methods=['POST'])
 @jwt_required()
 @inject
-def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]):
+def create_student_user(user_repo: UserRepository = Provide[Container.user_repo], team_repo: TeamRepository = Provide[Container.team_repo]):
     # Must be called by an admin (teacher)
     if not isinstance(current_user, AdminUsers):
         return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
@@ -343,6 +344,10 @@ def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]
 
     if team_id <= 0:
         return make_response({'message': 'Missing required data. team_id is required.'}, HTTPStatus.NOT_ACCEPTABLE)
+    team = team_repo.get_team_by_id(team_id)
+    if not team:
+        return make_response({'message': 'Invalid team_id'}, HTTPStatus.NOT_ACCEPTABLE)
+
     if member_id < 1 or member_id > 4:
         return make_response({'message': 'member_id must be between 1 and 4.'}, HTTPStatus.NOT_ACCEPTABLE)
 
@@ -366,12 +371,12 @@ def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]
         return make_response({'message': 'Missing required data. SchoolId is required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
     # Enforce max 4 members and prevent overwriting a slot (school-shared teams)
-    existing_slot = user_repo.get_student_by_school_team_member(school_id, team_id, member_id)
+    existing_slot = user_repo.get_student_by_school_team_member(school_id, team.Id, member_id)
 
     if existing_slot is not None:
         return make_response({'message': 'That team/member slot is already in use.'}, HTTPStatus.CONFLICT)
 
-    if user_repo.count_team_members_for_school(school_id, team_id) >= 4:
+    if user_repo.count_team_members_for_school(school_id, team.Id) >= 4:
         return make_response({'message': 'This team already has 4 members.'}, HTTPStatus.CONFLICT)
 
     password_hash = generate_password_hash(password) if password else None
@@ -391,7 +396,7 @@ def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]
         email_hash=email_hash,
         teacher_id=teacher_id,
         school_id=school_id,
-        team_id=team_id,
+        team_id=team.Id,
         member_id=member_id,
         password_hash=password_hash,
     )
@@ -400,7 +405,7 @@ def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]
         {
             'message': 'Success',
             'student_id': student.Id,
-            'team_id': team_id,
+            'team_id': team.Id,
             'member_id': member_id,
             'email_hash': email_hash,
         },
@@ -410,7 +415,7 @@ def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]
 @auth_api.route('/student/delete', methods=['DELETE'])
 @jwt_required()
 @inject
-def delete_student_user(user_repo: UserRepository = Provide[Container.user_repo]):
+def delete_student_user(user_repo: UserRepository = Provide[Container.user_repo], team_repo: TeamRepository = Provide[Container.team_repo]):
     if not isinstance(current_user, AdminUsers):
         return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
 
@@ -433,7 +438,11 @@ def delete_student_user(user_repo: UserRepository = Provide[Container.user_repo]
     if school_id <= 0:
         return make_response({'message': 'Missing required data. SchoolId is required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
-    student = user_repo.get_student_by_school_team_member(school_id, team_id, member_id)
+    team = team_repo.get_team_by_id(team_id)
+    if not team:
+        return make_response({'message': 'Invalid team_id'}, HTTPStatus.NOT_ACCEPTABLE)
+
+    student = user_repo.get_student_by_school_team_member(school_id, team.Id, member_id)
 
     if not student:
         return make_response({'message': 'Student not found.'}, HTTPStatus.NOT_FOUND)
@@ -444,7 +453,7 @@ def delete_student_user(user_repo: UserRepository = Provide[Container.user_repo]
 @auth_api.route('/student/invite', methods=['POST'])
 @jwt_required()
 @inject
-def invite_student_stub(user_repo: UserRepository = Provide[Container.user_repo]):
+def invite_student_stub(user_repo: UserRepository = Provide[Container.user_repo], team_repo: TeamRepository = Provide[Container.team_repo]):
     """
     Sends (or re-sends) a password link email to a student.
     Verifies the provided email matches the stored hash for the team/member.
@@ -474,7 +483,11 @@ def invite_student_stub(user_repo: UserRepository = Provide[Container.user_repo]
     if school_id <= 0:
         return make_response({'message': 'Missing required data. SchoolId is required.'}, HTTPStatus.NOT_ACCEPTABLE)
 
-    student = user_repo.get_student_by_school_team_member(school_id, team_id, member_id)
+    team = team_repo.get_team_by_id(team_id)
+    if not team:
+        return make_response({'message': 'Invalid team_id'}, HTTPStatus.NOT_ACCEPTABLE)
+
+    student = user_repo.get_student_by_school_team_member(school_id, team.Id, member_id)
 
     if not student:
         return make_response({'message': 'Student not found.'}, HTTPStatus.NOT_FOUND)
