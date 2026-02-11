@@ -117,6 +117,15 @@ class Schools(db.Model):
     Id = Column(Integer, primary_key=True, autoincrement=True)
     Name = Column(String(256), nullable=False, unique=True)
 
+class Teams(db.Model):
+    __tablename__ = "Teams"
+    Id = Column(Integer, primary_key=True, autoincrement=True)
+    SchoolId = Column(Integer, ForeignKey('Schools.Id'), nullable=False)
+    TeamNumber = Column(Integer, nullable=False)
+    Name = Column(String(100), nullable=False, unique=True)
+    Division = Column(String(5))
+    IsOnline = Column(Boolean, default=False)
+
 class AdminUsers(db.Model):
     __tablename__ = "AdminUsers"
     Id = Column(Integer, primary_key=True, autoincrement=True)
@@ -134,7 +143,7 @@ class StudentUsers(db.Model):
     EmailHash = Column(String(64), unique=True, nullable=False)  # sha256 hex
     TeacherId = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=False)
     SchoolId = Column(Integer, ForeignKey('Schools.Id'), nullable=False)
-    TeamId = Column(Integer, nullable=True)
+    TeamId = Column(Integer, ForeignKey('Teams.Id'), nullable=True)
     MemberId = Column(Integer, nullable=True)
     PasswordHash = Column(String(255))
     IsLocked = Column(Boolean, default=False)

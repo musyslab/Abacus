@@ -13,6 +13,7 @@ from src.submission import submission_api
 from src.projects import projects_api
 from src.ai_suggestions import ai_api
 from src.schools import school_api
+from src.teams import team_api
 from src.error import error_api
 from src.jwt_manager import jwt
 from src import schools, auth, projects, submission, upload, ai_suggestions
@@ -55,6 +56,7 @@ def create_app():
     app.register_blueprint(projects_api,url_prefix='/api/projects')  
     app.register_blueprint(ai_api, url_prefix='/api/ai')
     app.register_blueprint(school_api, url_prefix='/api/schools')
+    app.register_blueprint(team_api, url_prefix='/api/teams')
     app.register_blueprint(error_api,url_prefix='/api/error')
     
     # Initialize extensions

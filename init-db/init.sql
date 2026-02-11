@@ -70,6 +70,21 @@ CREATE TABLE `Schools` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
+-- Table structure for table `Teams`
+-- ============================================
+CREATE TABLE `Teams` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `SchoolId` int NOT NULL,
+  `TeamNumber` int NOT NULL,
+  `Name` varchar(100) NOT NULL,
+  `Division` varchar(5) DEFAULT NULL,
+  `IsOnline` tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `teams_name_unique` (`Name`),
+  KEY `fk_teams_school_idx` (`SchoolId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================
 -- Table structure for table `StudentGrades`
 -- ============================================
 CREATE TABLE `StudentGrades` (
@@ -123,7 +138,8 @@ CREATE TABLE `StudentUsers` (
   PRIMARY KEY (`Id`),
   UNIQUE KEY `studentusers_emailhash_unique` (`EmailHash`),
   KEY `fk_studentusers_teacher_idx` (`TeacherId`),
-  KEY `fk_studentusers_school_idx` (`SchoolId`)
+  KEY `fk_studentusers_school_idx` (`SchoolId`),
+  KEY `fk_studentusers_team_idx` (`TeamId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
@@ -223,6 +239,14 @@ ALTER TABLE `StudentUsers`
 
 ALTER TABLE `StudentUsers`
   ADD CONSTRAINT `fk_studentusers_school`
+  FOREIGN KEY (`SchoolId`) REFERENCES `Schools` (`Id`);
+
+ALTER TABLE `StudentUsers`
+  ADD CONSTRAINT `fk_studentusers_team`
+  FOREIGN KEY (`TeamId`) REFERENCES `Teams` (`Id`);
+
+ALTER TABLE `Teams`
+  ADD CONSTRAINT `fk_teams_school`
   FOREIGN KEY (`SchoolId`) REFERENCES `Schools` (`Id`);
 
 ALTER TABLE `Submissions`
