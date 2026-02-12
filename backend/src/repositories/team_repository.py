@@ -36,13 +36,11 @@ class TeamRepository:
         db.session.commit()
         return team
 
-    def update_team(self, team_num: int, team_id: int, name: str | None = None, division: str | None = None, is_online: bool | None = None) -> Teams | None:
+    def update_team(self, team_id: int, name: str | None = None, division: str | None = None, is_online: bool | None = None) -> Teams | None:
         team = self.get_team_by_id(team_id)
         if not team:
             return None
 
-        if team_num is not None:
-            team.TeamNumber = team_num
         if name is not None:
             team.Name = name
         if division is not None:
@@ -51,7 +49,7 @@ class TeamRepository:
             team.IsOnline = is_online
 
         db.session.commit()
-        return team
+        return True
 
     def delete_team(self, team_id: int) -> bool:
         team = self.get_team_by_id(team_id)

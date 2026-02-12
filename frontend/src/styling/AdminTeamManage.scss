@@ -27,11 +27,7 @@
   margin-top: 4px;
 }
 
-.panel__header-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+
 
 .new-team-footer {
   margin-top: 18px;
@@ -73,12 +69,97 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 2rem;
   margin-bottom: 12px;
 }
 
+.panel__header-options {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+.panel__header-update {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.segment-btn {
+  display: grid;
+  align-items: center;
+  border: 1px solid #ccc;
+  border-radius: 999px;
+  background: #f3f4f6;
+  padding: 4px;
+  gap: 2px;
+
+  .segment-option {
+    border: none;
+    background: transparent;
+
+    font-size: 15px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 999px;
+
+    color: #374151;
+    cursor: pointer;
+    white-space: nowrap;
+
+    transition:
+      background 0.2s ease,
+      color 0.2s ease,
+      transform 0.05s ease,
+      box-shadow 0.2s ease;
+
+    &:not(.selected):hover {
+      background: rgba(20, 20, 20, 0.05);
+    }
+    &:active {
+      transform: scale(0.97);
+    }
+  }
+
+  .selected {
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+}
+
+.segment-division {
+    grid-template-columns: 1fr 1fr 1fr;
+
+    .selected { color: #fff; }
+
+    .selected.blue { background: #1e40af; }
+    .selected.gold { background: #f59e0b; }
+    .selected.eagle { background: #1CB2A9; }
+}
+
+.segment-attendance {
+  grid-template-columns: 1fr 1fr;
+
+  .selected {
+    background: #fff;
+    color: #111827;
+
+    :hover {
+      background: #fff;
+    }
+  }
+}
+
+
+.panel__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .panel__title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   margin: 0;
 }
@@ -87,6 +168,11 @@
   margin-top: 4px;
   font-size: 13px;
   opacity: 0.75;
+}
+
+.panel__label {
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .panel__footer {

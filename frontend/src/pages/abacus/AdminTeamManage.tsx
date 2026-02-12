@@ -55,6 +55,8 @@ type TeamVm = {
 };
 
 const INVITE_META_KEY = "AUTOTA_TEAM_INVITES_V1";
+const DIVISIONS = ["Blue", "Gold", "Eagle"];
+const ATTENDANCE = [{label: "In-person", value: false }, {label: "Virtual", value: true}];
 
 function safeJsonParse<T>(raw: string | null, fallback: T): T {
     if (!raw) return fallback;
@@ -660,6 +662,40 @@ export default function AdminTeamManage() {
         return map[emailHash] || { sentCount: 0 };
     }
 
+    async function updateTeam(teamId: number, updates: Partial<TeamVm>) {
+        const team = teams.find(t => t.id === teamId)
+        if (!team) return;
+
+        const divisionGiven = updates.division !== undefined
+        const isOnlineGiven = updates.isOnline !== undefined
+        if (divisionGiven && team.division === updates.division) return;
+        if (isOnlineGiven && team.isOnline === updates.isOnline) return;
+
+        try {
+            await axios.put(
+                `${apiBase}/teams/update`,
+                {
+                    team_id: teamId,
+                    ...(divisionGiven ? { division: updates.division} : {}),
+                    ...(isOnlineGiven ? { is_online: updates.isOnline} : {}),
+                    ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
+                },
+                authConfig()
+            );
+
+            setTeams(prev => prev.map(team =>
+                team.id === teamId ? { ...team, ...updates } : team
+            ));
+
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || "Update division failed.";
+            throw new Error(msg);
+        }
+    }
+
+    function updateTeamDivision(teamId: number, division: Division) {updateTeam(teamId, { division })}
+    function updateTeamAttendance(teamId: number, isOnline: boolean) {updateTeam(teamId, { isOnline })}
+
     return (
         <>
             <Helmet>
@@ -728,10 +764,50 @@ export default function AdminTeamManage() {
                             return (
                                 <div key={team.id} className="panel">
                                     <div className="panel__header">
-                                        <div>
-                                            <div className="panel__title">{team.name}</div>
-                                            <div className="panel__subtitle">
-                                                Members saved: <strong>{savedCount}</strong> (minimum 2, maximum 4)
+                                        <div className="panel__header-options">
+                                            <div className="panel__header-name">
+                                                <div className="panel__title">{team.name}</div>
+                                                <div className="panel__subtitle">
+                                                    Members saved: <strong>{savedCount}</strong> (minimum 2, maximum 4)
+                                                </div>
+                                            </div>
+                                            <div className="panel__header-update">
+                                                <label className="panel__label">Division</label>
+                                                <div className="segment-btn segment-division">
+                                                    {DIVISIONS.map(option => {
+                                                        const isSelected = team.division === option;
+                                                        return (
+                                                            <button
+                                                                key={option}
+                                                                className={`segment-option ${isSelected ? "selected" : ""} ${option.toLowerCase()}`}
+                                                                type="button"
+                                                                disabled={isLoading}
+                                                                onClick={() => updateTeamDivision(team.id, option as Division)}
+                                                            >
+                                                                {option}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                            <div className="panel__header-update">
+                                                <label className="panel__label">Attendance</label>
+                                                <div className="segment-btn segment-attendance">
+                                                    {ATTENDANCE.map(option => {
+                                                        const isSelected = team.isOnline === option.value;
+                                                        return (
+                                                            <button
+                                                                key={option.label}
+                                                                className={`segment-option ${isSelected ? "selected" : ""}`}
+                                                                type="button"
+                                                                disabled={isLoading}
+                                                                onClick={() => updateTeamAttendance(team.id, option.value)}
+                                                            >
+                                                                {option.label}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
                                         </div>
                                         {canDeleteTeam ? (

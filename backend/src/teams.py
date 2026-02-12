@@ -48,12 +48,56 @@ def create_team(
     team = team_repo.create_team(school_id, team_number, name, "Blue", False)
     return make_response({
             'id': team.Id,
-            'team_number': team.TeamNumber,
+            'teamNumber': team.TeamNumber,
             'name': team.Name,
             'division': team.Division,
-            'is_online': team.IsOnline,
+            'isOnline': team.IsOnline,
             'members': []
     }, HTTPStatus.OK)
+
+@team_api.route('/update', methods=['PUT'])
+@jwt_required()
+@inject
+def update_team(
+    team_repo: TeamRepository = Provide[Container.team_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
+    if not isinstance(current_user, AdminUsers):
+        return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
+    data = request.get_json()
+    team_id = int(data.get("team_id") or 0)
+    school_id = int(getattr(current_user, "SchoolId", 0))
+    requested_school_id = data.get("school_id")
+
+    if team_id <= 0:
+        return make_response({'message': 'team_id is required.'}, HTTPStatus.NOT_ACCEPTABLE)
+
+    if requested_school_id:
+        if user_repo.is_admin():
+            school_id = requested_school_id
+        elif requested_school_id != school_id:
+            return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
+    if school_id <= 0:
+        return make_response({'message': 'Invalid school ID'}, HTTPStatus.BAD_REQUEST)
+
+    team = team_repo.get_team_by_id(team_id)
+    if not team:
+        return make_response({'message': 'Team not found'}, HTTPStatus.NOT_FOUND)
+    if team.SchoolId != school_id:
+        return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
+    division = data.get("division")
+    if division and division not in ["Blue", "Gold", "Eagle"]:
+        return make_response({'message': 'Invalid division'}, HTTPStatus.BAD_REQUEST)
+
+    name = data.get("name")
+    is_online = data.get("is_online")
+
+    team_repo.update_team(team.Id, name=name, division=division, is_online=is_online)
+
+    return make_response({'message': 'Success'}, HTTPStatus.OK)
 
 @team_api.route('/delete', methods=['DELETE'])
 @jwt_required()
@@ -124,7 +168,7 @@ def get_teams_by_school(
             return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
 
     if school_id <= 0:
-        return make_response([], HTTPStatus.OK)
+        return make_response({'message': 'Invalid school ID'}, HTTPStatus.BAD_REQUEST)
 
     students = user_repo.get_students_for_school(school_id)
 
@@ -143,17 +187,17 @@ def get_teams_by_school(
         members_sorted = sorted(team_members.get(t.Id, []), key=lambda x: int(x.MemberId or 0))
         payload.append({
             "id": t.Id,
-            "team_number": t.TeamNumber,
+            "teamNumber": t.TeamNumber,
             "name": t.Name,
             "division": t.Division,
-            "is_online": t.IsOnline,
+            "isOnline": t.IsOnline,
             "members": [
                 {
-                    "student_id": m.Id,
-                    "member_id": int(m.MemberId or 0),
-                    "email_hash": m.EmailHash,
-                    "has_account": True if (m.PasswordHash is not None and m.PasswordHash != "") else False,
-                    "is_locked": True if m.IsLocked else False,
+                    "studentId": m.Id,
+                    "memberId": int(m.MemberId or 0),
+                    "emailHash": m.EmailHash,
+                    "hasAccount": True if (m.PasswordHash is not None and m.PasswordHash != "") else False,
+                    "isLocked": True if m.IsLocked else False,
                 }
                 for m in members_sorted
             ]
