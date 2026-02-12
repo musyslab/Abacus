@@ -135,9 +135,9 @@ class UserRepository:
             .one_or_none()
         )
 
-    def count_team_members(self, teacher_id: int, team_id: int) -> int:
+    def count_team_members(self, team_id: int) -> int:
         return (
-            StudentUsers.query.filter(StudentUsers.TeacherId == teacher_id, StudentUsers.TeamId == team_id)
+            StudentUsers.query.filter(StudentUsers.TeamId == team_id)
             .count()
         )
 

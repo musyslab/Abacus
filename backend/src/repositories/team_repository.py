@@ -2,7 +2,7 @@ from sqlalchemy import func
 from typing import List
 
 from src.repositories.database import db
-from .models import Teams
+from .models import StudentUsers, Teams
 
 class TeamRepository:
     def get_team_by_id(self, team_id: int) -> Teams | None:
@@ -20,6 +20,15 @@ class TeamRepository:
             .scalar()
         )
         return next_team_number
+    
+    def school_has_empty_team(self, school_id: int) -> bool:
+        empty_team = (
+            Teams.query
+            .outerjoin(StudentUsers, StudentUsers.TeamId == Teams.Id)
+            .filter(Teams.SchoolId == school_id, StudentUsers.Id == None)
+            .first()
+        )
+        return empty_team is not None
 
     def create_team(self, school_id: int, team_number: int, name: str, division: str, is_online: bool = False) -> Teams:
         team = Teams(SchoolId=school_id, TeamNumber=team_number, Name=name, Division=division, IsOnline=is_online)

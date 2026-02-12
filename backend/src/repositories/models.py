@@ -116,11 +116,7 @@ class Schools(db.Model):
     __tablename__ = "Schools"
     Id = Column(Integer, primary_key=True, autoincrement=True)
     Name = Column(String(256), nullable=False, unique=True)
-    PublicId = Column(
-        String(10), 
-        nullable=False, 
-        unique=True
-    )
+    PublicId = Column(String(10), nullable=False, unique=True)
 
 class Teams(db.Model):
     __tablename__ = "Teams"
@@ -148,7 +144,7 @@ class StudentUsers(db.Model):
     EmailHash = Column(String(64), unique=True, nullable=False)  # sha256 hex
     TeacherId = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=False)
     SchoolId = Column(Integer, ForeignKey('Schools.Id'), nullable=False)
-    TeamId = Column(Integer, ForeignKey('Teams.Id'), nullable=True)
+    TeamId = Column(Integer, ForeignKey('Teams.Id'), nullable=False)
     MemberId = Column(Integer, nullable=True)
     PasswordHash = Column(String(255))
     IsLocked = Column(Boolean, default=False)

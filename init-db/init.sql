@@ -133,7 +133,7 @@ CREATE TABLE `StudentUsers` (
   `EmailHash` char(64) NOT NULL,
   `TeacherId` int NOT NULL,
   `SchoolId` int NOT NULL,
-  `TeamId` int DEFAULT NULL,
+  `TeamId` int NOT NULL,
   `MemberId` int DEFAULT NULL,
   `PasswordHash` varchar(255) DEFAULT NULL,
   `IsLocked` tinyint(1) NOT NULL DEFAULT 0,

@@ -70,7 +70,7 @@ class App extends Component {
                             <AdminSchoolRoster />
                         </ProtectedRoute>
                     } />
-                    <Route path="/admin/:public_id/team-manage" element={
+                    <Route path="/admin/:school_id/team-manage" element={
                         <ProtectedRoute requiredAdminRole={1}>
                             <AdminTeamManage />
                         </ProtectedRoute>

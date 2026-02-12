@@ -196,7 +196,7 @@ const AdminSchoolRoster = () => {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              navigate(`/admin/${s.pid}/team-manage`);
+                              navigate(`/admin/${s.id}/team-manage`);
                             }}
                           >
                             Team Manage

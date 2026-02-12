@@ -51,6 +51,8 @@ class SchoolRepository:
             return None
         return self.get_school_by_id(int(student.SchoolId))
 
-    def get_Id_from_publicId(self, public_id: str) -> Optional[Schools]:
-        sid = Schools.query.filter(Schools.PublicId == public_id).one_or_none()
-        return sid.PublicId
+    def get_Id_from_publicId(self, public_id: str) -> Optional[int]:
+        school = Schools.query.filter(Schools.PublicId == public_id).one_or_none()
+        if not school:
+            return None
+        return int(school.Id)

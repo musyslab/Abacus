@@ -16,7 +16,7 @@ from src.schools import school_api
 from src.teams import team_api
 from src.error import error_api
 from src.jwt_manager import jwt
-from src import schools, auth, projects, submission, upload, ai_suggestions
+from src import teams, schools, auth, projects, submission, upload, ai_suggestions
 from src.services import timeout_service
 import os
 
@@ -24,7 +24,7 @@ def create_app():
     app = Flask(__name__)
     container = Container()
     app.container = container
-    container.wire(modules=[schools, auth, projects, submission, upload, ai_suggestions, timeout_service])
+    container.wire(modules=[teams,schools, auth, projects, submission, upload, ai_suggestions, timeout_service])
     
     TEACHER_DIR = "/tabot-files/project-files/teacher-files"
     STUDENT_DIR = "/tabot-files/project-files/student-files"

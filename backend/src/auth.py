@@ -264,66 +264,6 @@ def register_user(user_repo: UserRepository = Provide[Container.user_repo]):
         HTTPStatus.OK
     )
 
-@auth_api.route('/student/teams', methods=['GET'])
-@jwt_required()
-@inject
-def list_student_teams(user_repo: UserRepository = Provide[Container.user_repo]):
-    """
-    Lists teams for the current admin (teacher).
-    Returns only hashed identifiers (no plaintext emails).
-    """
-    if not isinstance(current_user, AdminUsers):
-        return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
-
-    role = int(getattr(current_user, "Role", 0) or 0)  # 0 = teacher, 1 = admin
-    school_id = int(getattr(current_user, "SchoolId", 0) or 0)
-
-    requested_school_raw = (request.args.get("school_id") or "").strip()
-    if requested_school_raw:
-        try:
-            requested_school_id = int(requested_school_raw)
-        except Exception:
-            requested_school_id = 0
-        if requested_school_id > 0:
-            if role == 1:
-                school_id = requested_school_id
-            elif requested_school_id != school_id:
-                return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
-
-    if school_id <= 0:
-        return make_response([], HTTPStatus.OK)
-
-    students = user_repo.get_students_for_school(school_id)
-
-    teams: Dict[int, List[StudentUsers]] = {}
-
-    for s in students:
-        if s.TeamId is None:
-            continue
-        team_id = int(s.TeamId)
-        if team_id <= 0:
-            continue
-        teams.setdefault(team_id, []).append(s)
-
-    payload = []
-    for team_id in sorted(teams.keys()):
-        members_sorted = sorted(teams[team_id], key=lambda x: int(x.MemberId or 0))
-        payload.append({
-            "teamId": team_id,
-            "members": [
-                {
-                    "studentId": m.Id,
-                    "memberId": int(m.MemberId or 0),
-                    "emailHash": m.EmailHash,
-                    "hasAccount": True if (m.PasswordHash is not None and m.PasswordHash != "") else False,
-                    "isLocked": True if m.IsLocked else False,
-                }
-                for m in members_sorted
-            ]
-        })
-
-    return make_response(payload, HTTPStatus.OK)
-
 @auth_api.route('/student/create', methods=['POST'])
 @jwt_required()
 @inject

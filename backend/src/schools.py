@@ -1,3 +1,4 @@
+import string
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, current_user
 from dependency_injector.wiring import inject, Provide
@@ -184,6 +185,13 @@ def get_school_name_from_id(
 @school_api.route("/admin/getIdfromURL/<int:public_id>", methods=['GET'])
 @jwt_required
 @inject
-def get_Id_from_publicId(public_id: int, school_repo: SchoolRepository = Provide[Container.school_repo]):
+def get_Id_from_publicId(
+    public_id: string, 
+    school_repo: SchoolRepository = Provide[Container.school_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
+    if not user_repo.is_admin():
+        return jsonify({"message": "Unauthorized"}), 403
+    
     school_id = school_repo.get_Id_from_publicId(public_id)
     return jsonify([{"id": school_id}])
