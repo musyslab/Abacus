@@ -132,9 +132,9 @@ class StudentLogin extends Component<{}, StudentLoginPageState> {
                   className="form-input"
                 />
                 {this.state.showPassword ? (
-                  <FaEye className="input-with-icon__icon-right" onClick={() => this.setState({ showPassword: false })} />
+                  <FaEyeSlash className="input-with-icon__icon-right" onClick={() => this.setState({ showPassword: false })} />
                 ) : (
-                  <FaEyeSlash className="input-with-icon__icon-right" onClick={() => this.setState({ showPassword: true })} />
+                  <FaEye className="input-with-icon__icon-right" onClick={() => this.setState({ showPassword: true })} />
                 )}
               </div>
             </div>

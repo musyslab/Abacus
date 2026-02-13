@@ -17,7 +17,7 @@ interface MenuComponentProps {
     showProblemList?: boolean;
     showAdminUpload?: boolean;
     variant?: "app" | "home" | "public";
-    onScrollToSection?: (key: "hero" | "about" | "abacus" | "contact") => void;
+    onScrollToSection?: (key: "about" | "event" | "rules") => void;
 }
 
 type DashboardInfo = {
@@ -154,16 +154,16 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                             <button
                                 type="button"
                                 className="menu__item"
-                                onClick={() => this.props.onScrollToSection?.("abacus")}
+                                onClick={() => this.props.onScrollToSection?.("event")}
                             >
-                                Abacus
+                                Event
                             </button>
                             <button
                                 type="button"
                                 className="menu__item"
-                                onClick={() => this.props.onScrollToSection?.("contact")}
+                                onClick={() => this.props.onScrollToSection?.("rules")}
                             >
-                                Contact
+                                Rules & Registration
                             </button>
 
                             <div className="menu__right">

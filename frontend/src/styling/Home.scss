@@ -11,6 +11,14 @@
 }
 
 .hero-subtitle {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1F2937;
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+.hero-subtext {
     font-size: 1.4rem;
     font-weight: 500;
     text-align: center;
@@ -59,6 +67,14 @@
     line-height: 1.6;
 }
 
+.space {
+    margin-top: 10px;
+}
+
+.close {
+    margin-bottom: 4px;
+}
+
 .bold {
     font-weight: 600;
     color: #111827;
@@ -66,6 +82,15 @@
 
 .sec-list {
     font-size: 0.85rem;
+    margin: 0;
+}
+
+.sec-list-item {
+    font-size: 1.4rem;
+    font-weight: 400;
+    color: #374151;
+    line-height: 1.6;
+    margin: 0;
 }
 
 .action-btns {
@@ -159,9 +184,8 @@
 }
 
 .footer-content {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-around;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 2rem;
 }
 
@@ -186,6 +210,7 @@
     cursor: pointer;
     justify-content: center;
     text-align: center;
+    font-size: 1.1rem;
 
     &:hover {
         color: #f9fafb;

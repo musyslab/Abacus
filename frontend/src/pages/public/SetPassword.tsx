@@ -143,9 +143,9 @@ const isPasswordValid = ruleMinLength && ruleUppercase && ruleSpecial;
                 className="form-input"
               />
               {showPassword ? (
-                <FaEye className="input-with-icon__icon-right" onClick={() => setShowPassword(!showPassword)} />
-              ) : (
                 <FaEyeSlash className="input-with-icon__icon-right" onClick={() => setShowPassword(!showPassword)} />
+              ) : (
+                <FaEye className="input-with-icon__icon-right" onClick={() => setShowPassword(!showPassword)} />
               )}
             </div>
           </div>
@@ -181,9 +181,9 @@ const isPasswordValid = ruleMinLength && ruleUppercase && ruleSpecial;
                 className="form-input"
               />
               {showConfirmPassword ? (
-                <FaEye className="input-with-icon__icon-right" onClick={() => setShowConfirmPassword(!showConfirmPassword)} />
-              ) : (
                 <FaEyeSlash className="input-with-icon__icon-right" onClick={() => setShowConfirmPassword(!showConfirmPassword)} />
+              ) : (
+                <FaEye className="input-with-icon__icon-right" onClick={() => setShowConfirmPassword(!showConfirmPassword)} />
               )}
             </div>
           </div>
