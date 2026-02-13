@@ -199,6 +199,9 @@ def register_user(user_repo: UserRepository = Provide[Container.user_repo]):
     school = get_value_or_empty(input_json, 'school')
     school_id_raw = get_value_or_empty(input_json, 'school_id')
     email = get_value_or_empty(input_json, 'email').strip().lower()
+    questionOne = get_value_or_empty(input_json, 'questionOne')
+    questionTwo = get_value_or_empty(input_json, 'questionTwo')
+
 
     if not (first_name and last_name and email):
         return make_response(
@@ -241,6 +244,8 @@ def register_user(user_repo: UserRepository = Provide[Container.user_repo]):
         last_name=last_name,
         school_id=school_obj.Id,
         password_hash=None,
+        questionOne = questionOne,
+        questionTwo = questionTwo,
         role=0
     )
 
