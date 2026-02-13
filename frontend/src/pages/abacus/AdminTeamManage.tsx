@@ -668,7 +668,6 @@ export default function AdminTeamManage() {
     
         const previousState = { ...original };
     
-        // Optimistically update UI
         setTeams(prev =>
             prev.map(team =>
                 team.id === teamId ? { ...team, ...updates } : team
@@ -688,7 +687,6 @@ export default function AdminTeamManage() {
                 authConfig()
             );
         } catch (err: any) {
-            // Revert on failure
             setTeams(prev =>
                 prev.map(team =>
                     team.id === teamId ? previousState : team
