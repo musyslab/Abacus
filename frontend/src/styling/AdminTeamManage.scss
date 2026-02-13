@@ -553,3 +553,17 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+
+.team-name-input {
+  font-size: 1.2rem;
+  font-weight: 600;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  outline: none;
+  width: 100%;
+
+  &:focus {
+      border-bottom: 1px solid #888;
+  }
+}

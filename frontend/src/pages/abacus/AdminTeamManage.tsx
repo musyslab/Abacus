@@ -663,36 +663,44 @@ export default function AdminTeamManage() {
     }
 
     async function updateTeam(teamId: number, updates: Partial<TeamVm>) {
-        const team = teams.find(t => t.id === teamId)
-        if (!team) return;
-
-        const divisionGiven = updates.division !== undefined
-        const isOnlineGiven = updates.isOnline !== undefined
-        if (divisionGiven && team.division === updates.division) return;
-        if (isOnlineGiven && team.isOnline === updates.isOnline) return;
-
+        const original = teams.find(t => t.id === teamId);
+        if (!original) return;
+    
+        const previousState = { ...original };
+    
+        // Optimistically update UI
+        setTeams(prev =>
+            prev.map(team =>
+                team.id === teamId ? { ...team, ...updates } : team
+            )
+        );
+    
         try {
             await axios.put(
                 `${apiBase}/teams/update`,
                 {
                     team_id: teamId,
-                    ...(divisionGiven ? { division: updates.division} : {}),
-                    ...(isOnlineGiven ? { is_online: updates.isOnline} : {}),
+                    ...(updates.name !== undefined ? { name: updates.name } : {}),
+                    ...(updates.division !== undefined ? { division: updates.division } : {}),
+                    ...(updates.isOnline !== undefined ? { is_online: updates.isOnline } : {}),
                     ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
                 },
                 authConfig()
             );
-
-            setTeams(prev => prev.map(team =>
-                team.id === teamId ? { ...team, ...updates } : team
-            ));
-
         } catch (err: any) {
-            const msg = err?.response?.data?.message || "Update division failed.";
-            throw new Error(msg);
+            // Revert on failure
+            setTeams(prev =>
+                prev.map(team =>
+                    team.id === teamId ? previousState : team
+                )
+            );
         }
     }
+        
 
+    function updateTeamName(teamId: number, name: string) {
+        updateTeam(teamId, { name });
+    }
     function updateTeamDivision(teamId: number, division: Division) {updateTeam(teamId, { division })}
     function updateTeamAttendance(teamId: number, isOnline: boolean) {updateTeam(teamId, { isOnline })}
 
@@ -766,7 +774,22 @@ export default function AdminTeamManage() {
                                     <div className="panel__header">
                                         <div className="panel__header-options">
                                             <div className="panel__header-name">
-                                                <div className="panel__title">{team.name}</div>
+                                            <div className="panel__title">
+                                                <input
+                                                    className="team-name-input"
+                                                    type="text"
+                                                    value={team.name}
+                                                    onChange={(e) =>
+                                                        setTeams(prev =>
+                                                            prev.map(t =>
+                                                                t.id === team.id ? { ...t, name: e.target.value } : t
+                                                            )
+                                                        )
+                                                    }
+                                                    onBlur={() => updateTeamName(team.id, team.name)}
+                                                    disabled={isLoading}
+                                                />
+                                            </div>
                                                 <div className="panel__subtitle">
                                                     Members saved: <strong>{savedCount}</strong> (minimum 2, maximum 4)
                                                 </div>

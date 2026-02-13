@@ -93,6 +93,13 @@ def update_team(
         return make_response({'message': 'Invalid division'}, HTTPStatus.BAD_REQUEST)
 
     name = data.get("name")
+    if name is not None:
+        name = name.strip()
+        if len(name) == 0:
+            return make_response(
+                {'message': 'Team name cannot be empty'},
+                HTTPStatus.BAD_REQUEST
+            )
     is_online = data.get("is_online")
 
     team_repo.update_team(team.Id, name=name, division=division, is_online=is_online)
