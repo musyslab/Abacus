@@ -42,6 +42,9 @@ export default function Register() {
   const [isLoadingSchools, setIsLoadingSchools] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  const [questionOne, setQuestionOne] = useState("");
+  const [questionTwo, setQuestionTwo] = useState("");
+
   useEffect(() => {
     let cancelled = false;
 
@@ -96,7 +99,14 @@ export default function Register() {
         return;
       }
     }
+    const finalQuestionTwo = questionOne === "no" ? "n/a" : questionTwo;
 
+    if (!questionOne || !finalQuestionTwo) {
+       setErrorMessage("Please answer the additional questions.");
+       return;
+    }
+
+  
     setIsLoading(true);
 
     try {
@@ -104,6 +114,8 @@ export default function Register() {
         fname: firstName,
         lname: lastName,
         email,
+        questionOne: questionOne, 
+        questionTwo: finalQuestionTwo,
       };
 
       if (schoolMode === "existing") {
@@ -278,6 +290,44 @@ export default function Register() {
             />
           </div>
 
+          <div className="form-group">
+            <label className="form-label" htmlFor="q1">
+               Would you be interested in staying until 2:30pm (after awards) and having your students attend a 45-minute workshop hosted by a Microsoft Engineer? 
+            </label>
+            <select
+              id="q1"
+              className="form-select" 
+              value={questionOne}
+              onChange={(e) => setQuestionOne(e.target.value)}
+              required
+            >
+              <option value="">Select an option</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="q2">
+              If you would like to attend, what workshop sounds most engaging to your students?  
+            </label>
+            <select
+              id="q2"
+              className="form-select" 
+              value={questionTwo}
+              onChange={(e) => setQuestionTwo(e.target.value)}
+              disabled={questionOne === "no"}
+              required
+            >
+              <option value="">Select an option</option>
+              <option value="real-world-problems-with-code">Solving Real-World Problems with Code</option>
+              <option value="ai-powered-application">Building an AI-Powered Application </option>
+              <option value="real-website">Turning Code into a Real Website</option>
+              <option value="how-hackers-think">How Hackers Think</option>
+              <option value="careers-in-tech">Exploring Careers in Technology</option>
+
+            </select>
+          </div>
 
           <button className="btn btn--primary login-form__submit" type="submit" disabled={isLoading}>
             {isLoading ? "Creating account…" : "Create account"}

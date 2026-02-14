@@ -137,6 +137,8 @@ class AdminUsers(db.Model):
     PasswordHash = Column(String(255))
     IsLocked = Column(Boolean, default=False)
     Role = Column(Integer, nullable=False, default=0)
+    Question1 = Column(String(255))
+    Question2 = Column(String(255))
 
 class StudentUsers(db.Model):
     __tablename__ = "StudentUsers"

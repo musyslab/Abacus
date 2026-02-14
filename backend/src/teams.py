@@ -47,7 +47,10 @@ def create_team(
     # Default name (School Name + Team Number)
     name = school_repo.get_school_name_with_id(school_id) + " " + str(team_number)
 
-    team = team_repo.create_team(school_id, team_number, name, "Blue", False)
+    if team_repo.total_blue_teams() > 84:
+        team = team_repo.create_team(school_id, team_number, name, "Gold", False)
+    else:
+        team = team_repo.create_team(school_id, team_number, name, "Blue", False)
     return make_response({
             'id': team.Id,
             'teamNumber': team.TeamNumber,
@@ -114,6 +117,13 @@ def update_team(
             )
             
     is_online = data.get("is_online")
+
+    #check if limit is above 85
+
+    curr_division = division if division else team_repo.get_team_by_id(team_id).Division
+    total_teams = team_repo.total_blue_teams()
+    if total_teams > 84 and curr_division=='Blue':
+        return make_response({'message': 'The maximum amount of teams among all schools has been reached for this division. Contact support if you believe this is a mistake.'}, HTTPStatus.CONFLICT)
 
     team_repo.update_team(team.Id, name=name, division=division, is_online=is_online)
 

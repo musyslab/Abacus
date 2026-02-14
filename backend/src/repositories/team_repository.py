@@ -59,3 +59,6 @@ class TeamRepository:
         db.session.delete(team)
         db.session.commit()
         return True
+
+    def total_blue_teams(self) -> int:
+        return Teams.query.filter(Teams.Division == 'Blue').count()

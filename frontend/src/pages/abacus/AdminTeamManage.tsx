@@ -740,6 +740,11 @@ export default function AdminTeamManage() {
                     team.id === teamId ? previousState : team
                 )
             );
+            const msg = err?.response?.data?.message || "Update division failed.";
+            if(err?.response?.data?.message){
+                alert(msg);
+            }
+            throw new Error(msg);
         }
     }
         
