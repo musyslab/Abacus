@@ -689,6 +689,9 @@ export default function AdminTeamManage() {
 
         } catch (err: any) {
             const msg = err?.response?.data?.message || "Update division failed.";
+            if(err?.response?.data?.message){
+                alert(msg);
+            }
             throw new Error(msg);
         }
     }
