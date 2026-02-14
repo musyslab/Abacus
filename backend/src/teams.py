@@ -11,6 +11,8 @@ from src.repositories.team_repository import TeamRepository
 from src.repositories.user_repository import UserRepository
 from src.repositories.school_repository import SchoolRepository
 
+import re
+
 team_api = Blueprint("team_api", __name__)
 
 @team_api.route('/create', methods=['POST'])
@@ -95,11 +97,18 @@ def update_team(
     name = data.get("name")
     if name is not None:
         name = name.strip()
-        if len(name) == 0:
+        if len(name) < 3:
             return make_response(
-                {'message': 'Team name cannot be empty'},
+                {'message': 'Team name must be at least three characters long.'},
                 HTTPStatus.BAD_REQUEST
             )
+        
+        if not re.search(r"[A-Za-z0-9]", name):
+            return make_response(
+                {'message': 'Team name must contain at least one letter or number.'},
+                HTTPStatus.BAD_REQUEST
+            )
+            
     is_online = data.get("is_online")
 
     team_repo.update_team(team.Id, name=name, division=division, is_online=is_online)

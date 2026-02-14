@@ -567,3 +567,43 @@
       border-bottom: 1px solid #888;
   }
 }
+
+.input-error {
+  border: 1px solid #d64545;
+  background-color: #fff5f5;
+}
+
+.editable-name {
+  position: relative;
+  display: inline-block;
+}
+
+.team-name-input {
+  padding-right: 2rem; // room for icon
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  cursor: text;
+}
+
+.edit-icon {
+  position: absolute;
+  right: 0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  pointer-events: none;
+  font-size: 0.9rem;
+  transition: opacity 0.2s ease;
+}
+
+.editable-name:hover .edit-icon {
+  opacity: 0.7;
+}
+
+.editable-name:hover .team-name-input {
+  border-color: #888;
+}
+
+.team-name-input:focus {
+  border-color: #3a7afe;
+  box-shadow: 0 0 0 2px rgba(58, 122, 254, 0.15);
+}

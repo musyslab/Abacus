@@ -9,6 +9,8 @@ import MenuComponent from "../components/MenuComponent";
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
 import "../../styling/AdminTeamManage.scss";
 
+import { FaPen } from "react-icons/fa";
+
 type Division = "Blue" | "Gold" | "Eagle";
 
 type ApiTeamMember = {
@@ -52,11 +54,13 @@ type TeamVm = {
     division: Division;
     isOnline: boolean;
     members: MemberSlot[]; // always 4 slots
+    nameError?: string;
 };
 
 const INVITE_META_KEY = "AUTOTA_TEAM_INVITES_V1";
 const DIVISIONS = ["Blue", "Gold", "Eagle"];
 const ATTENDANCE = [{label: "In-person", value: false }, {label: "Virtual", value: true}];
+
 
 function safeJsonParse<T>(raw: string | null, fallback: T): T {
     if (!raw) return fallback;
@@ -662,9 +666,51 @@ export default function AdminTeamManage() {
         return map[emailHash] || { sentCount: 0 };
     }
 
+    function validateTeamName(name: string): string | null {
+        const trimmed = name.trim();
+    
+        if (trimmed.length < 3) {
+            return "Team name must be at least 3 characters long.";
+        }
+    
+        if (!/[A-Za-z0-9]/.test(trimmed)) {
+            return "Team name must contain at least one letter or number.";
+        }
+    
+        return null;
+    }
+    
     async function updateTeam(teamId: number, updates: Partial<TeamVm>) {
         const original = teams.find(t => t.id === teamId);
         if (!original) return;
+
+        if (updates.name !== undefined) {
+            const error = validateTeamName(updates.name);
+        
+            if (error) {
+                setTeams(prev =>
+                    prev.map(team =>
+                        team.id === teamId
+                            ? { ...team, nameError: error }
+                            : team
+                    )
+                );
+                return;
+            } else {
+                setTeams(prev =>
+                    prev.map(team =>
+                        team.id === teamId
+                            ? { ...team, nameError: undefined }
+                            : team
+                    )
+                );
+            }
+        }
+
+        const divisionGiven = updates.division !== undefined
+        const isOnlineGiven = updates.isOnline !== undefined
+        if (divisionGiven && original.division === updates.division) return;
+        if (isOnlineGiven && original.isOnline === updates.isOnline) return;
     
         const previousState = { ...original };
     
@@ -772,21 +818,31 @@ export default function AdminTeamManage() {
                                     <div className="panel__header">
                                         <div className="panel__header-options">
                                             <div className="panel__header-name">
-                                            <div className="panel__title">
+                                            <div className="panel__title editable-name">
                                                 <input
-                                                    className="team-name-input"
+                                                    className={`team-name-input ${team.nameError ? "input-error" : ""}`}
                                                     type="text"
                                                     value={team.name}
                                                     onChange={(e) =>
                                                         setTeams(prev =>
                                                             prev.map(t =>
-                                                                t.id === team.id ? { ...t, name: e.target.value } : t
+                                                                t.id === team.id
+                                                                    ? { ...t, name: e.target.value, nameError: undefined }
+                                                                    : t
                                                             )
                                                         )
                                                     }
                                                     onBlur={() => updateTeamName(team.id, team.name)}
                                                     disabled={isLoading}
                                                 />
+
+                                                <span className="edit-icon">
+                                                    <FaPen size={12} />
+                                                </span>
+
+                                                {team.nameError && (
+                                                    <div className="inline-error">{team.nameError}</div>
+                                                )}
                                             </div>
                                                 <div className="panel__subtitle">
                                                     Members saved: <strong>{savedCount}</strong> (minimum 2, maximum 4)
