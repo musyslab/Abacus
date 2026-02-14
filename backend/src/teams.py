@@ -102,7 +102,11 @@ def update_team(
                 {'message': 'Team name must be at least three characters long.'},
                 HTTPStatus.BAD_REQUEST
             )
-        
+        if len(name) > 30:
+            return make_response(
+                {'message': 'Team name can be no longer than 30 characters.'},
+                HTTPStatus.BAD_REQUEST
+            )
         if not re.search(r"[A-Za-z0-9]", name):
             return make_response(
                 {'message': 'Team name must contain at least one letter or number.'},

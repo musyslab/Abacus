@@ -672,7 +672,9 @@ export default function AdminTeamManage() {
         if (trimmed.length < 3) {
             return "Team name must be at least 3 characters long.";
         }
-    
+        if (trimmed.length > 30) {
+            return "Team name can be no longer than 30 characters.";
+        }
         if (!/[A-Za-z0-9]/.test(trimmed)) {
             return "Team name must contain at least one letter or number.";
         }
@@ -818,28 +820,27 @@ export default function AdminTeamManage() {
                                     <div className="panel__header">
                                         <div className="panel__header-options">
                                             <div className="panel__header-name">
-                                            <div className="panel__title editable-name">
+                                            <div className="panel__title editable-title">
                                                 <input
                                                     className={`team-name-input ${team.nameError ? "input-error" : ""}`}
                                                     type="text"
                                                     value={team.name}
-                                                    onChange={(e) =>
+                                                    onChange={(e) => {
+                                                        const value = e.target.value;
+                                                        const error = validateTeamName(value);
+
                                                         setTeams(prev =>
                                                             prev.map(t =>
                                                                 t.id === team.id
-                                                                    ? { ...t, name: e.target.value, nameError: undefined }
+                                                                    ? { ...t, name: value, nameError: error || undefined }
                                                                     : t
                                                             )
-                                                        )
-                                                    }
+                                                        );
+                                                    }}
                                                     onBlur={() => updateTeamName(team.id, team.name)}
                                                     disabled={isLoading}
                                                 />
-
-                                                <span className="edit-icon">
-                                                    <FaPen size={12} />
-                                                </span>
-
+                                                <FaPen className="edit-icon" />
                                                 {team.nameError && (
                                                     <div className="inline-error">{team.nameError}</div>
                                                 )}
