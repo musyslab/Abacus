@@ -339,7 +339,7 @@ export default function Register() {
         </div>
 
         {errorMessage ? (
-          <div className="alert alert--error" role="alert" aria-live="assertive">
+          <div className="alert alert--success" role="alert" aria-live="assertive">
             {errorMessage}
           </div>
         ) : null}

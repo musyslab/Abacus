@@ -49,7 +49,7 @@ class TeamRepository:
             team.IsOnline = is_online
 
         db.session.commit()
-        return True
+        return team
 
     def delete_team(self, team_id: int) -> bool:
         team = self.get_team_by_id(team_id)
