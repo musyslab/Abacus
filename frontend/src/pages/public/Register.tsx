@@ -40,6 +40,7 @@ export default function Register() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingSchools, setIsLoadingSchools] = useState(false);
+  const [message, setMessage] = useState({ text: "", type: "" });
   const [errorMessage, setErrorMessage] = useState("");
 
   const [questionOne, setQuestionOne] = useState("");
@@ -81,28 +82,28 @@ export default function Register() {
 
   async function handleSubmit(ev: React.FormEvent<HTMLFormElement>) {
     ev.preventDefault();
-    setErrorMessage("");
+    setMessage({ text: "", type: "" });
 
     if (!firstName || !lastName || !email) {
-      setErrorMessage("All fields are required.");
+      setMessage({ text: "All fields are required.", type: "error" });
       return;
     }
 
     if (schoolMode === "existing") {
       if (!selectedSchoolId) {
-        setErrorMessage("Please select a school.");
+        setMessage({ text: "Please select a school.", type: "error" });
         return;
       }
     } else {
       if (!newSchoolName.trim()) {
-        setErrorMessage("Please enter a school name.");
+        setMessage({ text: "Please enter a school name.", type: "error" });
         return;
       }
     }
     const finalQuestionTwo = questionOne === "no" ? "n/a" : questionTwo;
 
     if (!questionOne || !finalQuestionTwo) {
-       setErrorMessage("Please answer the additional questions.");
+       setMessage({ text: "Please answer the additional questions.", type: "error" });
        return;
     }
 
@@ -143,11 +144,14 @@ export default function Register() {
         navigate("/admin/schools", { replace: true });
         return;
       }
-
-      setErrorMessage(res.data.message || "Account creation failed.");
+      if (res.status === 200) {
+        setMessage({ text: res.data.message || "Account created! Please check your email to set up your password", type: "success" });
+      } else {
+        setMessage({ text: res.data.message || "Account creation failed.", type: "error" });
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Account creation failed.";
-      setErrorMessage(msg);
+      setMessage({ text: msg, type: "error" });
     } finally {
       setIsLoading(false);
     }
@@ -338,11 +342,11 @@ export default function Register() {
           You’ll receive an email to finish setting up your account.
         </div>
 
-        {errorMessage ? (
-          <div className="alert alert--success" role="alert" aria-live="assertive">
-            {errorMessage}
+        {message.text && (
+          <div className={`alert alert--${message.type}`} role="alert" aria-live="assertive">
+            {message.text}
           </div>
-        ) : null}
+        )}
 
         <div className="login-links">
           Already have a teacher account?{" "}

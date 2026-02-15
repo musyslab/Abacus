@@ -80,11 +80,10 @@ CREATE TABLE `Teams` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `SchoolId` int NOT NULL,
   `TeamNumber` int NOT NULL,
-  `Name` varchar(100) NOT NULL,
+  `Name` varchar(45) NOT NULL,
   `Division` varchar(5) DEFAULT NULL,
   `IsOnline` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`Id`),
-  UNIQUE KEY `teams_name_unique` (`Name`),
   KEY `fk_teams_school_idx` (`SchoolId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 

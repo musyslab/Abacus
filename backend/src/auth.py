@@ -211,7 +211,7 @@ def register_user(user_repo: UserRepository = Provide[Container.user_repo]):
 
     if user_repo.does_admin_email_exist(email):
         return make_response(
-            {'message': 'Teacher already exists'},
+            {'message': 'Email already exists'},
             HTTPStatus.NOT_ACCEPTABLE
         )
 

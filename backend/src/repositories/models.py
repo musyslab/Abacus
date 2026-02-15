@@ -123,7 +123,7 @@ class Teams(db.Model):
     Id = Column(Integer, primary_key=True, autoincrement=True)
     SchoolId = Column(Integer, ForeignKey('Schools.Id'), nullable=False)
     TeamNumber = Column(Integer, nullable=False)
-    Name = Column(String(100), nullable=False, unique=True)
+    Name = Column(String(45), nullable=False)
     Division = Column(String(5))
     IsOnline = Column(Boolean, default=False)
 

@@ -62,3 +62,6 @@ class TeamRepository:
 
     def total_blue_teams(self) -> int:
         return Teams.query.filter(Teams.Division == 'Blue').count()
+
+    def get_team_by_name(self, school_id: int, name: str) -> Teams | None:
+        return Teams.query.filter(Teams.SchoolId == school_id, func.lower(Teams.Name) == func.lower(name)).one_or_none()

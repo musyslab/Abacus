@@ -10,6 +10,7 @@ from src.repositories.models import AdminUsers, StudentUsers, Teams
 from src.repositories.team_repository import TeamRepository
 from src.repositories.user_repository import UserRepository
 from src.repositories.school_repository import SchoolRepository
+from src.constants import BLUE_TEAM_MAX
 
 import re
 
@@ -47,10 +48,11 @@ def create_team(
     # Default name (School Name + Team Number)
     name = school_repo.get_school_name_with_id(school_id) + " " + str(team_number)
 
-    if team_repo.total_blue_teams() > 84:
+    if team_repo.total_blue_teams() >= BLUE_TEAM_MAX:
         team = team_repo.create_team(school_id, team_number, name, "Gold", False)
     else:
         team = team_repo.create_team(school_id, team_number, name, "Blue", False)
+
     return make_response({
             'id': team.Id,
             'teamNumber': team.TeamNumber,
@@ -110,19 +112,30 @@ def update_team(
                 {'message': 'Team name can be no longer than 30 characters.'},
                 HTTPStatus.BAD_REQUEST
             )
+        if not re.match(r"^[A-Za-z0-9\s'\-_]+$", name):
+            return make_response(
+                {'message': 'Team name can only contain letters, numbers, spaces, underscores, hyphens, and apostrophes.'},
+                HTTPStatus.BAD_REQUEST
+            )
         if not re.search(r"[A-Za-z0-9]", name):
             return make_response(
                 {'message': 'Team name must contain at least one letter or number.'},
+                HTTPStatus.BAD_REQUEST
+            )
+
+        existing_team = team_repo.get_team_by_name(school_id, name)
+        if existing_team and existing_team.Id != team_id:
+            return make_response(
+                {'message': 'Team name is already in use.'},
                 HTTPStatus.BAD_REQUEST
             )
             
     is_online = data.get("is_online")
 
     #check if limit is above 85
-
     curr_division = division if division else team_repo.get_team_by_id(team_id).Division
     total_teams = team_repo.total_blue_teams()
-    if total_teams > 84 and curr_division=='Blue':
+    if total_teams >= BLUE_TEAM_MAX and curr_division=='Blue':
         return make_response({'message': 'The maximum amount of teams among all schools has been reached for this division. Contact support if you believe this is a mistake.'}, HTTPStatus.CONFLICT)
 
     team_repo.update_team(team.Id, name=name, division=division, is_online=is_online)

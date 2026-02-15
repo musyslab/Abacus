@@ -79,6 +79,10 @@
   align-items: flex-start;
 }
 
+.panel__header-name {
+  max-width: 25rem;
+}
+
 .panel__header-update {
   display: flex;
   flex-direction: column;
@@ -166,6 +170,7 @@
 
 .panel__subtitle {
   margin-top: 4px;
+  padding-left: 9px;
   font-size: 13px;
   opacity: 0.75;
 }
@@ -552,25 +557,6 @@
   .member-list {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-}
-
-.team-name-input {
-  font-size: 1.2rem;
-  font-weight: 600;
-  border: none;
-  border-bottom: 1px solid transparent;
-  background: transparent;
-  outline: none;
-  width: 100%;
-
-  &:focus {
-      border-bottom: 1px solid #888;
-  }
-}
-
-.input-error {
-  border: 1px solid #d64545;
-  background-color: #fff5f5;
 }
 
 .editable-title {

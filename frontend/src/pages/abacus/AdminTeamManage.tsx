@@ -666,7 +666,7 @@ export default function AdminTeamManage() {
         return map[emailHash] || { sentCount: 0 };
     }
 
-    function validateTeamName(name: string): string | null {
+    function validateTeamName(name: string, teamId: number): string | null {
         const trimmed = name.trim();
     
         if (trimmed.length < 3) {
@@ -675,10 +675,18 @@ export default function AdminTeamManage() {
         if (trimmed.length > 30) {
             return "Team name can be no longer than 30 characters.";
         }
+        if (!/^[A-Za-z0-9\s'\-_]+$/.test(trimmed)) {
+            return "Team name is limited to alphanumeric characters, spaces, underscores, hyphens, and apostrophes.";
+        }
         if (!/[A-Za-z0-9]/.test(trimmed)) {
             return "Team name must contain at least one letter or number.";
         }
-    
+
+        const duplicate = teams.find(t => t.name.trim().toLowerCase() === trimmed.toLowerCase() && t.id !== teamId);
+        if (duplicate) {
+            return "Team name is already in use.";
+        }
+
         return null;
     }
     
@@ -687,26 +695,15 @@ export default function AdminTeamManage() {
         if (!original) return;
 
         if (updates.name !== undefined) {
-            const error = validateTeamName(updates.name);
-        
-            if (error) {
-                setTeams(prev =>
+            const error = validateTeamName(updates.name, teamId);
+            setTeams(prev =>
                     prev.map(team =>
                         team.id === teamId
-                            ? { ...team, nameError: error }
+                            ? { ...team, nameError: error || undefined }
                             : team
                     )
                 );
-                return;
-            } else {
-                setTeams(prev =>
-                    prev.map(team =>
-                        team.id === teamId
-                            ? { ...team, nameError: undefined }
-                            : team
-                    )
-                );
-            }
+            if (error) return;
         }
 
         const divisionGiven = updates.division !== undefined
@@ -749,9 +746,7 @@ export default function AdminTeamManage() {
     }
         
 
-    function updateTeamName(teamId: number, name: string) {
-        updateTeam(teamId, { name });
-    }
+    function updateTeamName(teamId: number, name: string) {updateTeam(teamId, { name })}
     function updateTeamDivision(teamId: number, division: Division) {updateTeam(teamId, { division })}
     function updateTeamAttendance(teamId: number, isOnline: boolean) {updateTeam(teamId, { isOnline })}
 
@@ -825,31 +820,31 @@ export default function AdminTeamManage() {
                                     <div className="panel__header">
                                         <div className="panel__header-options">
                                             <div className="panel__header-name">
-                                            <div className="panel__title editable-title">
-                                                <input
-                                                    className={`team-name-input ${team.nameError ? "input-error" : ""}`}
-                                                    type="text"
-                                                    value={team.name}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value;
-                                                        const error = validateTeamName(value);
+                                                <div className="panel__title editable-title">
+                                                    <input
+                                                        className={`team-name-input ${team.nameError ? "input-error" : ""}`}
+                                                        type="text"
+                                                        value={team.name}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value;
+                                                            const error = validateTeamName(value, team.id);
 
-                                                        setTeams(prev =>
-                                                            prev.map(t =>
-                                                                t.id === team.id
-                                                                    ? { ...t, name: value, nameError: error || undefined }
-                                                                    : t
-                                                            )
-                                                        );
-                                                    }}
-                                                    onBlur={() => updateTeamName(team.id, team.name)}
-                                                    disabled={isLoading}
-                                                />
-                                                <FaPen className="edit-icon" />
+                                                            setTeams(prev =>
+                                                                prev.map(t =>
+                                                                    t.id === team.id
+                                                                        ? { ...t, name: value, nameError: error || undefined }
+                                                                        : t
+                                                                )
+                                                            );
+                                                        }}
+                                                        onBlur={() => updateTeamName(team.id, team.name)}
+                                                        disabled={isLoading}
+                                                    />
+                                                    <FaPen className="edit-icon" />
+                                                </div>
                                                 {team.nameError && (
                                                     <div className="inline-error">{team.nameError}</div>
                                                 )}
-                                            </div>
                                                 <div className="panel__subtitle">
                                                     Members saved: <strong>{savedCount}</strong> (minimum 2, maximum 4)
                                                 </div>
