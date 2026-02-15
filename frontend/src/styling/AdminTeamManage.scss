@@ -19,7 +19,7 @@
 }
 
 .toolbar__title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
 }
 
@@ -27,7 +27,47 @@
   margin-top: 4px;
 }
 
+.team-size__label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
 
+.team-size__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.pill--blue {
+  background: #e0e7ff;
+  border-color: #1e40af;
+  color: #1e40af;
+}
+
+.pill--gold {
+  background: #fff4db;
+  border-color: #f59e0b;
+  color: #b45309;
+}
+
+.pill--eagle {
+  background: #dff7f5;
+  border-color: #1CB2A9;
+  color: #0f766e;
+}
 
 .new-team-footer {
   margin-top: 18px;
@@ -206,6 +246,10 @@
   background: rgba(20, 20, 20, 0.03);
 }
 
+.callout.close {
+  margin: 6px 0 6px;
+}
+
 .callout__title {
   font-weight: 800;
   margin-bottom: 6px;
@@ -227,6 +271,11 @@
 .callout--error {
   border-left: 5px solid rgba(239, 68, 68, 0.9);
   background: rgba(239, 68, 68, 0.08);
+}
+
+.callout--error.small {
+  font-size: 12px;
+  margin: 8px 0;
 }
 
 .member-list {
@@ -338,6 +387,10 @@
   background: rgba(239, 68, 68, 0.10);
   border: 1px solid rgba(239, 68, 68, 0.18);
   font-size: 13px;
+}
+
+.right-aligned {
+  text-align: right;
 }
 
 .member-row__saved {

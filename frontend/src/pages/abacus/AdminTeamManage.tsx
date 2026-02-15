@@ -60,7 +60,11 @@ type TeamVm = {
 const INVITE_META_KEY = "AUTOTA_TEAM_INVITES_V1";
 const DIVISIONS = ["Blue", "Gold", "Eagle"];
 const ATTENDANCE = [{label: "In-person", value: false }, {label: "Virtual", value: true}];
-
+const DIVISION_SIZES: Record<Division, { min: number; max: number }> = {
+    Blue: { min: 3, max: 4 },
+    Gold: { min: 2, max: 3 },
+    Eagle: { min: 2, max: 4 },
+};
 
 function safeJsonParse<T>(raw: string | null, fallback: T): T {
     if (!raw) return fallback;
@@ -230,8 +234,9 @@ export default function AdminTeamManage() {
         const empty = team.members.filter((m) => !m.studentId).sort((a, b) => a.memberId - b.memberId);
 
         const savedCount = saved.length;
+        const maxSize = DIVISION_SIZES[team.division].max;
         // show 1 row for brand-new team, otherwise show saved + next empty.
-        const defaultVisible = Math.min(4, Math.max(1, savedCount + 1));
+        const defaultVisible = Math.min(maxSize, Math.max(1, savedCount + 1));
         const totalVisible = Math.max(teamVisibleCounts[team.id] ?? 0, defaultVisible);
 
         const emptyToShow = Math.min(empty.length, Math.max(0, totalVisible - savedCount));
@@ -240,9 +245,10 @@ export default function AdminTeamManage() {
 
     function canAddMoreMembers(team: TeamVm) {
         const savedCount = getTeamSavedCount(team);
-        const defaultVisible = Math.min(4, Math.max(1, savedCount + 1));
+        const maxSize = DIVISION_SIZES[team.division].max;
+        const defaultVisible = Math.min(maxSize, Math.max(1, savedCount + 1));
         const totalVisible = Math.max(teamVisibleCounts[team.id] ?? 0, defaultVisible);
-        return totalVisible < 4;
+        return totalVisible < maxSize;
     }
 
     const emptyTeamExists = useMemo(() => {
@@ -250,9 +256,12 @@ export default function AdminTeamManage() {
     }, [teams]);
 
     function addMemberRow(teamId: number) {
+        const team = teams.find((t) => t.id === teamId);
+        if (!team) return;
+        const maxSize = DIVISION_SIZES[team.division].max;
         setTeamVisibleCounts((prev) => ({
             ...prev,
-            [teamId]: Math.min(4, (prev[teamId] ?? 1) + 1),
+            [teamId]: Math.min(maxSize, (prev[teamId] ?? 1) + 1),
         }));
     }
 
@@ -296,7 +305,8 @@ export default function AdminTeamManage() {
 
                 for (const t of mapped) {
                     const savedCount = t.members.filter((m) => !!m.studentId).length;
-                    const defaultVisible = Math.min(4, Math.max(1, savedCount + 1));
+                    const maxSize = DIVISION_SIZES[t.division].max;
+                    const defaultVisible = Math.min(maxSize, Math.max(1, savedCount + 1));
                     next[t.id] = Math.max(next[t.id] ?? 0, defaultVisible);
                 }
                 return next;
@@ -513,9 +523,10 @@ export default function AdminTeamManage() {
             setTeamVisibleCounts((prev) => {
                 const next = { ...prev };
                 const t = teams.find((x) => x.id === teamId);
-                if (!t) return {ok: false, message: "Team not found after saving member."};
+                if (!t) return prev;
                 const savedCount = t.members.filter((m) => !!m.studentId).length + 1; // include newly saved
-                next[teamId] = Math.max(next[teamId] ?? 0, Math.min(4, savedCount + 1));
+                const maxSize = DIVISION_SIZES[t.division].max;
+                next[teamId] = Math.max(next[teamId] ?? 0, Math.min(maxSize, savedCount + 1));
                 return next;
             });
 
@@ -547,9 +558,10 @@ export default function AdminTeamManage() {
             setTeamVisibleCounts((prev) => {
                 const next = { ...prev };
                 const t = teams.find((x) => x.id === teamId);
-                if (!t) return {ok: false, message: "Team not found after deleting member."};
+                if (!t) return prev;
                 const savedCount = t.members.filter((m) => !!m.studentId).length;
-                const defaultVisible = Math.min(4, Math.max(1, savedCount + 1));
+                const maxSize = DIVISION_SIZES[t.division].max;
+                const defaultVisible = Math.min(maxSize, Math.max(1, savedCount + 1));
                 const currentVisible = Math.max(prev[teamId] ?? 0, defaultVisible);
                 next[teamId] = Math.max(defaultVisible, currentVisible - 1);
                 return next;
@@ -587,9 +599,10 @@ export default function AdminTeamManage() {
             setTeamVisibleCounts((prev) => {
                 const next = { ...prev };
                 const t = teams.find((x) => x.id === teamId);
-                if (!t) return {ok : false, message: "Team not found after deletion."};
+                if (!t) return prev;
                 const savedCount = t.members.filter((m) => !!m.studentId).length - 1; // include deletion
-                const defaultVisible = Math.min(4, Math.max(1, Math.max(0, savedCount) + 1));
+                const maxSize = DIVISION_SIZES[t.division].max;
+                const defaultVisible = Math.min(maxSize, Math.max(1, Math.max(0, savedCount) + 1));
                 next[teamId] = Math.max(1, defaultVisible);
                 return next;
             });
@@ -705,11 +718,17 @@ export default function AdminTeamManage() {
                 );
             if (error) return;
         }
+        if (updates.division !== undefined) {
+            const savedCount = getTeamSavedCount(original);
+            const newDivisionMax = DIVISION_SIZES[updates.division].max;
+            if (savedCount > newDivisionMax) {
+                alert(`Cannot change division. This team has ${savedCount} saved members, but the ${updates.division} division has a max of ${newDivisionMax} members. Please remove some members before changing the division.`);
+                return;
+            }
+            if (original.division === updates.division) return;
+        }
 
-        const divisionGiven = updates.division !== undefined
-        const isOnlineGiven = updates.isOnline !== undefined
-        if (divisionGiven && original.division === updates.division) return;
-        if (isOnlineGiven && original.isOnline === updates.isOnline) return;
+        if (updates.isOnline !== undefined && original.isOnline === updates.isOnline) return;
     
         const previousState = { ...original };
     
@@ -800,7 +819,16 @@ export default function AdminTeamManage() {
                     <div className="toolbar">
                         <div>
                             <div className="toolbar__title">Teams</div>
-                            <div className="toolbar__subtitle muted">Create teams, then add 2 to 4 members each.</div>
+                            <div className="toolbar__subtitle muted">Create teams, then add members for each.</div>
+                        </div>
+                    </div>
+
+                    <div className="callout callout--info close">
+                        <div className="team-size__label">Team Size Requirements</div>
+                        <div className="team-size__pills">
+                            <span className="pill pill--blue">Blue Division: 3–4 Members</span>
+                            <span className ="pill pill--gold">Gold Division: 2–3 Members</span>
+                            <span className="pill pill--eagle">Eagle Division: 2–4 Members</span>
                         </div>
                     </div>
 
@@ -843,10 +871,10 @@ export default function AdminTeamManage() {
                                                     <FaPen className="edit-icon" />
                                                 </div>
                                                 {team.nameError && (
-                                                    <div className="inline-error">{team.nameError}</div>
+                                                    <div className="callout callout--error small">{team.nameError}</div>
                                                 )}
                                                 <div className="panel__subtitle">
-                                                    Members saved: <strong>{savedCount}</strong> (minimum 2, maximum 4)
+                                                    Members saved: <strong>{savedCount}</strong> (minimum {DIVISION_SIZES[team.division].min}, maximum {DIVISION_SIZES[team.division].max})
                                                 </div>
                                             </div>
                                             <div className="panel__header-update">
@@ -899,12 +927,16 @@ export default function AdminTeamManage() {
                                                     Delete team
                                                 </button>
                                             </div>
-                                        ) : null}
+                                        ) : (
+                                            <div className="field__help right-aligned">
+                                                Delete all members before deleting the team.
+                                            </div>
+                                        )}
                                     </div>
 
-                                    {savedCount < 2 ? (
+                                    {savedCount < DIVISION_SIZES[team.division].min ? (
                                         <div className="callout callout--info">
-                                            This team is not complete yet. Save at least <strong>2</strong> members before distributing
+                                            This team is not complete yet. Save at least <strong>{DIVISION_SIZES[team.division].min}</strong> members before distributing
                                             team information.
                                         </div>
                                     ) : null}
