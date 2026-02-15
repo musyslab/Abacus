@@ -870,6 +870,9 @@ export default function AdminTeamManage() {
                                                     />
                                                     <FaPen className="edit-icon" />
                                                 </div>
+                                                <div className="panel__subtitle">
+                                                    Please exclude student personal information in team names.
+                                                </div>
                                                 {team.nameError && (
                                                     <div className="callout callout--error small">{team.nameError}</div>
                                                 )}
