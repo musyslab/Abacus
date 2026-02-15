@@ -42,7 +42,7 @@ class Home extends Component {
                 />
 
                 <section className="sec sec-hero">
-                    <h1 className="hero-title">{YEAR} Wisconsin Dairy-land Programming Competition</h1>
+                    <h1 className="hero-title">{YEAR} Wisconsin-Dairyland Programming Competition</h1>
                     <p className="hero-subtext">
                         A team-based high school competition with multiple divisions and automatic grading through Abacus.
                         <br/>
@@ -123,17 +123,57 @@ class Home extends Component {
                 </section>
 
                 <section className="sec" ref={rulesRef}>
-                    <h2 className="sec-title">Rules and Registration</h2>
-                    <p className="sec-text">
-                        Registration is completed per team.
-                        <br/>
-                        <span className="bold">Fee: $XX per team</span>
-                        <br/>
-                        Registration closes at (FILL IN)
-                    </p>
+                    <h2 className="sec-title">Registration and Rules</h2>
+                    <p className="sec-text close">Registration for the competition is completed per team. An invoice will be sent to each school.</p>
+                    <p className="sec-text bold close">Pricing Per Team</p>
+                    <div className="pricing-grid">
+                        <div className="pricing-card">
+                            <h3 className="card-title">In-Person Participation</h3>
+                            <table className="pricing-table">
+                                <thead>
+                                <tr>
+                                    <th>Division</th>
+                                    <th>Price</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>Gold & Eagle</td>
+                                    <td>$60</td>
+                                </tr>
+                                <tr>
+                                    <td>Blue</td>
+                                    <td>$80</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div className="pricing-card">
+                            <h3 className="card-title">Virtual Participation</h3>
+                            <table className="pricing-table">
+                                <thead>
+                                <tr>
+                                    <th>Division</th>
+                                    <th>Price</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr>
+                                    <td>Gold & Eagle</td>
+                                    <td>$50</td>
+                                </tr>
+                                <tr>
+                                    <td>Blue</td>
+                                    <td>$60</td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <p className="sec-text">Registration closes on <span className="bold">Monday, March 23rd, {YEAR}</span>.</p>
                     <div className="sec-subtitle">Artifical Intelligence Policy</div>
                     <p className="sec-text">
-                        The use of AI tools during the competition is strictly prohibited. Violation of this policy may result in immediate
+                        The use of AI tools during the competition is <strong>strictly prohibited</strong>. Violation of this policy may result in immediate
                          disqualification of the team. All teams are expected to compete independently and uphold academic integrity.
                     </p>
                     <div className="sec-subtitle">Approved Development Environments</div>
@@ -159,7 +199,7 @@ class Home extends Component {
                 <footer className="footer">
                     <div className="footer-content">
                         <div className="footer-section">
-                            <div className="footer-title">Wisconsin Dairyland Programming Competition</div>
+                            <div className="footer-title">Wisconsin-Dairyland Programming Competition</div>
                             <div className="footer-text">Hosted by Marquette University</div>
                             <div className="footer-text">Organized by the ACM/UPE Student Chapter</div>
                         </div>

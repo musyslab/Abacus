@@ -163,7 +163,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                                 className="menu__item"
                                 onClick={() => this.props.onScrollToSection?.("rules")}
                             >
-                                Rules & Registration
+                                Registration & Rules
                             </button>
 
                             <div className="menu__right">

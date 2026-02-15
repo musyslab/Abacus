@@ -166,6 +166,62 @@
     color: #1CB2A9;
 }
 
+.pricing-grid {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+    margin: 8px 0;
+}
+
+
+.pricing-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 10px 32px;
+    width: 340px;
+    border: 1px solid #e5e7eb;
+}
+
+.card-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 20px;
+}
+
+.pricing-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.pricing-table thead th {
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    text-align: left;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.pricing-table tbody td {
+    padding: 14px 0;
+    font-size: 16px;
+    color: #374151;
+}
+
+.pricing-table th:last-child,
+.pricing-table td:last-child {
+    text-align: right;
+}
+
+.pricing-table tbody td:last-child {
+    font-weight: 600;
+    color: #111827;
+}
+
+.pricing-table tbody tr:not(:last-child) td {
+    border-bottom: 1px solid #f1f5f9;
+}
 
 .footer {
     width: 100%;
