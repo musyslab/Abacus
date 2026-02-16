@@ -71,7 +71,7 @@ class StudentLogin extends Component<{}, StudentLoginPageState> {
 
   render() {
     if (this.state.isLoggedIn) {
-      const redirectPath = "/student/classes";
+      const redirectPath = "/student/problems";
       return <Navigate to={redirectPath} replace />;
     }
 

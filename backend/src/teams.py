@@ -247,3 +247,23 @@ def get_teams_by_school(
         })
 
     return make_response(payload, HTTPStatus.OK)
+
+@team_api.route("/me", methods=["GET"])
+@jwt_required()
+@inject
+def get_my_team(
+    team_repo: TeamRepository = Provide[Container.team_repo],
+):
+    team_id = getattr(current_user, "TeamId", None)
+    if team_id is None:
+        return jsonify({}), 404
+
+    team = team_repo.get_team_by_id(int(team_id))
+    if not team:
+        return jsonify({}), 404
+
+    return jsonify({
+        "id": team.Id,
+        "name": team.Name,
+        "division": team.Division,
+    })
