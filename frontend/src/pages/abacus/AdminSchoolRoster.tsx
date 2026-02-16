@@ -10,7 +10,6 @@ import "../../styling/AdminSchoolRoster.scss";
 
 type SchoolSummary = {
   id: number;
-  pid: string;
   name: string;
   teacherId: number | null;
   teacherName: string | null;

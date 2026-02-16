@@ -67,10 +67,8 @@ CREATE TABLE `Projects` (
 CREATE TABLE `Schools` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `Name` varchar(256) NOT NULL,
-  `PublicId` varchar(10) NOT NULL,
   PRIMARY KEY (`Id`),
-  UNIQUE KEY `schools_name_unique` (`Name`),
-  UNIQUE KEY `schools_publicid_unique` (`PublicId`)
+  UNIQUE KEY `schools_name_unique` (`Name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
@@ -311,5 +309,30 @@ ALTER TABLE `SubmissionChargeRedeptions`
 ALTER TABLE `SubmissionChargeRedeptions`
   ADD CONSTRAINT `fk_submissionchargeredeptions_submission`
   FOREIGN KEY (`SubmissionId`) REFERENCES `Submissions` (`Id`) ON DELETE SET NULL;
+
+-- ============================================
+-- Seed Schools data
+-- ============================================
+INSERT INTO `Schools` (`Name`) VALUES
+  ('Belleville'),
+  ('Brookefield Academy'),
+  ('Brookefield Central'),
+  ('Cedarburg'),
+  ('Craig'),
+  ('De Pere'),
+  ('Franklin'),
+  ('Homestead'),
+  ('Johnson Creek'),
+  ('Kettle Moraine'),
+  ('Menomonee Falls'),
+  ('New London'),
+  ('Oak Creek'),
+  ('Parker'),
+  ('Reagan'),
+  ('Reedsburg Area'),
+  ('Rufus King'),
+  ('Sauk Prairie'),
+  ('St. Francis'),
+  ('West De Pere');
 
 SET FOREIGN_KEY_CHECKS=1;

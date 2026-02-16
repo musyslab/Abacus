@@ -131,36 +131,6 @@ export default function AdminTeamManage() {
     const schoolIdParam = Number(school_id);
     const isAdminMode = Number.isFinite(schoolIdParam) && schoolIdParam > 0;
     const managedSchoolId = isAdminMode ? schoolIdParam : null;
-
-    /*
-    const { public_id } = useParams<{ public_id: string }>();
-    const [resolvedSchoolId, setResolvedSchoolId] = useState<number | null>(null);
-
-    useEffect(() => {
-        if (!public_id){
-            return;
-        }
-        const resolveId = async () => {
-            try{
-                const res = await axios.get(`${apiBase}/schools/admin/getIdfromURL/${public_id}`, authConfig());
-                const realId = Array.isArray(res.data) ? res.data[0]?.id : res.data?.id;
-                if(realId){
-                    setResolvedSchoolId(realId);
-                }
-                else{
-                    console.error("Could not resovlve school ID");
-                }
-
-            } catch (err){
-                console.error("Failed to resolve school ID from public ID.");
-            }
-        };
-        resolveId();
-    }, [public_id, apiBase]);
-    const managedSchoolId = resolvedSchoolId;
-    const isAdminMode = !!managedSchoolId;
-    */
-    
     const [schoolName, setSchoolName] = useState<string>("");
 
     function authConfig() {

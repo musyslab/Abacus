@@ -121,6 +121,28 @@ body {
           padding-left: 40px;
         }
       }
+
+      .form-select__control {
+        width: 100%;
+        padding: 3px 3px;
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        font-size: 15px;
+        line-height: 1.2;
+        outline: none;
+        background: #ffffff;
+        color: #111827;
+
+        &.form-select__control--is-focused {
+          border-color: #2563eb;
+          box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.18);
+        }
+      }
+
+      .form-select__placeholder {
+        color: #9ca3af;
+      }
+
     }
 
     .btn {

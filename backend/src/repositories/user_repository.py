@@ -234,7 +234,7 @@ class UserRepository:
     # School operations (kept here because your auth flow uses them)
     # -----------------------------
     def create_school(self, name: str) -> Schools:
-        school = Schools(Name=name, PublicId = generate(size=10))
+        school = Schools(Name=name)
         db.session.add(school)
         db.session.commit()
         return school

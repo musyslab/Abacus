@@ -17,6 +17,7 @@
     "react-helmet": "^6.1.0",
     "react-icons": "^5.5.0",
     "react-router-dom": "^7.11.0",
+    "react-select": "^5.10.2",
     "react-split": "^2.0.14",
     "sass-embedded": "^1.97.1",
     "tap": "^21.5.0",
