@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import Select from "react-select";
 
 import img from "../../images/AbacusLogo.png";
 import "../../styling/Login.scss";
@@ -19,6 +20,14 @@ type SchoolOption = {
 };
 
 type SchoolMode = "existing" | "new";
+
+const QUESTION_TWO_OPTIONS = [
+  { value: "real-world-problems-with-code", label: "Solving Real-World Problems with Code" },
+  { value: "ai-powered-application", label: "Building an AI-Powered Application" },
+  { value: "real-website", label: "Turning Code into a Real Website" },
+  { value: "how-hackers-think", label: "How Hackers Think" },
+  { value: "careers-in-tech", label: "Exploring Careers in Technology" },
+];
 
 export default function Register() {
   const navigate = useNavigate();
@@ -41,7 +50,6 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingSchools, setIsLoadingSchools] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
-  const [errorMessage, setErrorMessage] = useState("");
 
   const [questionOne, setQuestionOne] = useState("");
   const [questionTwo, setQuestionTwo] = useState("");
@@ -237,27 +245,27 @@ export default function Register() {
                 <label className="form-label" htmlFor="schoolSelect">
                   Existing school
                 </label>
-                <select
-                  id="schoolSelect"
-                  className="form-select"
-                  value={selectedSchoolId}
-                  onChange={(e) => setSelectedSchoolId(e.target.value)}
-                  disabled={isLoading || isLoadingSchools || schools.length === 0}
-                  required
-                >
-                  <option value="">
-                    {isLoadingSchools
+                <Select
+                  inputId="schoolSelect"
+                  classNamePrefix="form-select"
+                  options={schools}
+                  getOptionLabel={(option) => option.name}
+                  getOptionValue={(option) => String(option.id)}
+                  value={schools.find(s => s.id === Number(selectedSchoolId)) || null}
+                  onChange={(option) => setSelectedSchoolId(option ? String(option.id) : "")}
+                  isDisabled={isLoading || isLoadingSchools || schools.length === 0}
+                  isClearable
+                  isSearchable
+                  placeholder={
+                    isLoadingSchools
                       ? "Loading schools…"
                       : schools.length === 0
                         ? "No schools found (create a new one)"
-                        : "Select a school"}
-                  </option>
-                  {schools.map((s) => (
-                    <option key={s.id} value={String(s.id)}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                        : "Select a school"
+                  }
+                  isLoading={isLoadingSchools}
+                  required
+                />
               </div>
             ) : (
               <div style={{ marginTop: 10 }}>
@@ -298,40 +306,40 @@ export default function Register() {
             <label className="form-label" htmlFor="q1">
                Would you be interested in staying until 2:30pm (after awards) and having your students attend a 45-minute workshop hosted by a Microsoft Engineer? 
             </label>
-            <select
-              id="q1"
-              className="form-select" 
-              value={questionOne}
-              onChange={(e) => setQuestionOne(e.target.value)}
+            <Select
+              inputId="q1"
+              classNamePrefix="form-select"
+              options={[
+                { value: "yes", label: "Yes" },
+                { value: "no", label: "No" },
+              ]}
+              value={questionOne ? { value: questionOne, label: questionOne === "yes" ? "Yes" : "No" } : null}
+              onChange={(option) => setQuestionOne(option ? option.value : "")}
+              isClearable
+              isSearchable={false}
+              placeholder="Select an option"
               required
-            >
-              <option value="">Select an option</option>
-              <option value="yes">Yes</option>
-              <option value="no">No</option>
-            </select>
+            />
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="q2">
-              If you would like to attend, what workshop sounds most engaging to your students?  
-            </label>
-            <select
-              id="q2"
-              className="form-select" 
-              value={questionTwo}
-              onChange={(e) => setQuestionTwo(e.target.value)}
-              disabled={questionOne === "no"}
-              required
-            >
-              <option value="">Select an option</option>
-              <option value="real-world-problems-with-code">Solving Real-World Problems with Code</option>
-              <option value="ai-powered-application">Building an AI-Powered Application </option>
-              <option value="real-website">Turning Code into a Real Website</option>
-              <option value="how-hackers-think">How Hackers Think</option>
-              <option value="careers-in-tech">Exploring Careers in Technology</option>
-
-            </select>
-          </div>
+          {questionOne === "yes" && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="q2">
+                If you would like to attend, what workshop sounds most engaging to your students?  
+              </label>
+              <Select
+                inputId="q2"
+                classNamePrefix="form-select"
+                options={QUESTION_TWO_OPTIONS}
+                value={QUESTION_TWO_OPTIONS.find(q => q.value === questionTwo) || null}
+                onChange={(option) => setQuestionTwo(option ? option.value : "")}
+                isClearable
+                isSearchable={false}
+                placeholder="Select an option"
+                required
+              />
+            </div>
+          )}
 
           <button className="btn btn--primary login-form__submit" type="submit" disabled={isLoading}>
             {isLoading ? "Creating account…" : "Create account"}
