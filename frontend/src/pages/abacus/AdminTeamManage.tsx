@@ -48,13 +48,20 @@ type MemberSlot = {
 };
 
 type TeamVm = {
-    id: number;
-    teamNumber: number;
-    name: string;
-    division: Division;
-    isOnline: boolean;
-    members: MemberSlot[]; // always 4 slots
-    nameError?: string;
+  id: number;
+  teamNumber: number;
+  name: string;
+  division: Division;
+  isOnline: boolean;
+
+  tshirtS?: number;
+  tshirtM?: number;
+  tshirtL?: number;
+  tshirtXL?: number;
+  tshirtXXL?: number;
+
+  members: MemberSlot[];
+  nameError?: string;
 };
 
 const INVITE_META_KEY = "AUTOTA_TEAM_INVITES_V1";
@@ -109,14 +116,21 @@ function buildMemberSlots(apiMembers: ApiTeamMember[]): MemberSlot[] {
 }
 
 function buildTeamVm(apiTeam: ApiTeam): TeamVm {
-    return {
-        id: apiTeam.id,
-        teamNumber: apiTeam.teamNumber,
-        name: apiTeam.name,
-        division: apiTeam.division,
-        isOnline: apiTeam.isOnline,
-        members: buildMemberSlots(apiTeam.members || []),
-    };
+  return {
+    id: apiTeam.id,
+    teamNumber: apiTeam.teamNumber,
+    name: apiTeam.name,
+    division: apiTeam.division,
+    isOnline: apiTeam.isOnline,
+
+    tshirtS: (apiTeam as any).tshirtS,
+    tshirtM: (apiTeam as any).tshirtM,
+    tshirtL: (apiTeam as any).tshirtL,
+    tshirtXL: (apiTeam as any).tshirtXL,
+    tshirtXXL: (apiTeam as any).tshirtXXL,
+
+    members: buildMemberSlots(apiTeam.members || []),
+  };
 }
 
 function addTeamVm(prev: TeamVm[], apiTeam: ApiTeam): TeamVm[] {
@@ -125,18 +139,96 @@ function addTeamVm(prev: TeamVm[], apiTeam: ApiTeam): TeamVm[] {
 }
 
 export default function AdminTeamManage() {
-    const apiBase = (import.meta.env.VITE_API_URL as string) || "";
-    
-    const { school_id } = useParams();
-    const schoolIdParam = Number(school_id);
-    const isAdminMode = Number.isFinite(schoolIdParam) && schoolIdParam > 0;
-    const managedSchoolId = isAdminMode ? schoolIdParam : null;
-    const [schoolName, setSchoolName] = useState<string>("");
+const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+const { school_id } = useParams();
+const schoolIdParam = Number(school_id);
+const isAdminMode = Number.isFinite(schoolIdParam) && schoolIdParam > 0;
+const managedSchoolId = isAdminMode ? schoolIdParam : null;
 
-    function authConfig() {
-        const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
-        return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-    }
+// states first
+const [schoolName, setSchoolName] = useState<string>("");
+
+const [tshirtModal, setTshirtModal] = useState<{
+  teamId: number;
+  tshirtS: string;
+  tshirtM: string;
+  tshirtL: string;
+  tshirtXL: string;
+  tshirtXXL: string;
+  isSaving: boolean;
+  error: string;
+} | null>(null);
+
+function openTshirtModal(team: TeamVm) {
+  const toStr0 = (n?: number) => String(n ?? 0); // ALWAYS show 0 on open
+
+  setTshirtModal({
+    teamId: team.id,
+    tshirtS: toStr0(team.tshirtS),
+    tshirtM: toStr0(team.tshirtM),
+    tshirtL: toStr0(team.tshirtL),
+    tshirtXL: toStr0(team.tshirtXL),
+    tshirtXXL: toStr0((team as any).tshirtXXL),
+    isSaving: false,
+    error: "",
+  });
+}
+
+// functions after state
+function authConfig() {
+  const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
+  return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+}
+
+async function saveTshirts() {
+  if (!tshirtModal) return;
+  const modal = tshirtModal;
+
+  const toNum = (s: string) => {
+    if (s === "") return 0;
+    const n = Number(s);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  };
+
+  const payload = {
+    team_id: modal.teamId,
+    tshirtS: toNum(modal.tshirtS),
+    tshirtM: toNum(modal.tshirtM),
+    tshirtL: toNum(modal.tshirtL),
+    tshirtXL: toNum(modal.tshirtXL),
+    tshirtXXL: toNum(modal.tshirtXXL),
+    ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
+  };
+
+  setTshirtModal({ ...modal, isSaving: true, error: "" });
+
+  try {
+    await axios.put(`${apiBase}/teams/tshirts`, payload, authConfig());
+
+    setTeams((prev) =>
+      prev.map((t) =>
+        t.id === modal.teamId
+          ? {
+              ...t,
+              tshirtS: payload.tshirtS,
+              tshirtM: payload.tshirtM,
+              tshirtL: payload.tshirtL,
+              tshirtXL: payload.tshirtXL,
+              tshirtXXL: payload.tshirtXXL,
+            }
+          : t
+      )
+    );
+
+    setTshirtModal(null);
+  } catch (e: any) {
+    setTshirtModal({
+      ...modal,
+      isSaving: false,
+      error: e?.response?.data?.message || "Failed to save t-shirt sizes.",
+    });
+  }
+}
 
     const [teams, setTeams] = useState<TeamVm[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -176,7 +268,7 @@ export default function AdminTeamManage() {
 
     // Handle body overflow when modals are open, to prevent background scrolling.
     useEffect(() => {
-        const hasModal = !!saveConfirmModal || !!deleteConfirmModal || !!resendModal;
+        const hasModal = !!saveConfirmModal || !!deleteConfirmModal || !!resendModal || !!tshirtModal;
         if (hasModal) {
             if (bodyOverflowRef.current === null) bodyOverflowRef.current = document.body.style.overflow;
             document.body.style.overflow = "hidden";
@@ -184,7 +276,7 @@ export default function AdminTeamManage() {
             document.body.style.overflow = bodyOverflowRef.current;
             bodyOverflowRef.current = null;
         }
-    }, [saveConfirmModal, deleteConfirmModal, resendModal]);
+    }, [saveConfirmModal, deleteConfirmModal, resendModal, tshirtModal]);
 
     useEffect(() => {
         return () => {
@@ -732,8 +824,7 @@ export default function AdminTeamManage() {
             }
             throw new Error(msg);
         }
-    }
-        
+    }    
 
     function updateTeamName(teamId: number, name: string) {updateTeam(teamId, { name })}
     function updateTeamDivision(teamId: number, division: Division) {updateTeam(teamId, { division })}
@@ -749,16 +840,17 @@ export default function AdminTeamManage() {
                 showProblemList={isAdminMode}
                 showAdminUpload={isAdminMode}
             />
+<div className="admin-team-manage-root">
+  <DirectoryBreadcrumbs
+    items={
+      managedSchoolId
+        ? [{ label: "School List", to: "/admin/schools" }, { label: "Team Manage" }]
+        : [{ label: "Team Manage" }]
+    }
+    trailingSeparator={!managedSchoolId}
+  />
 
-            <div className="admin-team-manage-root">
-                <DirectoryBreadcrumbs
-                    items={
-                        managedSchoolId
-                            ? [{ label: "School List", to: "/admin/schools" }, { label: "Team Manage" }]
-                            : [{ label: "Team Manage" }]
-                    }
-                    trailingSeparator={!managedSchoolId}
-                />
+
                 <div className="pageTitle">
                     {schoolName ? schoolName : "Team Manage"}
                     {managedSchoolId ? " (Admin)" : ""}
@@ -778,6 +870,9 @@ export default function AdminTeamManage() {
                                     <strong>Member ID (1 to 4)</strong>
                                 </li>
                                 <li>
+                                    <strong>T-shirt sizes</strong> (fill these out before you finish teams)
+                                 </li>
+                                 <li>
                                     <strong>Student name</strong> (recorded outside Abacus)
                                 </li>
                             </ul>
@@ -792,16 +887,19 @@ export default function AdminTeamManage() {
                             <div className="toolbar__subtitle muted">Create teams, then add members for each.</div>
                         </div>
                     </div>
-
-                    <div className="callout callout--info close">
-                        <div className="team-size__label">Team Size Requirements</div>
-                        <div className="team-size__pills">
-                            <span className="pill pill--blue">Blue Division: 3–4 Members</span>
-                            <span className ="pill pill--gold">Gold Division: 2–3 Members</span>
-                            <span className="pill pill--eagle">Eagle Division: 2–4 Members</span>
-                        </div>
-                    </div>
-
+        
+<div className="callout callout--info close">
+    <div className="team-size__row">
+        <div>
+            <div className="team-size__label">Team Size Requirements</div>
+            <div className="team-size__pills">
+                <span className="pill pill--blue">Blue Division: 3–4 Members</span>
+                <span className="pill pill--gold">Gold Division: 2–3 Members</span>
+                <span className="pill pill--eagle">Eagle Division: 2–4 Members</span>
+            </div>
+        </div>
+    </div>
+</div>
                     {teams.length === 0 ? (
                         <div className="callout callout--info">No teams yet. Create one to get started.</div>
                     ) : null}
@@ -815,98 +913,121 @@ export default function AdminTeamManage() {
 
                             return (
                                 <div key={team.id} className="panel">
-                                    <div className="panel__header">
-                                        <div className="panel__header-options">
-                                            <div className="panel__header-name">
-                                                <div className="panel__title editable-title">
-                                                    <input
-                                                        className={`team-name-input ${team.nameError ? "input-error" : ""}`}
-                                                        type="text"
-                                                        value={team.name}
-                                                        onChange={(e) => {
-                                                            const value = e.target.value;
-                                                            const error = validateTeamName(value, team.id);
+<div className="panel__header">
+  {/* LEFT SIDE: Team name + subtitles */}
+  <div className="panel__header-left">
+    <div className="panel__header-name">
+      {/* Team name input (brings it back) */}
+      <div className="panel__title editable-title">
+        <input
+          className={`team-name-input ${team.nameError ? "input-error" : ""}`}
+          type="text"
+          value={team.name}
+          onChange={(e) => {
+            const value = e.target.value;
+            const error = validateTeamName(value, team.id);
 
-                                                            setTeams(prev =>
-                                                                prev.map(t =>
-                                                                    t.id === team.id
-                                                                        ? { ...t, name: value, nameError: error || undefined }
-                                                                        : t
-                                                                )
-                                                            );
-                                                        }}
-                                                        onBlur={() => updateTeamName(team.id, team.name)}
-                                                        disabled={isLoading}
-                                                    />
-                                                    <FaPen className="edit-icon" />
-                                                </div>
-                                                <div className="panel__subtitle">
-                                                    Please exclude student personal information in team names.
-                                                </div>
-                                                {team.nameError && (
-                                                    <div className="callout callout--error small">{team.nameError}</div>
-                                                )}
-                                                <div className="panel__subtitle">
-                                                    Members saved: <strong>{savedCount}</strong> (minimum {DIVISION_SIZES[team.division].min}, maximum {DIVISION_SIZES[team.division].max})
-                                                </div>
-                                            </div>
-                                            <div className="panel__header-update">
-                                                <label className="panel__label">Division</label>
-                                                <div className="segment-btn segment-division">
-                                                    {DIVISIONS.map(option => {
-                                                        const isSelected = team.division === option;
-                                                        return (
-                                                            <button
-                                                                key={option}
-                                                                className={`segment-option ${isSelected ? "selected" : ""} ${option.toLowerCase()}`}
-                                                                type="button"
-                                                                disabled={isLoading}
-                                                                onClick={() => updateTeamDivision(team.id, option as Division)}
-                                                            >
-                                                                {option}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                            <div className="panel__header-update">
-                                                <label className="panel__label">Attendance</label>
-                                                <div className="segment-btn segment-attendance">
-                                                    {ATTENDANCE.map(option => {
-                                                        const isSelected = team.isOnline === option.value;
-                                                        return (
-                                                            <button
-                                                                key={option.label}
-                                                                className={`segment-option ${isSelected ? "selected" : ""}`}
-                                                                type="button"
-                                                                disabled={isLoading}
-                                                                onClick={() => updateTeamAttendance(team.id, option.value)}
-                                                            >
-                                                                {option.label}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {canDeleteTeam ? (
-                                            <div className="panel__header-actions">
-                                                <button
-                                                    className="btn btn--danger"
-                                                    type="button"
-                                                    disabled={isLoading}
-                                                    onClick={() => handleDeleteTeam(team.id)}
-                                                >
-                                                    Delete team
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="field__help right-aligned">
-                                                Delete all members before deleting the team.
-                                            </div>
-                                        )}
-                                    </div>
+            setTeams((prev) =>
+              prev.map((t) =>
+                t.id === team.id ? { ...t, name: value, nameError: error || undefined } : t
+              )
+            );
+          }}
+          onBlur={() => updateTeamName(team.id, team.name)}
+          disabled={isLoading}
+        />
+        <FaPen className="edit-icon" />
+      </div>
 
+      <div className="panel__subtitle">Please exclude student personal information in team names.</div>
+
+      {team.nameError ? <div className="callout callout--error small">{team.nameError}</div> : null}
+
+      <div className="panel__subtitle">
+        Members saved: <strong>{savedCount}</strong> (minimum {DIVISION_SIZES[team.division].min}, maximum{" "}
+        {DIVISION_SIZES[team.division].max})
+      </div>
+    </div>
+
+    {/* CONTROLS: T-shirts, Division, Attendance */}
+    <div className="panel__header-controls">
+      {/* T-shirts (NO label above it) */}
+      <div className="control-block">
+        <button
+          type="button"
+          className="btn btn--secondary tshirt-btn"
+          disabled={isLoading}
+          onClick={() => openTshirtModal(team)}
+          title="Edit t-shirt sizes"
+        >
+          T-shirts
+        </button>
+      </div>
+
+      {/* Division */}
+      <div className="control-block">
+        <label className="panel__label">Division</label>
+        <div className="segment-btn segment-division">
+          {DIVISIONS.map((option) => {
+            const isSelected = team.division === option;
+            return (
+              <button
+                key={option}
+                className={`segment-option ${isSelected ? "selected" : ""} ${option.toLowerCase()}`}
+                type="button"
+                disabled={isLoading}
+                onClick={() => updateTeamDivision(team.id, option as Division)}
+              >
+                {option}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Attendance */}
+      <div className="control-block">
+        <label className="panel__label">Attendance</label>
+        <div className="segment-btn segment-attendance">
+          {ATTENDANCE.map((option) => {
+            const isSelected = team.isOnline === option.value;
+            return (
+              <button
+                key={option.label}
+                className={`segment-option ${isSelected ? "selected" : ""}`}
+                type="button"
+                disabled={isLoading}
+                onClick={() => updateTeamAttendance(team.id, option.value)}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {/* RIGHT SIDE: delete */}
+  <div className="panel__header-right">
+    {canDeleteTeam ? (
+      <div className="panel__header-actions">
+        <button
+          className="btn btn--danger"
+          type="button"
+          disabled={isLoading}
+          onClick={() => handleDeleteTeam(team.id)}
+        >
+          Delete team
+        </button>
+      </div>
+    ) : (
+      <div className="field__help right-aligned">
+        Delete all members before deleting the team.
+      </div>
+    )}
+  </div>
+</div>
                                     {savedCount < DIVISION_SIZES[team.division].min ? (
                                         <div className="callout callout--info">
                                             This team is not complete yet. Save at least <strong>{DIVISION_SIZES[team.division].min}</strong> members before distributing
@@ -1084,7 +1205,67 @@ export default function AdminTeamManage() {
                     </div>
                 </div>
             </div>
+           {tshirtModal ? (
+  <div className="modal-overlay" onMouseDown={() => setTshirtModal(null)}>
+    <div className="modal-card" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="modal-title">T-shirt sizes</div>
 
+      {tshirtModal.error ? (
+        <div className="callout callout--error">{tshirtModal.error}</div>
+      ) : null}
+<div className="tshirt-grid">
+  {[
+    { key: "tshirtS", label: "S" },
+    { key: "tshirtM", label: "M" },
+    { key: "tshirtL", label: "L" },
+    { key: "tshirtXL", label: "XL" },
+    { key: "tshirtXXL", label: "XXL" },
+  ].map((s) => (
+    <div key={s.key} className="tshirt-pill">
+      <span className="tshirt-pill__size">{s.label}</span>
+
+<input
+  className="tshirt-pill__input"
+  type="text"
+  inputMode="numeric"
+  pattern="[0-9]*"
+  value={String((tshirtModal as any)[s.key] ?? "0")}
+  onFocus={(e) => e.currentTarget.select()}   // ✅ typing replaces 0
+  onChange={(e) => {
+    const raw = e.target.value;
+
+    // allow blank OR digits only
+    if (raw === "" || /^[0-9]+$/.test(raw)) {
+      setTshirtModal((m) => (m ? { ...m, [s.key]: raw } : m));
+    }
+  }}
+/>
+    </div>
+  ))}
+</div>
+      
+      <div className="modal-actions">
+        <button
+          className="btn btn--secondary"
+          type="button"
+          disabled={tshirtModal.isSaving}
+          onClick={() => setTshirtModal(null)}
+        >
+          Cancel
+        </button>
+
+        <button
+          className="btn btn--primary"
+          type="button"
+          disabled={tshirtModal.isSaving}
+          onClick={saveTshirts}
+        >
+          {tshirtModal.isSaving ? "Saving..." : "Save"}
+        </button>
+      </div>
+    </div>
+  </div>
+) : null}
             {saveConfirmModal ? (
                 <div className="modal-overlay" role="dialog" aria-modal="true">
                     <div className="modal modal--dramatic">

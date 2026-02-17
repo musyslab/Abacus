@@ -125,6 +125,11 @@ class Teams(db.Model):
     Name = Column(String(45), nullable=False)
     Division = Column(String(5))
     IsOnline = Column(Boolean, default=False)
+    TshirtS = db.Column(db.Integer, default=0)
+    TshirtM = db.Column(db.Integer, default=0)
+    TshirtL = db.Column(db.Integer, default=0)
+    TshirtXL = db.Column(db.Integer, default=0)
+    TshirtXXL = db.Column(db.Integer, default=0)    
 
 class AdminUsers(db.Model):
     __tablename__ = "AdminUsers"

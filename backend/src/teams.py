@@ -142,6 +142,71 @@ def update_team(
 
     return make_response({'message': 'Success'}, HTTPStatus.OK)
 
+@team_api.route('/tshirts', methods=['PUT'])
+@jwt_required()
+@inject
+def update_team_tshirts(
+    team_repo: TeamRepository = Provide[Container.team_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
+    if not isinstance(current_user, AdminUsers):
+        return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
+    data = request.get_json() or {}
+
+    team_id = int(data.get("team_id") or 0)
+    if team_id <= 0:
+        return make_response({'message': 'team_id is required.'}, HTTPStatus.NOT_ACCEPTABLE)
+
+    school_id = int(getattr(current_user, "SchoolId", 0))
+    requested_school_id = data.get("school_id")
+    if requested_school_id:
+        if user_repo.is_admin():
+            school_id = requested_school_id
+        elif requested_school_id != school_id:
+            return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
+    if school_id <= 0:
+        return make_response({'message': 'Invalid school ID'}, HTTPStatus.BAD_REQUEST)
+
+    team = team_repo.get_team_by_id(team_id)
+    if not team:
+        return make_response({'message': 'Team not found'}, HTTPStatus.NOT_FOUND)
+    if team.SchoolId != school_id:
+        return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
+    # read + validate counts (must be ints >= 0)
+    def to_nonneg_int(v, field_name: str):
+        try:
+            n = int(v)
+        except Exception:
+            return None, f'{field_name} must be an integer.'
+        if n < 0:
+            return None, f'{field_name} cannot be negative.'
+        return n, None
+
+    tshirtS, err = to_nonneg_int(data.get("tshirtS", 0), "tshirtS")
+    if err: return make_response({'message': err}, HTTPStatus.BAD_REQUEST)
+    tshirtM, err = to_nonneg_int(data.get("tshirtM", 0), "tshirtM")
+    if err: return make_response({'message': err}, HTTPStatus.BAD_REQUEST)
+    tshirtL, err = to_nonneg_int(data.get("tshirtL", 0), "tshirtL")
+    if err: return make_response({'message': err}, HTTPStatus.BAD_REQUEST)
+    tshirtXL, err = to_nonneg_int(data.get("tshirtXL", 0), "tshirtXL")
+    if err: return make_response({'message': err}, HTTPStatus.BAD_REQUEST)
+    tshirtXXL, err = to_nonneg_int(data.get("tshirtXXL", 0), "tshirtXXL")
+    if err: return make_response({'message': err}, HTTPStatus.BAD_REQUEST)
+
+    team_repo.update_team_tshirts(
+        team.Id,
+        tshirtS=tshirtS,
+        tshirtM=tshirtM,
+        tshirtL=tshirtL,
+        tshirtXL=tshirtXL,
+        tshirtXXL=tshirtXXL,
+    )
+
+    return make_response({'message': 'Success'}, HTTPStatus.OK)
+
 @team_api.route('/delete', methods=['DELETE'])
 @jwt_required()
 @inject
@@ -150,7 +215,7 @@ def delete_team(
     user_repo: UserRepository = Provide[Container.user_repo],
 ):
     if not isinstance(current_user, AdminUsers):
-            return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+        return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
     
     data = request.get_json()
     team_id = int(data.get("team_id") or 0)
@@ -234,6 +299,13 @@ def get_teams_by_school(
             "name": t.Name,
             "division": t.Division,
             "isOnline": t.IsOnline,
+
+            "tshirtS": int(getattr(t, "TshirtS", 0) or 0),
+            "tshirtM": int(getattr(t, "TshirtM", 0) or 0),
+            "tshirtL": int(getattr(t, "TshirtL", 0) or 0),
+            "tshirtXL": int(getattr(t, "TshirtXL", 0) or 0),
+            "tshirtXXL": int(getattr(t, "TshirtXXL", 0) or 0),
+            
             "members": [
                 {
                     "studentId": m.Id,

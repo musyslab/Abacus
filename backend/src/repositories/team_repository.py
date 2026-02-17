@@ -50,6 +50,28 @@ class TeamRepository:
 
         db.session.commit()
         return team
+    
+    def update_team_tshirts(
+        self,
+        team_id: int,
+        tshirtS: int,
+        tshirtM: int,
+        tshirtL: int,
+        tshirtXL: int,
+        tshirtXXL: int,
+    ) -> Teams | None:
+        team = self.get_team_by_id(team_id)
+        if not team:
+            return None
+
+        team.TshirtS = tshirtS
+        team.TshirtM = tshirtM
+        team.TshirtL = tshirtL
+        team.TshirtXL = tshirtXL
+        team.TshirtXXL = tshirtXXL
+
+        db.session.commit()
+        return team
 
     def delete_team(self, team_id: int) -> bool:
         team = self.get_team_by_id(team_id)

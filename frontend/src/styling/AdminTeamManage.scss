@@ -657,3 +657,183 @@
   background-color: #ffffff;
   box-shadow: 0 0 0 2px rgba(58, 122, 254, 0.15);
 }
+
+/* =========================
+   Team panel header controls
+   (T-shirts inline with Division/Attendance)
+   ========================= */
+.panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.panel__header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  flex: 1;
+  min-width: 0;
+}
+
+.panel__header-name {
+  flex: 1;
+  min-width: 320px;
+}
+
+.panel__header-controls {
+  display: flex;
+  align-items: flex-end; /* key: keeps T-shirts same “level” as the segments */
+  gap: 16px;
+  flex-wrap: nowrap;
+}
+
+.control-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel__label {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.tshirt-btn {
+  white-space: nowrap;
+  padding: 8px 14px;
+  border-radius: 999px;
+  height: 36px;           /* matches segment height visually */
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Optional tiny nudge to perfectly match segment vertical rhythm */
+.tshirt-btn--inline {
+  margin-bottom: 2px;
+}
+
+/* =========================
+   CLEAN T-shirt Modal Window
+   ========================= */
+
+/* dark background behind modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  z-index: 10000;
+}
+
+/* your TSX uses .modal-card, .modal-title, .modal-actions */
+.modal-card {
+  width: 560px;
+  max-width: 100%;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.25);
+  padding: 18px 18px 16px;
+}
+
+.modal-title {
+  font-weight: 900;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.modal-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* =========================
+   T-shirt grid inside modal
+   ========================= */
+.tshirt-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 700px) {
+  .tshirt-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.tshirt-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  padding: 12px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  background: #fafafa;
+}
+
+.tshirt-pill__size {
+  font-weight: 900;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.06);
+  min-width: 46px;
+  text-align: center;
+}
+
+.tshirt-pill__input {
+  width: 88px;
+  height: 38px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  background: #fff;
+  font-size: 14px;
+  outline: none;
+}
+
+.tshirt-pill__input:focus {
+  border-color: rgba(59, 130, 246, 0.65);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.14);
+}
+
+/* Remove ugly number spinners on Chrome/Edge */
+.tshirt-pill__input::-webkit-outer-spin-button,
+.tshirt-pill__input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Remove number spinners on Firefox */
+.tshirt-pill__input[type="number"] {
+  -moz-appearance: textfield;
+}
+/* Full-width “bar” row for breadcrumbs + button */
+.breadcrumb-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* crumbs left, button right */
+  width: 100%;
+  gap: 12px;
+
+  /* make it look like a bar */
+  padding: 10px 12px;
+  border: 1px solid #d7d7d7;
+  border-radius: 10px;
+  background: #fff;
+
+  /* ensure it doesn’t get overlapped */
+  position: relative;
+  z-index: 2;
+}
