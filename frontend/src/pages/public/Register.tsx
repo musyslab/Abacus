@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import Select from "react-select";
 
 import img from "../../images/AbacusLogo.png";
 import "../../styling/Login.scss";
@@ -20,6 +21,14 @@ type SchoolOption = {
 
 type SchoolMode = "existing" | "new";
 
+const QUESTION_TWO_OPTIONS = [
+  { value: "real-world-problems-with-code", label: "Solving Real-World Problems with Code" },
+  { value: "ai-powered-application", label: "Building an AI-Powered Application" },
+  { value: "real-website", label: "Turning Code into a Real Website" },
+  { value: "how-hackers-think", label: "How Hackers Think" },
+  { value: "careers-in-tech", label: "Exploring Careers in Technology" },
+];
+
 export default function Register() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -37,12 +46,13 @@ export default function Register() {
   const [newSchoolName, setNewSchoolName] = useState("");
 
   const [email, setEmail] = useState(prefillEmail);
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingSchools, setIsLoadingSchools] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [message, setMessage] = useState({ text: "", type: "" });
+
+  const [questionOne, setQuestionOne] = useState("");
+  const [questionTwo, setQuestionTwo] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -80,30 +90,32 @@ export default function Register() {
 
   async function handleSubmit(ev: React.FormEvent<HTMLFormElement>) {
     ev.preventDefault();
-    setErrorMessage("");
+    setMessage({ text: "", type: "" });
 
-    if (!firstName || !lastName || !email || !password || !confirmPassword) {
-      setErrorMessage("All fields are required.");
+    if (!firstName || !lastName || !email) {
+      setMessage({ text: "All fields are required.", type: "error" });
       return;
     }
 
     if (schoolMode === "existing") {
       if (!selectedSchoolId) {
-        setErrorMessage("Please select a school.");
+        setMessage({ text: "Please select a school.", type: "error" });
         return;
       }
     } else {
       if (!newSchoolName.trim()) {
-        setErrorMessage("Please enter a school name.");
+        setMessage({ text: "Please enter a school name.", type: "error" });
         return;
       }
     }
+    const finalQuestionTwo = questionOne === "no" ? "n/a" : questionTwo;
 
-    if (password !== confirmPassword) {
-      setErrorMessage("Passwords do not match.");
-      return;
+    if (!questionOne || !finalQuestionTwo) {
+       setMessage({ text: "Please answer the additional questions.", type: "error" });
+       return;
     }
 
+  
     setIsLoading(true);
 
     try {
@@ -111,7 +123,8 @@ export default function Register() {
         fname: firstName,
         lname: lastName,
         email,
-        password,
+        questionOne: questionOne, 
+        questionTwo: finalQuestionTwo,
       };
 
       if (schoolMode === "existing") {
@@ -139,11 +152,14 @@ export default function Register() {
         navigate("/admin/schools", { replace: true });
         return;
       }
-
-      setErrorMessage(res.data.message || "Account creation failed.");
+      if (res.status === 200) {
+        setMessage({ text: res.data.message || "Account created! Please check your email to set up your password", type: "success" });
+      } else {
+        setMessage({ text: res.data.message || "Account creation failed.", type: "error" });
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Account creation failed.";
-      setErrorMessage(msg);
+      setMessage({ text: msg, type: "error" });
     } finally {
       setIsLoading(false);
     }
@@ -152,12 +168,6 @@ export default function Register() {
   return (
     <>
       <MenuComponent
-        showUpload={false}
-        showAdminUpload={false}
-        showHelp={false}
-        showCreate={false}
-        showReviewButton={false}
-        showLast={false}
         variant="public"
       />
 
@@ -235,27 +245,27 @@ export default function Register() {
                 <label className="form-label" htmlFor="schoolSelect">
                   Existing school
                 </label>
-                <select
-                  id="schoolSelect"
-                  className="form-select"
-                  value={selectedSchoolId}
-                  onChange={(e) => setSelectedSchoolId(e.target.value)}
-                  disabled={isLoading || isLoadingSchools || schools.length === 0}
-                  required
-                >
-                  <option value="">
-                    {isLoadingSchools
+                <Select
+                  inputId="schoolSelect"
+                  classNamePrefix="form-select"
+                  options={schools}
+                  getOptionLabel={(option) => option.name}
+                  getOptionValue={(option) => String(option.id)}
+                  value={schools.find(s => s.id === Number(selectedSchoolId)) || null}
+                  onChange={(option) => setSelectedSchoolId(option ? String(option.id) : "")}
+                  isDisabled={isLoading || isLoadingSchools || schools.length === 0}
+                  isClearable
+                  isSearchable
+                  placeholder={
+                    isLoadingSchools
                       ? "Loading schools…"
                       : schools.length === 0
                         ? "No schools found (create a new one)"
-                        : "Select a school"}
-                  </option>
-                  {schools.map((s) => (
-                    <option key={s.id} value={String(s.id)}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                        : "Select a school"
+                  }
+                  isLoading={isLoadingSchools}
+                  required
+                />
               </div>
             ) : (
               <div style={{ marginTop: 10 }}>
@@ -293,47 +303,58 @@ export default function Register() {
           </div>
 
           <div className="form-group">
-            <label className="form-label" htmlFor="password">
-              Password
+            <label className="form-label" htmlFor="q1">
+               Would you be interested in staying until 2:30pm (after awards) and having your students attend a 45-minute workshop hosted by a Microsoft Engineer? 
             </label>
-            <input
-              id="password"
-              type="password"
-              className="form-input"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
+            <Select
+              inputId="q1"
+              classNamePrefix="form-select"
+              options={[
+                { value: "yes", label: "Yes" },
+                { value: "no", label: "No" },
+              ]}
+              value={questionOne ? { value: questionOne, label: questionOne === "yes" ? "Yes" : "No" } : null}
+              onChange={(option) => setQuestionOne(option ? option.value : "")}
+              isClearable
+              isSearchable={false}
+              placeholder="Select an option"
               required
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="confirmPassword">
-              Confirm password
-            </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              className="form-input"
-              placeholder="Confirm password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              autoComplete="new-password"
-              required
-            />
-          </div>
+          {questionOne === "yes" && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="q2">
+                If you would like to attend, what workshop sounds most engaging to your students?  
+              </label>
+              <Select
+                inputId="q2"
+                classNamePrefix="form-select"
+                options={QUESTION_TWO_OPTIONS}
+                value={QUESTION_TWO_OPTIONS.find(q => q.value === questionTwo) || null}
+                onChange={(option) => setQuestionTwo(option ? option.value : "")}
+                isClearable
+                isSearchable={false}
+                placeholder="Select an option"
+                required
+              />
+            </div>
+          )}
 
           <button className="btn btn--primary login-form__submit" type="submit" disabled={isLoading}>
             {isLoading ? "Creating account…" : "Create account"}
           </button>
-        </form>
 
-        {errorMessage ? (
-          <div className="alert alert--error" role="alert" aria-live="assertive">
-            {errorMessage}
+        </form>
+        <div className="login-links">
+          You’ll receive an email to finish setting up your account.
+        </div>
+
+        {message.text && (
+          <div className={`alert alert--${message.type}`} role="alert" aria-live="assertive">
+            {message.text}
           </div>
-        ) : null}
+        )}
 
         <div className="login-links">
           Already have a teacher account?{" "}

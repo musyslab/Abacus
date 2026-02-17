@@ -19,7 +19,7 @@
 }
 
 .toolbar__title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
 }
 
@@ -27,10 +27,46 @@
   margin-top: 4px;
 }
 
-.panel__header-actions {
+.team-size__label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.team-size__pills {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pill {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.pill--blue {
+  background: #e0e7ff;
+  border-color: #1e40af;
+  color: #1e40af;
+}
+
+.pill--gold {
+  background: #fff4db;
+  border-color: #f59e0b;
+  color: #b45309;
+}
+
+.pill--eagle {
+  background: #dff7f5;
+  border-color: #1CB2A9;
+  color: #0f766e;
 }
 
 .new-team-footer {
@@ -73,12 +109,101 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 2rem;
   margin-bottom: 12px;
 }
 
+.panel__header-options {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+.panel__header-name {
+  max-width: 25rem;
+}
+
+.panel__header-update {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.segment-btn {
+  display: grid;
+  align-items: center;
+  border: 1px solid #ccc;
+  border-radius: 999px;
+  background: #f3f4f6;
+  padding: 4px;
+  gap: 2px;
+
+  .segment-option {
+    border: none;
+    background: transparent;
+
+    font-size: 15px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 999px;
+
+    color: #374151;
+    cursor: pointer;
+    white-space: nowrap;
+
+    transition:
+      background 0.2s ease,
+      color 0.2s ease,
+      transform 0.05s ease,
+      box-shadow 0.2s ease;
+
+    &:not(.selected):hover {
+      background: rgba(20, 20, 20, 0.05);
+    }
+    &:active {
+      transform: scale(0.97);
+    }
+  }
+
+  .selected {
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+}
+
+.segment-division {
+    grid-template-columns: 1fr 1fr 1fr;
+
+    .selected { color: #fff; }
+
+    .selected.blue { background: #1e40af; }
+    .selected.gold { background: #f59e0b; }
+    .selected.eagle { background: #1CB2A9; }
+}
+
+.segment-attendance {
+  grid-template-columns: 1fr 1fr;
+
+  .selected {
+    background: #fff;
+    color: #111827;
+
+    :hover {
+      background: #fff;
+    }
+  }
+}
+
+
+.panel__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .panel__title {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   margin: 0;
 }
@@ -87,6 +212,12 @@
   margin-top: 4px;
   font-size: 13px;
   opacity: 0.75;
+  white-space: nowrap;
+}
+
+.panel__label {
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .panel__footer {
@@ -115,6 +246,10 @@
   background: rgba(20, 20, 20, 0.03);
 }
 
+.callout.close {
+  margin: 6px 0 6px;
+}
+
 .callout__title {
   font-weight: 800;
   margin-bottom: 6px;
@@ -136,6 +271,11 @@
 .callout--error {
   border-left: 5px solid rgba(239, 68, 68, 0.9);
   background: rgba(239, 68, 68, 0.08);
+}
+
+.callout--error.small {
+  font-size: 12px;
+  margin: 8px 0;
 }
 
 .member-list {
@@ -247,6 +387,10 @@
   background: rgba(239, 68, 68, 0.10);
   border: 1px solid rgba(239, 68, 68, 0.18);
   font-size: 13px;
+}
+
+.right-aligned {
+  text-align: right;
 }
 
 .member-row__saved {
@@ -466,4 +610,50 @@
   .member-list {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
+}
+
+.editable-title {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.team-name-input {
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 1.4rem;
+  font-weight: 600;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  cursor: text;
+}
+
+/* Hover state */
+.editable-title:hover .team-name-input {
+  background-color: #f5f7fa;
+  border-color: #d0d7de;
+}
+
+/* Pencil icon */
+.edit-icon {
+  opacity: 0;
+  font-size: 0.9rem;
+  color: #6b7280;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Show icon on hover */
+.editable-title:hover .edit-icon {
+  opacity: 0.7;
+  transform: translateX(2px);
+}
+
+/* Focus state */
+.team-name-input:focus {
+  outline: none;
+  border-color: #3a7afe;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 2px rgba(58, 122, 254, 0.15);
 }

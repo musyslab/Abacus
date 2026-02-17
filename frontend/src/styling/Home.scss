@@ -11,6 +11,14 @@
 }
 
 .hero-subtitle {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1F2937;
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+.hero-subtext {
     font-size: 1.4rem;
     font-weight: 500;
     text-align: center;
@@ -59,6 +67,14 @@
     line-height: 1.6;
 }
 
+.space {
+    margin-top: 10px;
+}
+
+.close {
+    margin-bottom: 4px;
+}
+
 .bold {
     font-weight: 600;
     color: #111827;
@@ -66,6 +82,15 @@
 
 .sec-list {
     font-size: 0.85rem;
+    margin: 0;
+}
+
+.sec-list-item {
+    font-size: 1.4rem;
+    font-weight: 400;
+    color: #374151;
+    line-height: 1.6;
+    margin: 0;
 }
 
 .action-btns {
@@ -137,6 +162,66 @@
     color: #f59e0b;
 }
 
+.eagle-div {
+    color: #1CB2A9;
+}
+
+.pricing-grid {
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+    margin: 8px 0;
+}
+
+
+.pricing-card {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 10px 32px;
+    width: 340px;
+    border: 1px solid #e5e7eb;
+}
+
+.card-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 20px;
+}
+
+.pricing-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.pricing-table thead th {
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    text-align: left;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.pricing-table tbody td {
+    padding: 14px 0;
+    font-size: 16px;
+    color: #374151;
+}
+
+.pricing-table th:last-child,
+.pricing-table td:last-child {
+    text-align: right;
+}
+
+.pricing-table tbody td:last-child {
+    font-weight: 600;
+    color: #111827;
+}
+
+.pricing-table tbody tr:not(:last-child) td {
+    border-bottom: 1px solid #f1f5f9;
+}
 
 .footer {
     width: 100%;
@@ -155,9 +240,8 @@
 }
 
 .footer-content {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-around;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 2rem;
 }
 
@@ -182,6 +266,7 @@
     cursor: pointer;
     justify-content: center;
     text-align: center;
+    font-size: 1.1rem;
 
     &:hover {
         color: #f9fafb;

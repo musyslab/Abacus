@@ -1,0 +1,232 @@
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.admin-school-roster-root {
+  width: 100%;
+  box-sizing: border-box;
+  padding-bottom: 2rem;
+}
+
+/* Content block that sits UNDER DirectoryBreadcrumbs + .pageTitle */
+.admin-school-roster-container {
+  width: 95%;
+  margin: 12px auto 0;
+  box-sizing: border-box;
+}
+
+.page-subtitle {
+  margin-top: 6px;
+}
+
+/* Error callout */
+.callout {
+  margin-top: 1rem;
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.callout--error {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #9f1239;
+}
+
+/* Toolbar */
+.toolbar {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.toolbar__left {
+  flex: 1;
+  min-width: 260px;
+  max-width: 520px;
+}
+
+.toolbar__right {
+  white-space: nowrap;
+}
+
+/* Search bar styling */
+.search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  width: 100%;
+  padding: 10px 12px;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+
+  box-shadow: 0 1px 6px rgba(80, 95, 126, 0.07);
+}
+
+.search__icon {
+  font-size: 0.95rem;
+  opacity: 0.75;
+  user-select: none;
+}
+
+.search__input {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+
+  font-size: 0.95rem;
+  line-height: 1.2;
+  color: #111827;
+}
+
+.search__input::placeholder {
+  color: #6b7280;
+}
+
+.search:focus-within {
+  border-color: rgba(17, 24, 39, 0.55);
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.12);
+}
+
+.search__clear {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 10px;
+  padding: 6px 8px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.8;
+}
+
+.search__clear:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.search__clear:active {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.search__clear:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 2px;
+}
+
+/* Table container */
+.table-wrap {
+  margin-top: 0.75rem;
+  border: 1px solid #e7eaf1;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 6px rgba(80, 95, 126, 0.07);
+  overflow: auto;
+}
+
+/* Table */
+.school-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.school-table thead th {
+  text-align: left;
+  padding: 12px 14px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #111827;
+  border-bottom: 1px solid #eef2f7;
+  background: #fafafa;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.school-table tbody td {
+  padding: 14px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: top;
+}
+
+.school-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.school-table tbody tr {
+  transition: background-color 120ms ease;
+}
+
+.school-table tbody tr:hover td {
+  background: #f8fafc;
+}
+
+.school-table .num {
+  text-align: right;
+}
+
+.school-table .actions {
+  text-align: right;
+  white-space: nowrap;
+  width: 160px;
+}
+
+/* Row actions */
+.row-action {
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.row-action:hover {
+  background: #f9fafb;
+}
+
+.row-action:active {
+  background: #f3f4f6;
+}
+
+.row-action:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 2px;
+}
+
+/* Text bits */
+.school-name {
+  font-weight: 700;
+  color: #111827;
+}
+
+.teacher-name {
+  font-weight: 600;
+  color: #111827;
+}
+
+.link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.empty {
+  text-align: center;
+  padding: 18px;
+  color: #6b7280;
+}
+

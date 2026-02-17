@@ -10,12 +10,8 @@ from src.repositories.database import db
 class Projects(db.Model):
     __tablename__ = "Projects"
     Id = Column(Integer, primary_key=True, autoincrement=True)
-    SchoolId = Column(Integer, ForeignKey('Schools.Id'))
     Name = Column(String)
-    Start = Column(Date)
-    End = Column(Date)
     Language = Column(String)
-
     Submissions=relationship('Submissions') 
     StudentUnlocks=relationship('StudentUnlocks') 
     solutionpath=Column(String)
@@ -120,7 +116,15 @@ class Schools(db.Model):
     __tablename__ = "Schools"
     Id = Column(Integer, primary_key=True, autoincrement=True)
     Name = Column(String(256), nullable=False, unique=True)
-    TeacherID = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=True)
+
+class Teams(db.Model):
+    __tablename__ = "Teams"
+    Id = Column(Integer, primary_key=True, autoincrement=True)
+    SchoolId = Column(Integer, ForeignKey('Schools.Id'), nullable=False)
+    TeamNumber = Column(Integer, nullable=False)
+    Name = Column(String(45), nullable=False)
+    Division = Column(String(5))
+    IsOnline = Column(Boolean, default=False)
 
 class AdminUsers(db.Model):
     __tablename__ = "AdminUsers"
@@ -132,6 +136,8 @@ class AdminUsers(db.Model):
     PasswordHash = Column(String(255))
     IsLocked = Column(Boolean, default=False)
     Role = Column(Integer, nullable=False, default=0)
+    Question1 = Column(String(255))
+    Question2 = Column(String(255))
 
 class StudentUsers(db.Model):
     __tablename__ = "StudentUsers"
@@ -139,7 +145,7 @@ class StudentUsers(db.Model):
     EmailHash = Column(String(64), unique=True, nullable=False)  # sha256 hex
     TeacherId = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=False)
     SchoolId = Column(Integer, ForeignKey('Schools.Id'), nullable=False)
-    TeamId = Column(Integer, nullable=True)
+    TeamId = Column(Integer, ForeignKey('Teams.Id'), nullable=False)
     MemberId = Column(Integer, nullable=True)
     PasswordHash = Column(String(255))
     IsLocked = Column(Boolean, default=False)

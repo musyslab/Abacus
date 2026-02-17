@@ -12,6 +12,8 @@ CREATE TABLE `AdminUsers` (
   `PasswordHash` varchar(255) DEFAULT NULL,
   `IsLocked` tinyint(1) NOT NULL DEFAULT 0,
   `Role` tinyint(1) NOT NULL DEFAULT 0,
+  `Question1` varchar(255) DEFAULT NULL,
+  `Question2` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `adminusers_email_unique` (`Email`),
   KEY `fk_adminusers_school_idx` (`SchoolId`)
@@ -51,16 +53,12 @@ CREATE TABLE `OHVisits` (
 CREATE TABLE `Projects` (
   `Id` int NOT NULL AUTO_INCREMENT COMMENT 'Table to keep track of projects',
   `Name` varchar(1000) NOT NULL,
-  `Start` datetime NOT NULL,
-  `End` datetime NOT NULL,
   `Language` varchar(45) NOT NULL,
-  `SchoolId` int NOT NULL,
   `solutionpath` varchar(1000) DEFAULT NULL,
   `AsnDescriptionPath` varchar(1000) DEFAULT NULL,
   `AdditionalFilePath` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`Id`),
-  UNIQUE KEY `idProjects_UNIQUE` (`Id`),
-  KEY `fk_Projects_school_idx` (`SchoolId`)
+  UNIQUE KEY `idProjects_UNIQUE` (`Id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
@@ -69,10 +67,22 @@ CREATE TABLE `Projects` (
 CREATE TABLE `Schools` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `Name` varchar(256) NOT NULL,
-  `TeacherID` int DEFAULT NULL,
   PRIMARY KEY (`Id`),
-  UNIQUE KEY `schools_name_unique` (`Name`),
-  KEY `fk_schools_teacher_idx` (`TeacherID`)
+  UNIQUE KEY `schools_name_unique` (`Name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================
+-- Table structure for table `Teams`
+-- ============================================
+CREATE TABLE `Teams` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `SchoolId` int NOT NULL,
+  `TeamNumber` int NOT NULL,
+  `Name` varchar(45) NOT NULL,
+  `Division` varchar(5) DEFAULT NULL,
+  `IsOnline` tinyint(1) NOT NULL DEFAULT 0,
+  PRIMARY KEY (`Id`),
+  KEY `fk_teams_school_idx` (`SchoolId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
@@ -122,14 +132,15 @@ CREATE TABLE `StudentUsers` (
   `EmailHash` char(64) NOT NULL,
   `TeacherId` int NOT NULL,
   `SchoolId` int NOT NULL,
-  `TeamId` int DEFAULT NULL,
+  `TeamId` int NOT NULL,
   `MemberId` int DEFAULT NULL,
   `PasswordHash` varchar(255) DEFAULT NULL,
   `IsLocked` tinyint(1) NOT NULL DEFAULT 0,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `studentusers_emailhash_unique` (`EmailHash`),
   KEY `fk_studentusers_teacher_idx` (`TeacherId`),
-  KEY `fk_studentusers_school_idx` (`SchoolId`)
+  KEY `fk_studentusers_school_idx` (`SchoolId`),
+  KEY `fk_studentusers_team_idx` (`TeamId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
@@ -223,21 +234,20 @@ ALTER TABLE `AdminUsers`
   ADD CONSTRAINT `fk_adminusers_school`
   FOREIGN KEY (`SchoolId`) REFERENCES `Schools` (`Id`);
 
-ALTER TABLE `Schools`
-  ADD CONSTRAINT `fk_schools_teacher`
-  FOREIGN KEY (`TeacherID`) REFERENCES `AdminUsers` (`Id`)
-  ON DELETE SET NULL;
-
-ALTER TABLE `Projects`
-  ADD CONSTRAINT `fk_projects_school`
-  FOREIGN KEY (`SchoolId`) REFERENCES `Schools` (`Id`);
-
 ALTER TABLE `StudentUsers`
   ADD CONSTRAINT `fk_studentusers_teacher`
   FOREIGN KEY (`TeacherId`) REFERENCES `AdminUsers` (`Id`);
 
 ALTER TABLE `StudentUsers`
   ADD CONSTRAINT `fk_studentusers_school`
+  FOREIGN KEY (`SchoolId`) REFERENCES `Schools` (`Id`);
+
+ALTER TABLE `StudentUsers`
+  ADD CONSTRAINT `fk_studentusers_team`
+  FOREIGN KEY (`TeamId`) REFERENCES `Teams` (`Id`);
+
+ALTER TABLE `Teams`
+  ADD CONSTRAINT `fk_teams_school`
   FOREIGN KEY (`SchoolId`) REFERENCES `Schools` (`Id`);
 
 ALTER TABLE `Submissions`
@@ -299,5 +309,31 @@ ALTER TABLE `SubmissionChargeRedeptions`
 ALTER TABLE `SubmissionChargeRedeptions`
   ADD CONSTRAINT `fk_submissionchargeredeptions_submission`
   FOREIGN KEY (`SubmissionId`) REFERENCES `Submissions` (`Id`) ON DELETE SET NULL;
+
+-- ============================================
+-- Seed Schools data
+-- ============================================
+INSERT INTO `Schools` (`Name`) VALUES
+  ('Belleville High School'),
+  ('Brookfield Academy'),
+  ('Brookfield Central High School'),
+  ('Cedarburg High School'),
+  ('Craig High School'),
+  ('De Pere High School'),
+  ('Franklin High School'),
+  ('High School of the Health Sciences'),
+  ('Homestead High School'),
+  ('Johnson Creek Schools'),
+  ('Kettle Moraine High School'),
+  ('Menomonee Falls High School'),
+  ('New London High School'),
+  ('Oak Creek High School'),
+  ('Parker High School'),
+  ('Reagan IB High School'),
+  ('Reedsburg Area High School'),
+  ('Rufus King High School'),
+  ('Sauk Prairie High School'),
+  ('St. Francis High School'),
+  ('West De Pere High School');
 
 SET FOREIGN_KEY_CHECKS=1;

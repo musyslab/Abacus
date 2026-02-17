@@ -5,6 +5,7 @@ from src.repositories.database import db
 from .models import AdminUsers, StudentUsers, Schools, LoginAttempts
 from flask_jwt_extended import current_user
 
+from nanoid import generate
 
 UserModel = Union[AdminUsers, StudentUsers]
 
@@ -16,6 +17,9 @@ class UserRepository:
         if isinstance(current_user, StudentUsers):
             return "student"
         return "unknown"
+    
+    def is_admin(self) -> bool:
+        return isinstance(current_user, AdminUsers) and int(getattr(current_user, "Role", 0) or 0) == 1
 
     # -----------------------------
     # Admin (Teacher) operations
@@ -36,6 +40,8 @@ class UserRepository:
         last_name: str,
         school_id: int,
         password_hash: str,
+        questionOne: str,
+        questionTwo: str,
         role: int = 0,
     ) -> AdminUsers:
         admin = AdminUsers(
@@ -46,6 +52,8 @@ class UserRepository:
             PasswordHash=password_hash,
             IsLocked=False,
             Role=role,
+            Question1 = questionOne,
+            Question2 = questionTwo
         )
         db.session.add(admin)
         db.session.commit()
@@ -88,6 +96,9 @@ class UserRepository:
     # Student operations
     # -----------------------------
 
+    def get_all_students(self) -> List[StudentUsers]:
+        return StudentUsers.query.order_by(StudentUsers.Id.asc()).all()
+
     def get_students_for_school(self, school_id: int) -> List[StudentUsers]:
         return (
             StudentUsers.query.filter(StudentUsers.SchoolId == school_id)
@@ -128,9 +139,9 @@ class UserRepository:
             .one_or_none()
         )
 
-    def count_team_members(self, teacher_id: int, team_id: int) -> int:
+    def count_team_members(self, team_id: int) -> int:
         return (
-            StudentUsers.query.filter(StudentUsers.TeacherId == teacher_id, StudentUsers.TeamId == team_id)
+            StudentUsers.query.filter(StudentUsers.TeamId == team_id)
             .count()
         )
 
@@ -223,15 +234,10 @@ class UserRepository:
     # School operations (kept here because your auth flow uses them)
     # -----------------------------
     def create_school(self, name: str) -> Schools:
-        school = Schools(Name=name, TeacherID=None)
+        school = Schools(Name=name)
         db.session.add(school)
         db.session.commit()
         return school
-
-    def set_school_teacher(self, school_id: int, teacher_id: int) -> None:
-        school = Schools.query.filter(Schools.Id == school_id).one()
-        school.TeacherID = teacher_id
-        db.session.commit()
 
     def get_school_by_id(self, school_id: int) -> Optional[Schools]:
         return Schools.query.filter(Schools.Id == school_id).one_or_none()

@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
 import { Link, Navigate } from "react-router-dom";
-import { FaUser, FaLock } from "react-icons/fa";
+import { FaUser, FaLock, FaEyeSlash, FaEye } from "react-icons/fa";
 
 import img from "../../images/AbacusLogo.png";
 import "../../styling/Login.scss";
@@ -16,6 +16,7 @@ interface StudentLoginPageState {
   role: number;
   error_message: string;
   isLoading: boolean;
+  showPassword: boolean;
 }
 
 class StudentLogin extends Component<{}, StudentLoginPageState> {
@@ -30,6 +31,7 @@ class StudentLogin extends Component<{}, StudentLoginPageState> {
       role: -1,
       error_message: "",
       isLoading: false,
+      showPassword: false,
     };
 
     this.handleSubmit = this.handleSubmit.bind(this);
@@ -69,19 +71,13 @@ class StudentLogin extends Component<{}, StudentLoginPageState> {
 
   render() {
     if (this.state.isLoggedIn) {
-      const redirectPath = "/student/classes";
+      const redirectPath = "/student/problems";
       return <Navigate to={redirectPath} replace />;
     }
 
     return (
       <>
         <MenuComponent
-          showUpload={false}
-          showAdminUpload={false}
-          showHelp={false}
-          showCreate={false}
-          showReviewButton={false}
-          showLast={false}
           variant="public"
         />
 
@@ -128,13 +124,18 @@ class StudentLogin extends Component<{}, StudentLoginPageState> {
                 <input
                   id="password"
                   name="password"
-                  type="password"
+                  type={this.state.showPassword ? "text" : "password"}
                   required
                   placeholder="Password"
                   autoComplete="current-password"
                   onChange={this.handlePasswordChange}
                   className="form-input"
                 />
+                {this.state.showPassword ? (
+                  <FaEyeSlash className="input-with-icon__icon-right" onClick={() => this.setState({ showPassword: false })} />
+                ) : (
+                  <FaEye className="input-with-icon__icon-right" onClick={() => this.setState({ showPassword: true })} />
+                )}
               </div>
             </div>
 

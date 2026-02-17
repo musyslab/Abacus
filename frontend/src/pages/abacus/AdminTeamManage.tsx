@@ -3,10 +3,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
+import { useParams } from "react-router-dom";
 
 import MenuComponent from "../components/MenuComponent";
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
 import "../../styling/AdminTeamManage.scss";
+
+import { FaPen } from "react-icons/fa";
+
+type Division = "Blue" | "Gold" | "Eagle";
 
 type ApiTeamMember = {
     studentId: number;
@@ -17,8 +22,11 @@ type ApiTeamMember = {
 };
 
 type ApiTeam = {
-    teamId: number;
-    isDraft: boolean;
+    id: number;
+    teamNumber: number;
+    name: string;
+    division: Division;
+    isOnline: boolean;
     members: ApiTeamMember[];
 };
 
@@ -40,12 +48,23 @@ type MemberSlot = {
 };
 
 type TeamVm = {
-    teamId: number;
-    isDraft: boolean;
+    id: number;
+    teamNumber: number;
+    name: string;
+    division: Division;
+    isOnline: boolean;
     members: MemberSlot[]; // always 4 slots
+    nameError?: string;
 };
 
 const INVITE_META_KEY = "AUTOTA_TEAM_INVITES_V1";
+const DIVISIONS = ["Blue", "Gold", "Eagle"];
+const ATTENDANCE = [{label: "In-person", value: false }, {label: "Virtual", value: true}];
+const DIVISION_SIZES: Record<Division, { min: number; max: number }> = {
+    Blue: { min: 3, max: 4 },
+    Gold: { min: 2, max: 3 },
+    Eagle: { min: 2, max: 4 },
+};
 
 function safeJsonParse<T>(raw: string | null, fallback: T): T {
     if (!raw) return fallback;
@@ -73,25 +92,46 @@ async function sha256Hex(input: string): Promise<string> {
         .join("");
 }
 
-function buildTeamVm(teamId: number, apiMembers: ApiTeamMember[], isDraft = false): TeamVm {
-    const slots: MemberSlot[] = [1, 2, 3, 4].map((memberId) => {
-        const found = apiMembers.find((m) => m.memberId === memberId);
+function buildMemberSlots(apiMembers: ApiTeamMember[]): MemberSlot[] {
+    return [1, 2, 3, 4].map((memberId) => {
+        const member = apiMembers.find((m) => m.memberId === memberId);
         return {
             memberId,
-            studentId: found?.studentId,
-            emailHash: found?.emailHash,
+            studentId: member?.studentId,
+            emailHash: member?.emailHash,
             emailInput: "",
-            hasAccount: found?.hasAccount ?? false,
-            isLocked: found?.isLocked ?? false,
+            hasAccount: member?.hasAccount ?? false,
+            isLocked: member?.isLocked ?? false,
             isSaving: false,
             error: undefined,
         };
     });
-    return { teamId, isDraft, members: slots };
+}
+
+function buildTeamVm(apiTeam: ApiTeam): TeamVm {
+    return {
+        id: apiTeam.id,
+        teamNumber: apiTeam.teamNumber,
+        name: apiTeam.name,
+        division: apiTeam.division,
+        isOnline: apiTeam.isOnline,
+        members: buildMemberSlots(apiTeam.members || []),
+    };
+}
+
+function addTeamVm(prev: TeamVm[], apiTeam: ApiTeam): TeamVm[] {
+    const teamVm = buildTeamVm(apiTeam);
+    return [...prev, teamVm].sort((a, b) => a.teamNumber - b.teamNumber);
 }
 
 export default function AdminTeamManage() {
     const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+    
+    const { school_id } = useParams();
+    const schoolIdParam = Number(school_id);
+    const isAdminMode = Number.isFinite(schoolIdParam) && schoolIdParam > 0;
+    const managedSchoolId = isAdminMode ? schoolIdParam : null;
+    const [schoolName, setSchoolName] = useState<string>("");
 
     function authConfig() {
         const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
@@ -99,8 +139,8 @@ export default function AdminTeamManage() {
     }
 
     const [teams, setTeams] = useState<TeamVm[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [pageError, setPageError] = useState("");
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [pageError, setPageError] = useState<string>("");
 
     // Controls how many member rows are visible per team.
     // Required behavior: if a team has 0 saved members, show only 1 member row.
@@ -134,6 +174,7 @@ export default function AdminTeamManage() {
 
     const bodyOverflowRef = useRef<string | null>(null);
 
+    // Handle body overflow when modals are open, to prevent background scrolling.
     useEffect(() => {
         const hasModal = !!saveConfirmModal || !!deleteConfirmModal || !!resendModal;
         if (hasModal) {
@@ -163,9 +204,10 @@ export default function AdminTeamManage() {
         const empty = team.members.filter((m) => !m.studentId).sort((a, b) => a.memberId - b.memberId);
 
         const savedCount = saved.length;
+        const maxSize = DIVISION_SIZES[team.division].max;
         // show 1 row for brand-new team, otherwise show saved + next empty.
-        const defaultVisible = Math.min(4, Math.max(1, savedCount + 1));
-        const totalVisible = Math.max(teamVisibleCounts[team.teamId] ?? 0, defaultVisible);
+        const defaultVisible = Math.min(maxSize, Math.max(1, savedCount + 1));
+        const totalVisible = Math.max(teamVisibleCounts[team.id] ?? 0, defaultVisible);
 
         const emptyToShow = Math.min(empty.length, Math.max(0, totalVisible - savedCount));
         return [...saved, ...empty.slice(0, emptyToShow)].sort((a, b) => a.memberId - b.memberId);
@@ -173,53 +215,73 @@ export default function AdminTeamManage() {
 
     function canAddMoreMembers(team: TeamVm) {
         const savedCount = getTeamSavedCount(team);
-        const defaultVisible = Math.min(4, Math.max(1, savedCount + 1));
-        const totalVisible = Math.max(teamVisibleCounts[team.teamId] ?? 0, defaultVisible);
-        return totalVisible < 4;
+        const maxSize = DIVISION_SIZES[team.division].max;
+        const defaultVisible = Math.min(maxSize, Math.max(1, savedCount + 1));
+        const totalVisible = Math.max(teamVisibleCounts[team.id] ?? 0, defaultVisible);
+        return totalVisible < maxSize;
     }
 
+    const emptyTeamExists = useMemo(() => {
+        return teams.filter((team) => getTeamSavedCount(team) === 0).length > 0;
+    }, [teams]);
+
     function addMemberRow(teamId: number) {
+        const team = teams.find((t) => t.id === teamId);
+        if (!team) return;
+        const maxSize = DIVISION_SIZES[team.division].max;
         setTeamVisibleCounts((prev) => ({
             ...prev,
-            [teamId]: Math.min(4, (prev[teamId] ?? 1) + 1),
+            [teamId]: Math.min(maxSize, (prev[teamId] ?? 1) + 1),
         }));
+    }
+
+    async function fetchSchoolName() {
+        setSchoolName("");
+        try {
+            if (managedSchoolId) {
+                const res = await axios.get(`${apiBase}/schools/id/${managedSchoolId}`, authConfig());
+                const name = Array.isArray(res.data) ? res.data?.[0]?.name : res.data?.name;
+                setSchoolName(String(name || ""));
+                return;
+            }
+            const res = await axios.get(`${apiBase}/schools/me`, authConfig());
+            setSchoolName(String(res.data?.name || ""));
+        } catch {
+            setSchoolName("");
+        }
     }
 
     async function fetchTeams() {
         setIsLoading(true);
         setPageError("");
         try {
-            const res = await axios.get<ApiTeam[]>(`${apiBase}/auth/student/teams`, authConfig());
+            const res = await axios.get<ApiTeam[]>(
+                `${apiBase}/teams/school`,
+                {
+                    ...authConfig(),
+                    params: managedSchoolId ? { school_id: managedSchoolId } : undefined,
+                }
+            );
             const data = Array.isArray(res.data) ? res.data : [];
             const mapped = data
                 .slice()
-                .sort((a, b) => a.teamId - b.teamId)
-                .map((t) => buildTeamVm(t.teamId, t.members || []));
+                .sort((a, b) => a.teamNumber - b.teamNumber)
+                .map((apiTeam) => buildTeamVm(apiTeam));
 
-            setTeams((prev) => {
-                // Preserve locally created, unsaved teams (not returned by backend yet).
-                const drafts = prev.filter((t) => t.isDraft);
-                const merged = [...mapped, ...drafts.filter((d) => !mapped.some((m) => m.teamId === d.teamId))].sort(
-                    (a, b) => a.teamId - b.teamId
-                );
-                return merged;
-            });
-
+            setTeams(mapped);
+            
             setTeamVisibleCounts((prev) => {
                 const next = { ...prev };
 
-                const mergedTeams = [
-                    ...mapped,
-                    ...teams.filter((t) => t.isDraft && !mapped.some((m) => m.teamId === t.teamId)),
-                ].sort((a, b) => a.teamId - b.teamId);
-
-                for (const t of mergedTeams) {
+                for (const t of mapped) {
                     const savedCount = t.members.filter((m) => !!m.studentId).length;
-                    const defaultVisible = Math.min(4, Math.max(1, savedCount + 1));
-                    next[t.teamId] = Math.max(next[t.teamId] ?? 0, defaultVisible);
+                    const maxSize = DIVISION_SIZES[t.division].max;
+                    const defaultVisible = Math.min(maxSize, Math.max(1, savedCount + 1));
+                    next[t.id] = Math.max(next[t.id] ?? 0, defaultVisible);
                 }
                 return next;
             });
+            
         } catch (err: any) {
             const msg = err?.response?.data?.message || "Failed to load teams.";
             setPageError(msg);
@@ -229,38 +291,59 @@ export default function AdminTeamManage() {
     }
 
     useEffect(() => {
+        fetchSchoolName();
         fetchTeams();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [apiBase]);
+    }, [apiBase, managedSchoolId]);
 
-    const nextTeamId = useMemo(() => {
-        const max = teams.reduce((acc, t) => Math.max(acc, t.teamId), 0);
-        return max + 1;
-    }, [teams]);
+    async function handleNewTeam() {
+        setIsLoading(true);
+        setPageError("");
+        try {
+            const res = await axios.post(`${apiBase}/teams/create`, {
+                ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
+            }, authConfig());
 
-    function ensureTeamExists(teamId: number) {
-        setTeams((prev) => {
-            if (prev.some((t) => t.teamId === teamId)) return prev;
-            return [...prev, buildTeamVm(teamId, [], true)].sort((a, b) => a.teamId - b.teamId);
-        });
+            const newTeam = res.data as ApiTeam;
+            setTeams(prev => addTeamVm(prev, newTeam));
+            setTeamVisibleCounts((prev) => ({ ...prev, [newTeam.id]: 1 }));
+
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || err?.message || "Team creation failed.";
+            setPageError(msg);
+        }
+        setIsLoading(false);
     }
 
-    function deleteDraftTeam(teamId: number) {
-        setTeams((prev) => prev.filter((t) => t.teamId !== teamId));
-        setTeamVisibleCounts((prev) => {
-            const next = { ...prev };
-            delete next[teamId];
-            return next;
-        });
-        if (resendModal?.teamId === teamId) setResendModal(null);
-        if (saveConfirmModal?.teamId === teamId) setSaveConfirmModal(null);
-        if (deleteConfirmModal?.teamId === teamId) setDeleteConfirmModal(null);
+    async function handleDeleteTeam(teamId: number) {
+        setIsLoading(true);
+        setPageError("");
+        try {
+            await axios.delete(`${apiBase}/teams/delete`, {
+                ...authConfig(),
+                data: { team_id: teamId, ...(managedSchoolId ? { school_id: managedSchoolId } : {}) },
+            });
+
+            setTeams((prev) => prev.filter((t) => t.id !== teamId));
+            setTeamVisibleCounts((prev) => {
+                const next = { ...prev };
+                delete next[teamId];
+                return next;
+            });
+
+            if (resendModal?.teamId === teamId) setResendModal(null);
+            if (saveConfirmModal?.teamId === teamId) setSaveConfirmModal(null);
+            if (deleteConfirmModal?.teamId === teamId) setDeleteConfirmModal(null);
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || err?.message || "Team deletion failed.";
+            setPageError(msg);
+        }
+        setIsLoading(false);       
     }
 
     function updateMember(teamId: number, memberId: number, patch: Partial<MemberSlot>) {
         setTeams((prev) =>
             prev.map((t) => {
-                if (t.teamId !== teamId) return t;
+                if (t.id !== teamId) return t;
                 return {
                     ...t,
                     members: t.members.map((m) => (m.memberId === memberId ? { ...m, ...patch } : m)),
@@ -335,7 +418,8 @@ export default function AdminTeamManage() {
         memberId: number,
         emailOverride?: string
     ): Promise<{ ok: boolean; message?: string }> {
-        const team = teams.find((t) => t.teamId === teamId) || buildTeamVm(teamId, []);
+        const team = teams.find((t) => t.id === teamId);
+        if (!team) return { ok: false, message: "Team not found." };
         const slot = team.members.find((m) => m.memberId === memberId);
         if (!slot) return { ok: false, message: "Member slot not found." };
 
@@ -356,6 +440,7 @@ export default function AdminTeamManage() {
                     email_hash: emailHash,
                     team_id: teamId,
                     member_id: memberId,
+                    ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
                 },
                 authConfig()
             );
@@ -375,6 +460,7 @@ export default function AdminTeamManage() {
                         team_id: teamId,
                         member_id: memberId,
                         email,
+                        ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
                     },
                     authConfig()
                 );
@@ -393,8 +479,6 @@ export default function AdminTeamManage() {
                     "Member saved, but invite email failed to send. Use Resend email.";
             }
 
-            setTeams((prev) => prev.map((t) => (t.teamId === teamId ? { ...t, isDraft: false } : t)));
-
             updateMember(teamId, memberId, {
                 studentId,
                 emailHash,
@@ -408,9 +492,11 @@ export default function AdminTeamManage() {
             // After saving one member, ensure the next row is visible (saved + next).
             setTeamVisibleCounts((prev) => {
                 const next = { ...prev };
-                const t = teams.find((x) => x.teamId === teamId) || buildTeamVm(teamId, []);
+                const t = teams.find((x) => x.id === teamId);
+                if (!t) return prev;
                 const savedCount = t.members.filter((m) => !!m.studentId).length + 1; // include newly saved
-                next[teamId] = Math.max(next[teamId] ?? 0, Math.min(4, savedCount + 1));
+                const maxSize = DIVISION_SIZES[t.division].max;
+                next[teamId] = Math.max(next[teamId] ?? 0, Math.min(maxSize, savedCount + 1));
                 return next;
             });
 
@@ -423,7 +509,7 @@ export default function AdminTeamManage() {
     }
 
     async function handleDeleteMember(teamId: number, memberId: number): Promise<{ ok: boolean; message?: string }> {
-        const team = teams.find((t) => t.teamId === teamId);
+        const team = teams.find((t) => t.id === teamId);
         const slot = team?.members.find((m) => m.memberId === memberId);
 
         // Unsaved rows are local-only. "Delete" clears the draft row and collapses
@@ -441,9 +527,11 @@ export default function AdminTeamManage() {
 
             setTeamVisibleCounts((prev) => {
                 const next = { ...prev };
-                const t = teams.find((x) => x.teamId === teamId) || buildTeamVm(teamId, []);
+                const t = teams.find((x) => x.id === teamId);
+                if (!t) return prev;
                 const savedCount = t.members.filter((m) => !!m.studentId).length;
-                const defaultVisible = Math.min(4, Math.max(1, savedCount + 1));
+                const maxSize = DIVISION_SIZES[t.division].max;
+                const defaultVisible = Math.min(maxSize, Math.max(1, savedCount + 1));
                 const currentVisible = Math.max(prev[teamId] ?? 0, defaultVisible);
                 next[teamId] = Math.max(defaultVisible, currentVisible - 1);
                 return next;
@@ -456,10 +544,10 @@ export default function AdminTeamManage() {
         try {
             await axios.delete(`${apiBase}/auth/student/delete`, {
                 ...authConfig(),
-                data: { team_id: teamId, member_id: memberId },
+                data: { team_id: teamId, member_id: memberId, ...(managedSchoolId ? { school_id: managedSchoolId } : {}) },
             });
 
-            const teamNow = teams.find((t) => t.teamId === teamId);
+            const teamNow = teams.find((t) => t.id === teamId);
             const emailHash = teamNow?.members.find((m) => m.memberId === memberId)?.emailHash;
             if (emailHash) {
                 const map = loadInviteMetaMap();
@@ -480,9 +568,11 @@ export default function AdminTeamManage() {
             // If team now has 0 saved members, revert to showing 1 row.
             setTeamVisibleCounts((prev) => {
                 const next = { ...prev };
-                const t = teams.find((x) => x.teamId === teamId) || buildTeamVm(teamId, []);
+                const t = teams.find((x) => x.id === teamId);
+                if (!t) return prev;
                 const savedCount = t.members.filter((m) => !!m.studentId).length - 1; // include deletion
-                const defaultVisible = Math.min(4, Math.max(1, Math.max(0, savedCount) + 1));
+                const maxSize = DIVISION_SIZES[t.division].max;
+                const defaultVisible = Math.min(maxSize, Math.max(1, Math.max(0, savedCount) + 1));
                 next[teamId] = Math.max(1, defaultVisible);
                 return next;
             });
@@ -532,6 +622,7 @@ export default function AdminTeamManage() {
                     team_id: resendModal.teamId,
                     member_id: resendModal.memberId,
                     email,
+                    ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
                 },
                 authConfig()
             );
@@ -558,24 +649,120 @@ export default function AdminTeamManage() {
         return map[emailHash] || { sentCount: 0 };
     }
 
+    function validateTeamName(name: string, teamId: number): string | null {
+        const trimmed = name.trim();
+    
+        if (trimmed.length < 3) {
+            return "Team name must be at least 3 characters long.";
+        }
+        if (trimmed.length > 30) {
+            return "Team name can be no longer than 30 characters.";
+        }
+        if (!/^[A-Za-z0-9\s'\-_]+$/.test(trimmed)) {
+            return "Team name is limited to alphanumeric characters, spaces, underscores, hyphens, and apostrophes.";
+        }
+        if (!/[A-Za-z0-9]/.test(trimmed)) {
+            return "Team name must contain at least one letter or number.";
+        }
+
+        const duplicate = teams.find(t => t.name.trim().toLowerCase() === trimmed.toLowerCase() && t.id !== teamId);
+        if (duplicate) {
+            return "Team name is already in use.";
+        }
+
+        return null;
+    }
+    
+    async function updateTeam(teamId: number, updates: Partial<TeamVm>) {
+        const original = teams.find(t => t.id === teamId);
+        if (!original) return;
+
+        if (updates.name !== undefined) {
+            const error = validateTeamName(updates.name, teamId);
+            setTeams(prev =>
+                    prev.map(team =>
+                        team.id === teamId
+                            ? { ...team, nameError: error || undefined }
+                            : team
+                    )
+                );
+            if (error) return;
+        }
+        if (updates.division !== undefined) {
+            const savedCount = getTeamSavedCount(original);
+            const newDivisionMax = DIVISION_SIZES[updates.division].max;
+            if (savedCount > newDivisionMax) {
+                alert(`Cannot change division. This team has ${savedCount} saved members, but the ${updates.division} division has a max of ${newDivisionMax} members. Please remove some members before changing the division.`);
+                return;
+            }
+            if (original.division === updates.division) return;
+        }
+
+        if (updates.isOnline !== undefined && original.isOnline === updates.isOnline) return;
+    
+        const previousState = { ...original };
+    
+        setTeams(prev =>
+            prev.map(team =>
+                team.id === teamId ? { ...team, ...updates } : team
+            )
+        );
+    
+        try {
+            await axios.put(
+                `${apiBase}/teams/update`,
+                {
+                    team_id: teamId,
+                    ...(updates.name !== undefined ? { name: updates.name } : {}),
+                    ...(updates.division !== undefined ? { division: updates.division } : {}),
+                    ...(updates.isOnline !== undefined ? { is_online: updates.isOnline } : {}),
+                    ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
+                },
+                authConfig()
+            );
+        } catch (err: any) {
+            setTeams(prev =>
+                prev.map(team =>
+                    team.id === teamId ? previousState : team
+                )
+            );
+            const msg = err?.response?.data?.message || "Update division failed.";
+            if(err?.response?.data?.message){
+                alert(msg);
+            }
+            throw new Error(msg);
+        }
+    }
+        
+
+    function updateTeamName(teamId: number, name: string) {updateTeam(teamId, { name })}
+    function updateTeamDivision(teamId: number, division: Division) {updateTeam(teamId, { division })}
+    function updateTeamAttendance(teamId: number, isOnline: boolean) {updateTeam(teamId, { isOnline })}
+
     return (
         <>
             <Helmet>
-                <title>[Admin] Abacus</title>
+                <title>{managedSchoolId ? "[Admin] Abacus" : "Abacus"}</title>
             </Helmet>
 
             <MenuComponent
-                showUpload={false}
-                showAdminUpload={true}
-                showHelp={false}
-                showCreate={false}
-                showLast={false}
-                showReviewButton={false}
+                showProblemList={isAdminMode}
+                showAdminUpload={isAdminMode}
             />
 
             <div className="admin-team-manage-root">
-                <DirectoryBreadcrumbs items={[{ label: "Team Manage" }]} trailingSeparator={true} />
-                <div className="pageTitle">Team Manage</div>
+                <DirectoryBreadcrumbs
+                    items={
+                        managedSchoolId
+                            ? [{ label: "School List", to: "/admin/schools" }, { label: "Team Manage" }]
+                            : [{ label: "Team Manage" }]
+                    }
+                    trailingSeparator={!managedSchoolId}
+                />
+                <div className="pageTitle">
+                    {schoolName ? schoolName : "Team Manage"}
+                    {managedSchoolId ? " (Admin)" : ""}
+                </div>
 
                 <div className="admin-team-manage-content">
                     <div className="callout callout--warning">
@@ -602,7 +789,16 @@ export default function AdminTeamManage() {
                     <div className="toolbar">
                         <div>
                             <div className="toolbar__title">Teams</div>
-                            <div className="toolbar__subtitle muted">Create teams, then add 2 to 4 members each.</div>
+                            <div className="toolbar__subtitle muted">Create teams, then add members for each.</div>
+                        </div>
+                    </div>
+
+                    <div className="callout callout--info close">
+                        <div className="team-size__label">Team Size Requirements</div>
+                        <div className="team-size__pills">
+                            <span className="pill pill--blue">Blue Division: 3–4 Members</span>
+                            <span className ="pill pill--gold">Gold Division: 2–3 Members</span>
+                            <span className="pill pill--eagle">Eagle Division: 2–4 Members</span>
                         </div>
                     </div>
 
@@ -615,15 +811,82 @@ export default function AdminTeamManage() {
                             const savedCount = getTeamSavedCount(team);
                             const membersToShow = getTeamMembersToShow(team);
                             const showAddMember = canAddMoreMembers(team);
-                            const canDeleteTeam = team.isDraft && savedCount === 0;
+                            const canDeleteTeam = savedCount === 0;
 
                             return (
-                                <div key={team.teamId} className="panel">
+                                <div key={team.id} className="panel">
                                     <div className="panel__header">
-                                        <div>
-                                            <div className="panel__title">Team {team.teamId}</div>
-                                            <div className="panel__subtitle">
-                                                Members saved: <strong>{savedCount}</strong> (minimum 2, maximum 4)
+                                        <div className="panel__header-options">
+                                            <div className="panel__header-name">
+                                                <div className="panel__title editable-title">
+                                                    <input
+                                                        className={`team-name-input ${team.nameError ? "input-error" : ""}`}
+                                                        type="text"
+                                                        value={team.name}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value;
+                                                            const error = validateTeamName(value, team.id);
+
+                                                            setTeams(prev =>
+                                                                prev.map(t =>
+                                                                    t.id === team.id
+                                                                        ? { ...t, name: value, nameError: error || undefined }
+                                                                        : t
+                                                                )
+                                                            );
+                                                        }}
+                                                        onBlur={() => updateTeamName(team.id, team.name)}
+                                                        disabled={isLoading}
+                                                    />
+                                                    <FaPen className="edit-icon" />
+                                                </div>
+                                                <div className="panel__subtitle">
+                                                    Please exclude student personal information in team names.
+                                                </div>
+                                                {team.nameError && (
+                                                    <div className="callout callout--error small">{team.nameError}</div>
+                                                )}
+                                                <div className="panel__subtitle">
+                                                    Members saved: <strong>{savedCount}</strong> (minimum {DIVISION_SIZES[team.division].min}, maximum {DIVISION_SIZES[team.division].max})
+                                                </div>
+                                            </div>
+                                            <div className="panel__header-update">
+                                                <label className="panel__label">Division</label>
+                                                <div className="segment-btn segment-division">
+                                                    {DIVISIONS.map(option => {
+                                                        const isSelected = team.division === option;
+                                                        return (
+                                                            <button
+                                                                key={option}
+                                                                className={`segment-option ${isSelected ? "selected" : ""} ${option.toLowerCase()}`}
+                                                                type="button"
+                                                                disabled={isLoading}
+                                                                onClick={() => updateTeamDivision(team.id, option as Division)}
+                                                            >
+                                                                {option}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                            <div className="panel__header-update">
+                                                <label className="panel__label">Attendance</label>
+                                                <div className="segment-btn segment-attendance">
+                                                    {ATTENDANCE.map(option => {
+                                                        const isSelected = team.isOnline === option.value;
+                                                        return (
+                                                            <button
+                                                                key={option.label}
+                                                                className={`segment-option ${isSelected ? "selected" : ""}`}
+                                                                type="button"
+                                                                disabled={isLoading}
+                                                                onClick={() => updateTeamAttendance(team.id, option.value)}
+                                                            >
+                                                                {option.label}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
                                         </div>
                                         {canDeleteTeam ? (
@@ -631,17 +894,22 @@ export default function AdminTeamManage() {
                                                 <button
                                                     className="btn btn--danger"
                                                     type="button"
-                                                    onClick={() => deleteDraftTeam(team.teamId)}
+                                                    disabled={isLoading}
+                                                    onClick={() => handleDeleteTeam(team.id)}
                                                 >
                                                     Delete team
                                                 </button>
                                             </div>
-                                        ) : null}
+                                        ) : (
+                                            <div className="field__help right-aligned">
+                                                Delete all members before deleting the team.
+                                            </div>
+                                        )}
                                     </div>
 
-                                    {savedCount < 2 ? (
+                                    {savedCount < DIVISION_SIZES[team.division].min ? (
                                         <div className="callout callout--info">
-                                            This team is not complete yet. Save at least <strong>2</strong> members before distributing
+                                            This team is not complete yet. Save at least <strong>{DIVISION_SIZES[team.division].min}</strong> members before distributing
                                             team information.
                                         </div>
                                     ) : null}
@@ -719,7 +987,7 @@ export default function AdminTeamManage() {
                                                                     type="button"
                                                                     disabled={m.isSaving || !m.emailHash}
                                                                     onClick={() =>
-                                                                        openResendModal(team.teamId, m.memberId, m.emailHash || "")
+                                                                        openResendModal(team.id, m.memberId, m.emailHash || "")
                                                                     }
                                                                 >
                                                                     Resend email
@@ -728,7 +996,7 @@ export default function AdminTeamManage() {
                                                                     className="btn btn--danger"
                                                                     type="button"
                                                                     disabled={m.isSaving}
-                                                                    onClick={() => openDeleteConfirmModal(team.teamId, m.memberId, true)}
+                                                                    onClick={() => openDeleteConfirmModal(team.id, m.memberId, true)}
                                                                 >
                                                                     Delete member
                                                                 </button>
@@ -737,17 +1005,17 @@ export default function AdminTeamManage() {
                                                     ) : (
                                                         <div className="member-row__edit">
                                                             <div className="field">
-                                                                <label className="field__label" htmlFor={`email-${team.teamId}-${m.memberId}`}>
+                                                                <label className="field__label" htmlFor={`email-${team.id}-${m.memberId}`}>
                                                                     Student email (required)
                                                                 </label>
                                                                 <input
-                                                                    id={`email-${team.teamId}-${m.memberId}`}
+                                                                    id={`email-${team.id}-${m.memberId}`}
                                                                     className="field__input"
                                                                     type="email"
                                                                     placeholder="student@school.edu"
                                                                     value={m.emailInput}
                                                                     onChange={(e) =>
-                                                                        updateMember(team.teamId, m.memberId, {
+                                                                        updateMember(team.id, m.memberId, {
                                                                             emailInput: e.target.value,
                                                                             error: undefined,
                                                                         })
@@ -765,8 +1033,7 @@ export default function AdminTeamManage() {
                                                                     type="button"
                                                                     disabled={m.isSaving}
                                                                     onClick={() => {
-                                                                        ensureTeamExists(team.teamId);
-                                                                        openSaveConfirmModal(team.teamId, m.memberId, m.emailInput);
+                                                                        openSaveConfirmModal(team.id, m.memberId, m.emailInput);
                                                                     }}
                                                                 >
                                                                     {m.isSaving ? "Saving…" : "Save member"}
@@ -775,7 +1042,7 @@ export default function AdminTeamManage() {
                                                                     className="btn btn--danger"
                                                                     type="button"
                                                                     disabled={m.isSaving}
-                                                                    onClick={() => openDeleteConfirmModal(team.teamId, m.memberId, false)}
+                                                                    onClick={() => openDeleteConfirmModal(team.id, m.memberId, false)}
                                                                 >
                                                                     Delete member
                                                                 </button>
@@ -789,7 +1056,7 @@ export default function AdminTeamManage() {
 
                                     {showAddMember ? (
                                         <div className="add-member-row">
-                                            <button className="btn btn--secondary" type="button" onClick={() => addMemberRow(team.teamId)}>
+                                            <button className="btn btn--secondary" type="button" onClick={() => addMemberRow(team.id)}>
                                                 Add member
                                             </button>
                                         </div>
@@ -808,12 +1075,9 @@ export default function AdminTeamManage() {
                         <button
                             className="btn btn--primary new-team-btn"
                             type="button"
-                            disabled={isLoading}
-                            onClick={() => {
-                                const id = nextTeamId;
-                                ensureTeamExists(id);
-                                setTeamVisibleCounts((prev) => ({ ...prev, [id]: 1 }));
-                            }}
+                            title={emptyTeamExists ? "Please save or delete the existing empty team before creating a new one." : ""}
+                            disabled={isLoading || emptyTeamExists}
+                            onClick={() => handleNewTeam()}
                         >
                             New team
                         </button>

@@ -22,24 +22,16 @@ class SchoolRepository:
         return Schools.query.order_by(Schools.Name.asc()).all()
 
     def get_school_by_teacher_id(self, teacher_id: int) -> Optional[Schools]:
-        return Schools.query.filter(Schools.TeacherID == teacher_id).one_or_none()
+        admin = AdminUsers.query.filter(AdminUsers.Id == teacher_id).one_or_none()
+        if not admin:
+            return None
+        return self.get_school_by_id(int(admin.SchoolId))
 
     def create_school(self, name: str) -> Schools:
-        """
-        Creates a school with TeacherID unset. Caller can set TeacherID afterward.
-        """
-        school = Schools(Name=name, TeacherID=None)
+        school = Schools(Name=name)
         db.session.add(school)
         db.session.commit()
         return school
-
-    def set_school_teacher(self, school_id: int, teacher_id: int) -> None:
-        """
-        Sets the TeacherID FK on a school.
-        """
-        school = Schools.query.filter(Schools.Id == school_id).one()
-        school.TeacherID = teacher_id
-        db.session.commit()
 
     def get_school_for_admin(self, admin_id: int) -> Optional[Schools]:
         """

@@ -49,8 +49,7 @@ class ProjectRepository():
         Returns:
             Projects: A project object sorted by end date.
         """
-        project = Projects.query.order_by(asc(Projects.End)).all()
-        return project
+        return Projects.query.order_by(asc(Projects.Id)).all()
 
     def get_selected_project(self, project_id: int) -> Projects:
         """[summary]
@@ -77,11 +76,8 @@ class ProjectRepository():
         class_projects = Projects.query.filter(Projects.ClassId==class_id)
         return class_projects
     
-    def create_project(self, name: str, start: datetime, end: datetime, language:str, class_id:int, file_path:str, description_path:str, additional_file_path:str):
-        project = Projects(Name=name, Start=start, End=end, Language=language,
-                            ClassId=class_id, solutionpath=file_path,
-                            AsnDescriptionPath=description_path,
-                            AdditionalFilePath=additional_file_path)
+    def create_project(self, name: str, language:str, file_path:str, description_path:str, additional_file_path:str):
+        project = Projects(Name=name, Language=language, solutionpath=file_path, AsnDescriptionPath=description_path, AdditionalFilePath=additional_file_path)
         db.session.add(project)
         db.session.commit()
         return project.Id
@@ -89,10 +85,6 @@ class ProjectRepository():
     def get_project(self, project_id:int) -> Projects:
         project_data = Projects.query.filter(Projects.Id == project_id).first()
         project ={}
-        now=project_data.Start
-        start_string = now.strftime("%Y-%m-%dT%H:%M:%S")
-        now = project_data.End
-        end_string = now.strftime("%Y-%m-%dT%H:%M:%S")
         project_solutionFile = project_data.solutionpath
         #Strip just the file name from the path
         project_solutionFile = project_solutionFile.split("/")[-1]
@@ -106,8 +98,6 @@ class ProjectRepository():
         project_additionalfiles = [os.path.basename(p) for p in add_list if p]
         project[project_data.Id] = [
             str(project_data.Name),
-            str(start_string),
-            str(end_string),
             str(project_data.Language),
             str(project_solutionFile),
             str(project_descriptionfile),
@@ -115,11 +105,9 @@ class ProjectRepository():
         ]
         return project
 
-    def edit_project(self, name: str, start: datetime, end: datetime, language:str, project_id:int, path:str, description_path:str, additional_file_path:str):
+    def edit_project(self, name: str, language:str, project_id:int, path:str, description_path:str, additional_file_path:str):
         project = Projects.query.filter(Projects.Id == project_id).first()
         project.Name = name
-        project.Start = start
-        project.End = end
         project.Language = language
         project.solutionpath = path
         project.AsnDescriptionPath = description_path
@@ -148,7 +136,6 @@ class ProjectRepository():
         description: str,
         input_data: str,
         output: str,
-        class_id: int,
         hidden: bool = False,
     ):
         from flask import current_app
@@ -195,7 +182,6 @@ class ProjectRepository():
                 project_base,
                 add_path,
                 str(project_id),
-                str(class_id),
             ],
             stdout=subprocess.PIPE,
             text=True,

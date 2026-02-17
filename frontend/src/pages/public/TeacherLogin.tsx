@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
 import { Link, Navigate } from "react-router-dom";
-import { FaUser, FaLock } from "react-icons/fa";
+import { FaUser, FaLock, FaEyeSlash, FaEye } from "react-icons/fa";
 
 import img from "../../images/AbacusLogo.png";
 import "../../styling/Login.scss";
@@ -14,9 +14,9 @@ interface TeacherLoginPageState {
   email: string;
   password: string;
   role: number;
-  schoolId: number | null;
   error_message: string;
   isLoading: boolean;
+  showPassword: boolean;
 }
 
 class TeacherLogin extends Component<{}, TeacherLoginPageState> {
@@ -29,9 +29,9 @@ class TeacherLogin extends Component<{}, TeacherLoginPageState> {
       email: "",
       password: "",
       role: -1,
-      schoolId: null,
       error_message: "",
       isLoading: false,
+      showPassword: false,
     };
 
     this.handleSubmit = this.handleSubmit.bind(this);
@@ -64,20 +64,6 @@ class TeacherLogin extends Component<{}, TeacherLoginPageState> {
         const role = Number(res.data.role ?? 0);
         localStorage.setItem("AUTOTA_AUTH_TOKEN", token);
 
-        if (role === 0) {
-          try {
-            const me = await axios.get(`${baseUrl}/schools/me`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            const schoolId = Number(me.data?.id) || null;
-            this.setState({ isLoggedIn: true, role, schoolId, isLoading: false });
-            return;
-          } catch {
-            this.setState({ isLoggedIn: true, role, schoolId: null, isLoading: false });
-            return;
-          }
-        }
-
         this.setState({ isLoggedIn: true, role, isLoading: false });
       })
       .catch((err) => {
@@ -89,10 +75,7 @@ class TeacherLogin extends Component<{}, TeacherLoginPageState> {
   render() {
     if (this.state.isLoggedIn) {
       if (this.state.role === 0) {
-        if (!this.state.schoolId) {
-          return <div style={{ padding: 24 }}>Loading…</div>;
-        }
-        return <Navigate to={`/admin/${this.state.schoolId}/team-manage`} replace />;
+        return <Navigate to="/teacher/team-manage" replace />;
       }
       return <Navigate to="/admin/schools" replace />;
     }
@@ -100,12 +83,6 @@ class TeacherLogin extends Component<{}, TeacherLoginPageState> {
     return (
       <>
         <MenuComponent
-          showUpload={false}
-          showAdminUpload={false}
-          showHelp={false}
-          showCreate={false}
-          showReviewButton={false}
-          showLast={false}
           variant="public"
         />
 
@@ -152,13 +129,18 @@ class TeacherLogin extends Component<{}, TeacherLoginPageState> {
                 <input
                   id="password"
                   name="password"
-                  type="password"
+                  type={this.state.showPassword ? "text" : "password"}
                   required
                   placeholder="Password"
                   autoComplete="current-password"
                   onChange={this.handlePasswordChange}
                   className="form-input"
                 />
+                {this.state.showPassword ? (
+                  <FaEyeSlash className="input-with-icon__icon-right" onClick={() => this.setState({ showPassword: false })} />
+                ) : (
+                  <FaEye className="input-with-icon__icon-right" onClick={() => this.setState({ showPassword: true })} />
+                )}
               </div>
             </div>
 

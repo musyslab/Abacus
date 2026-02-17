@@ -9,17 +9,15 @@ import {
     FaSignOutAlt,
     FaChalkboardTeacher,
     FaUserCircle,
+    FaList,
+    FaUpload,
 } from "react-icons/fa";
 
 interface MenuComponentProps {
-    showUpload: boolean;
-    showAdminUpload: boolean;
-    showHelp: boolean;
-    showCreate: boolean;
-    showReviewButton: boolean;
-    showLast: boolean;
+    showProblemList?: boolean;
+    showAdminUpload?: boolean;
     variant?: "app" | "home" | "public";
-    onScrollToSection?: (key: "hero" | "about" | "abacus" | "contact") => void;
+    onScrollToSection?: (key: "about" | "event" | "rules") => void;
 }
 
 type DashboardInfo = {
@@ -75,7 +73,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
 
             // Students
             if (status === "student") {
-                const info = { label: "Submit Projects", path: "/student/classes" };
+                const info = { label: "Problem Select", path: "/student/problems" };
                 this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
                 return info;
             }
@@ -89,15 +87,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                     return info;
                 }
 
-                // Teacher: needs school_id in the route
-                const schoolRes = await axios.get(`${import.meta.env.VITE_API_URL}/schools/me`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                const schoolId = Number(schoolRes.data?.id) || 0;
-                const info =
-                    schoolId > 0
-                        ? { label: "Team Manage", path: `/admin/${schoolId}/team-manage` }
-                        : { label: "Team Manage", path: "/admin/schools" };
+                const info = { label: "Team Manage", path: "/teacher/team-manage" };
 
                 this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
                 return info;
@@ -133,7 +123,6 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
 
     render() {
         const classId = this.getClassIdFromUrl();
-        const officeHoursPath = classId ? `/student/${classId}/OfficeHours` : "/student/classes";
 
         const variant = this.props.variant ?? "app";
         const isPublic = variant === "public";
@@ -164,16 +153,16 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                             <button
                                 type="button"
                                 className="menu__item"
-                                onClick={() => this.props.onScrollToSection?.("abacus")}
+                                onClick={() => this.props.onScrollToSection?.("event")}
                             >
-                                Abacus
+                                Event
                             </button>
                             <button
                                 type="button"
                                 className="menu__item"
-                                onClick={() => this.props.onScrollToSection?.("contact")}
+                                onClick={() => this.props.onScrollToSection?.("rules")}
                             >
-                                Contact
+                                Registration & Rules
                             </button>
 
                             <div className="menu__right">
@@ -262,6 +251,26 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                             </button>
 
                             <div className="menu__right">
+                                {this.props.showProblemList && (
+                                    <Link
+                                        to="/admin/problems"
+                                        className="menu__item menu__item--link"
+                                        title="Go to problem list"
+                                    >
+                                        <FaList className="menu__icon" aria-hidden="true" />
+                                        <span className="menu__text">Problem List</span>
+                                    </Link>
+                                )}
+                                {this.props.showAdminUpload && (
+                                    <Link
+                                        to="/admin/upload"
+                                        className="menu__item menu__item--link"
+                                        title="Go to Admin Upload"
+                                    >
+                                        <FaUpload className="menu__icon" aria-hidden="true" />
+                                        <span className="menu__text">Admin Upload</span>
+                                    </Link>
+                                )}
                                 <button
                                     type="button"
                                     className="menu__item menu__item--link"

@@ -4,22 +4,17 @@ import datetime
 class ProjectJson:
     Id = -1
     Name = ""
-    Start = ""
-    End = ""
+    Language = ""
     TotalSubmissions = -1
 
-    def __init__(self, id, name, start, end, totalSubmissions):
+    def __init__(self, id, name, language, totalSubmissions):
         self.Id = id
         self.Name = name
-        self.Start = start
-        self.End = end
+        self.Language = language
         self.TotalSubmissions = totalSubmissions
     
     def json_default(self, value):
-        if isinstance(value, datetime.date):
-            return dict(year=value.year, month=value.month, day=value.day)
-        else:
-            return value.__dict__
+        return value.__dict__
 
-    def toJson(self):
-        return json.dumps(self, default=lambda o: self.json_default(o))
+    def to_dict(self):
+        return self.__dict__
