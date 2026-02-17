@@ -30,10 +30,11 @@ import AdminSchoolRoster from './pages/abacus/AdminSchoolRoster';
 import AdminProjectList from './pages/abacus/AdminProjectList';
 import AdminProjectManage from './pages/abacus/AdminProjectManage';
 import StudentSubmit from './pages/abacus/StudentSubmit';
-import StudentSubmissions from './pages/abacus/StudentSubmissions';
+import StudentSubmissions from './pages/abacus/AdminStudentSubmissions';
 import StudentDiff from './pages/abacus/StudentDiff';
 import AdminTeamManage from './pages/abacus/AdminTeamManage';
 import AdminUpload from './pages/abacus/AdminUpload';
+import StudentProjectSelection from './pages/abacus/StudentProjectSelection';
 
 import ProtectedRoute from './pages/components/ProtectedRoute';
 
@@ -64,7 +65,7 @@ class App extends Component {
                     <Route path="/set-password" element={<SetPasswordPage />} />
 
                     <Route path="/" element={<LandingPage />} />
-                    {/* Start Abacus Routes */}
+
                     <Route path="/admin/schools" element={
                         <ProtectedRoute requiredAdminRole={1}>
                             <AdminSchoolRoster />
@@ -110,7 +111,7 @@ class App extends Component {
 
                     <Route path="/student/problems" element={
                         <ProtectedRoute>
-                            <AdminProjectList />
+                            <StudentProjectSelection />
                         </ProtectedRoute>
                     } />
                     <Route path="/student/:problem_id/submit" element={

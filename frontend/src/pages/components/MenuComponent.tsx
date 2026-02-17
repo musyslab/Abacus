@@ -73,7 +73,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
 
             // Students
             if (status === "student") {
-                const info = { label: "Submit Projects", path: "/student/classes" };
+                const info = { label: "Problem Select", path: "/student/problems" };
                 this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
                 return info;
             }
@@ -123,7 +123,6 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
 
     render() {
         const classId = this.getClassIdFromUrl();
-        const officeHoursPath = classId ? `/student/${classId}/OfficeHours` : "/student/classes";
 
         const variant = this.props.variant ?? "app";
         const isPublic = variant === "public";
