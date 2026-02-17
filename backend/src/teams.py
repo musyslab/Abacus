@@ -45,8 +45,8 @@ def create_team(
     if team_number is None:
         return make_response({'message': 'Failed to determine next team number'}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
-    # Default name (School Name + Team Number)
-    name = school_repo.get_school_name_with_id(school_id) + " " + str(team_number)
+    # Default name (Team + Team Number)
+    name = f"Team {team_number}"
 
     if team_repo.total_blue_teams() >= BLUE_TEAM_MAX:
         team = team_repo.create_team(school_id, team_number, name, "Gold", False)
