@@ -81,6 +81,11 @@ CREATE TABLE `Teams` (
   `Name` varchar(45) NOT NULL,
   `Division` varchar(5) DEFAULT NULL,
   `IsOnline` tinyint(1) NOT NULL DEFAULT 0,
+  `tshirtS` int NOT NULL DEFAULT 0,
+  `tshirtM` int NOT NULL DEFAULT 0,
+  `tshirtL` int NOT NULL DEFAULT 0,
+  `tshirtXL` int NOT NULL DEFAULT 0,
+  `tshirtXXL` int NOT NULL DEFAULT 0,
   PRIMARY KEY (`Id`),
   KEY `fk_teams_school_idx` (`SchoolId`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
