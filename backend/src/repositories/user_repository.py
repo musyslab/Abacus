@@ -230,6 +230,12 @@ class UserRepository:
             db.session.delete(attempt)
         db.session.commit()
 
+    def get_team_id_for_student(self, student_id: int) -> Optional[int]:
+        student = self.get_student_by_id(student_id)
+        if student:
+            return student.TeamId
+        return None
+
     # -----------------------------
     # School operations (kept here because your auth flow uses them)
     # -----------------------------

@@ -25,6 +25,7 @@ class Submissions(db.Model):
     CodeFilepath = Column(String)
     IsPassing = Column(Boolean)
     Time = Column(Date)
+    Team = Column(Integer, ForeignKey('Teams.Id'))
     User = Column(Integer, ForeignKey('StudentUsers.Id'))
     Project = Column(Integer, ForeignKey('Projects.Id'))
     TestCaseResults=Column(String)

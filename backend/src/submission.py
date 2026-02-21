@@ -128,25 +128,27 @@ def convert_tap_to_json(file_path, role, current_level, hasLVLSYSEnabled):
 @submission_api.route('/testcaseerrors', methods=['GET'])
 @jwt_required()
 @inject
-def get_testcase_errors(submission_repo: SubmissionRepository = Provide[Container.submission_repo], project_repo:  ProjectRepository = Provide[Container.project_repo]):
-    class_id = int(request.args.get("class_id"))
-    submission_id = int(request.args.get("id"))
-    projectid = -1
-    submission = None
-    if submission_id != -1:
-        projectid = submission_repo.get_project_by_submission_id(submission_id)
-        submission = submission_repo.get_submission_by_submission_id(submission_id)
-    else:
-        projectid = project_repo.get_current_project_by_class(class_id).Id
-        submission = submission_repo.get_submission_by_user_and_projectid(current_user.Id,projectid)
-        current_level=submission_repo.get_current_level(submission.Id,current_user.Id)
+def get_testcase_errors(submission_repo: SubmissionRepository = Provide[Container.submission_repo]):
+    submission_id_raw = request.args.get("id", type=int)
+    if submission_id_raw is None:
+        return make_response("Missing submission ID", HTTPStatus.BAD_REQUEST)
+    submission_id = int(submission_id_raw)
+
+    submission = submission_repo.get_submission_by_submission_id(submission_id)
+    if not submission:
+        return make_response("Submission not found", HTTPStatus.NOT_FOUND)
+    
+    project_id = getattr(submission, "Project", None)
+    if project_id is None:
+        return make_response("Submission missing project association", HTTPStatus.INTERNAL_SERVER_ERROR)
+
     output = convert_tap_to_json(submission.OutputFilepath, current_user.Role, 0, False)
     # Attach hidden flags from DB Testcases table (source of truth)
     try:
         obj = json.loads(output) if isinstance(output, str) else (output or {})
         results = obj.get("results", None) if isinstance(obj, dict) else None
-        if isinstance(results, list) and int(projectid) != -1:
-            tcs = Testcases.query.filter(Testcases.ProjectId == int(projectid)).all()
+        if isinstance(results, list) and int(project_id) != -1:
+            tcs = Testcases.query.filter(Testcases.ProjectId == int(project_id)).all()
             hidden_by_name = {
                 (str(getattr(tc, "Name", "") or "").strip().lower()): bool(getattr(tc, "Hidden", False))
                 for tc in (tcs or [])
@@ -178,17 +180,26 @@ def get_testcase_errors(submission_repo: SubmissionRepository = Provide[Containe
 @submission_api.route('/codefinder', methods=['GET'])
 @jwt_required()
 @inject
-def codefinder(submission_repo: SubmissionRepository = Provide[Container.submission_repo], project_repo: ProjectRepository = Provide[Container.project_repo]):
-    submissionid = int(request.args.get("id"))
-    class_id = int(request.args.get("class_id"))
+def codefinder(
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
+    submission_id_raw = request.args.get("id", type=int)
+    if submission_id_raw is None:
+        return make_response("Missing submission ID", HTTPStatus.BAD_REQUEST)
+    submission_id = int(submission_id_raw)
+
     fmt = (request.args.get("format", "") or "").strip().lower()
     want_json = fmt in ("json", "view", "preview")
-    code_output = ""
-    if submissionid != EMPTY and (current_user.Role == ADMIN_ROLE or submission_repo.submission_view_verification(current_user.Id,submissionid)):
-        code_output = submission_repo.get_code_path_by_submission_id(submissionid)
-    else:
-        projectid = project_repo.get_current_project_by_class(class_id).Id
-        code_output = submission_repo.get_submission_by_user_and_projectid(current_user.Id,projectid).CodeFilepath
+
+    # Verifies if user is an admin or if the user is apart of the team that submitted
+    if user_repo.get_user_status() != "admin" and not submission_repo.submission_view_verification(current_user.Id, submission_id):
+        return make_response("Unauthorized", HTTPStatus.FORBIDDEN)
+
+    code_output = submission_repo.get_code_path_by_submission_id(submission_id)
+    if not code_output:
+        return make_response("Code output not found for submission", HTTPStatus.NOT_FOUND)
+    
     # JSON preview mode (used by CodePage) so the UI can render readable source
     if want_json:
         files_payload = []
@@ -196,7 +207,7 @@ def codefinder(submission_repo: SubmissionRepository = Provide[Container.submiss
             with open(code_output, 'r', encoding='utf-8', errors='replace') as f:
                 files_payload.append({"name": os.path.basename(code_output), "content": f.read()})
         else:
-            allowed_exts = {".py", ".java", ".c", ".h", ".rkt"}
+            allowed_exts = {".py", ".java"}
             names = sorted(os.listdir(code_output), key=lambda n: (n != "Main.java", n.lower()))
             for name in names:
                 full = os.path.join(code_output, name)
@@ -224,7 +235,7 @@ def codefinder(submission_repo: SubmissionRepository = Provide[Container.submiss
         return resp
 
     # If it's a directory, zip all relevant source files and return the zip
-    allowed_exts = {".py", ".java", ".c", ".h", ".rkt"}
+    allowed_exts = {".py", ".java"}
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as z:
         # add files with stable ordering
@@ -239,7 +250,7 @@ def codefinder(submission_repo: SubmissionRepository = Provide[Container.submiss
             z.write(full, arcname=name)
     buf.seek(0)
 
-    zip_name = f"submission_{submissionid}.zip"
+    zip_name = f"submission_{submission_id}.zip"
     resp = send_file(
         buf,
         mimetype="application/zip",

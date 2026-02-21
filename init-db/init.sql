@@ -197,6 +197,7 @@ CREATE TABLE `SubmissionManualErrors` (
 -- ============================================
 CREATE TABLE `Submissions` (
   `Id` int NOT NULL AUTO_INCREMENT COMMENT 'Table to keep track of submissions from users',
+  `Team` int NOT NULL,
   `User` int NOT NULL,
   `Time` datetime NOT NULL,
   `OutputFilepath` varchar(256) NOT NULL,
@@ -206,6 +207,7 @@ CREATE TABLE `Submissions` (
   `TestCaseResults` text,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `idSubmissions_UNIQUE` (`Id`),
+  KEY `idx_submissions_team` (`Team`),
   KEY `idx_submissions_user` (`User`),
   KEY `idx_submissions_project` (`Project`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -249,6 +251,10 @@ ALTER TABLE `StudentUsers`
 ALTER TABLE `Teams`
   ADD CONSTRAINT `fk_teams_school`
   FOREIGN KEY (`SchoolId`) REFERENCES `Schools` (`Id`);
+
+ALTER TABLE `Submissions`
+  ADD CONSTRAINT `fk_submissions_team`
+  FOREIGN KEY (`Team`) REFERENCES `Teams` (`Id`);
 
 ALTER TABLE `Submissions`
   ADD CONSTRAINT `fk_submissions_student`

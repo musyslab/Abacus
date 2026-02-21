@@ -67,7 +67,6 @@ def file_upload(
     user_repo: UserRepository = Provide[Container.user_repo],
     submission_repo: SubmissionRepository = Provide[Container.submission_repo],
     project_repo: ProjectRepository = Provide[Container.project_repo],
-    school_repo: SchoolRepository = Provide[Container.school_repo]
 ):
     """[summary]
 
@@ -87,7 +86,11 @@ def file_upload(
     if project is None:
         return make_response({'message': 'No active project'}, HTTPStatus.NOT_ACCEPTABLE)
 
-    # Check to see if student is able to upload or still on timeout
+    team_id = user_repo.get_team_id_for_student(user_id)
+    if team_id is None:
+        return make_response({'message': 'Student is not assigned to a team.'}, HTTPStatus.NOT_ACCEPTABLE)
+
+    # Check to see if team is able to upload or still on timeout
 
     # Accept either legacy single-file field ("file") or new multi-file field ("files")
     upload_files = request.files.getlist('files')
@@ -233,13 +236,13 @@ def file_upload(
             pass
 
         submissionId = submission_repo.create_submission(
+            team_id=team_id,
             user_id=user_id,
             output=json_out,
             codepath=submission_dir,
             time=dt_string,
             project_id=project.Id,
             status=status,
-            errorcount=0,
             testcase_results=TestCaseResults,
         )
 

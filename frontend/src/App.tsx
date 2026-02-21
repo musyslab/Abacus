@@ -119,11 +119,13 @@ class App extends Component {
                             <StudentSubmit />
                         </ProtectedRoute>
                     } />
-                    <Route path="/student/:problem_id/:id" element={
+                    <Route path="/student/code/:id" element={
                         <ProtectedRoute>
                             <StudentDiff />
                         </ProtectedRoute>
                     } />
+
+
                     <Route path="/admin/:id/projects/*" element={
                         <ProtectedRoute>
                             <AdminProjectList2 />

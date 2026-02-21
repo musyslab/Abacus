@@ -4,7 +4,7 @@ import MenuComponent from '../components/MenuComponent'
 import ErrorMessage from '../components/ErrorMessage'
 import LoadingAnimation from '../components/LoadingAnimation'
 import { Helmet } from 'react-helmet'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
 import '../../styling/AdminUpload.scss'
 import '../../styling/FileUploadCommon.scss'
@@ -35,6 +35,7 @@ interface StudentObject {
 const AdminUpload = () => {
     const API = (import.meta.env.VITE_API_URL as string) || "";
     const { class_id } = useParams()
+    const navigate = useNavigate()
     let cid = -1
     if (class_id !== undefined) {
         cid = parseInt(class_id, 10)
@@ -209,8 +210,8 @@ const AdminUpload = () => {
     axios
       .post(`${API}/upload/`, formData, authConfig())
       .then((res) => {
-        // Take to the student output diff view after successful upload
         setIsLoading(false)
+        navigate(`/student/code/${res.data.sid}`)
       })
       .catch((err) => {
         setError_Message(err.response?.data?.message || 'Upload failed.')

@@ -175,7 +175,6 @@ function renderSegs(segs: Seg[], cls: 'add-ch' | 'del-ch') {
 
 type DiffViewProps = {
     submissionId: number
-    classId: number
 
     // Optional: enable grading-like behaviors (AdminGrading uses these)
     codeSectionTitle?: string
@@ -205,7 +204,6 @@ type DiffViewProps = {
 export default function DiffView(props: DiffViewProps) {
     const {
         submissionId,
-        classId,
         diffViewRef,
         codeSectionTitle = 'Submitted Code',
         codeContainerRef,
@@ -246,20 +244,20 @@ export default function DiffView(props: DiffViewProps) {
     const initialIntraRef = useRef<boolean>(Math.random() < 0.5)
     const [intraEnabled, setIntraEnabled] = useState<boolean>(initialIntraRef.current)
 
-    // Track which (submissionId,classId) we've already logged to avoid duplicate logs (React StrictMode)
+    // Track which (submissionId) we've already logged to avoid duplicate logs (React StrictMode)
     const initLogKeyRef = useRef<string | null>(null)
-
+    
+    /*
     const logUiClick = (
         action: 'Diff Finder' | 'Diff Mode',
         startedState?: boolean,
         switchedTo?: boolean
     ) => {
-        if (submissionId < 0 || classId < 0) return
+        if (submissionId < 0) return
         axios.post(
             `${import.meta.env.VITE_API_URL}/submissions/log_ui`,
             {
                 id: submissionId,
-                class_id: classId,
                 action,
                 started_state: startedState,
                 switched_to: switchedTo,
@@ -267,20 +265,21 @@ export default function DiffView(props: DiffViewProps) {
             { headers: { Authorization: `Bearer ${localStorage.getItem('AUTOTA_AUTH_TOKEN')}` } }
         )
     }
+    */
 
     useEffect(() => {
         setTestsLoaded(false)
         setCodeFiles([])
         setSelectedCodeFile('')
 
-        if (submissionId < 0 || classId < 0) {
+        if (submissionId < 0) {
             setPayload({ results: [] })
             setTestsLoaded(true)
             return
         }
 
         axios
-            .get(`${import.meta.env.VITE_API_URL}/submissions/testcaseerrors?id=${submissionId}&class_id=${classId}`, {
+            .get(`${import.meta.env.VITE_API_URL}/submissions/testcaseerrors?id=${submissionId}`, {
                 headers: { Authorization: `Bearer ${localStorage.getItem('AUTOTA_AUTH_TOKEN')}` },
             })
             .then((res) => {
@@ -293,21 +292,21 @@ export default function DiffView(props: DiffViewProps) {
                 setPayload({ results: [] })
                 setTestsLoaded(true)
             })
-    }, [submissionId, classId])
+    }, [submissionId])
 
     // Baseline the toggles on mount per submission/class
     useEffect(() => {
-        if (submissionId < 0 || classId < 0) return
-        const key = `${submissionId}:${classId}`
+        if (submissionId < 0) return
+        const key = `${submissionId}`
         if (initLogKeyRef.current === key) return
         initLogKeyRef.current = key
-        logUiClick('Diff Mode', diffMode === 'long', diffMode === 'long')
-        logUiClick('Diff Finder', initialIntraRef.current, initialIntraRef.current)
+        //logUiClick('Diff Mode', diffMode === 'long', diffMode === 'long')
+        //logUiClick('Diff Finder', initialIntraRef.current, initialIntraRef.current)
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [submissionId, classId])
+    }, [submissionId])
 
     useEffect(() => {
-        if (submissionId < 0 || classId < 0) {
+        if (submissionId < 0) {
             setCodeFiles([{ name: 'Submission', content: '' }])
             setSelectedCodeFile('Submission')
             return
@@ -315,7 +314,7 @@ export default function DiffView(props: DiffViewProps) {
 
         axios
             .get(
-                `${import.meta.env.VITE_API_URL}/submissions/codefinder?id=${submissionId}&class_id=${classId}&format=json`,
+                `${import.meta.env.VITE_API_URL}/submissions/codefinder?id=${submissionId}&format=json`,
                 { headers: { Authorization: `Bearer ${localStorage.getItem('AUTOTA_AUTH_TOKEN')}` } }
             )
             .then((res) => {
@@ -350,7 +349,7 @@ export default function DiffView(props: DiffViewProps) {
                 setCodeFiles([{ name: 'Submission', content: '' }])
                 setSelectedCodeFile('Submission')
             })
-    }, [submissionId, classId])
+    }, [submissionId])
 
     const diffFilesAll: DiffEntry[] = useMemo(() => {
         const raw = Array.isArray(payload?.results) ? payload.results : []
@@ -564,7 +563,7 @@ export default function DiffView(props: DiffViewProps) {
                                 aria-pressed={diffMode === 'long'}
                                 onClick={() => {
                                     const next: DiffMode = diffMode === 'short' ? 'long' : 'short'
-                                    logUiClick('Diff Mode', diffMode === 'long', next === 'long')
+                                    //logUiClick('Diff Mode', diffMode === 'long', next === 'long')
                                     setDiffMode(next)
                                 }}
                                 title="Toggle between shortDiff and longDiff"
@@ -582,7 +581,7 @@ export default function DiffView(props: DiffViewProps) {
                                 disabled={!hasIntraInSelected}
                                 onClick={() => {
                                     const next = !intraEnabled
-                                    logUiClick('Diff Finder', initialIntraRef.current, next)
+                                    //logUiClick('Diff Finder', initialIntraRef.current, next)
                                     setIntraEnabled(next)
                                 }}
                                 title={
