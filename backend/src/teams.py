@@ -186,10 +186,50 @@ def delete_team(
 
     return make_response({'message': 'Success'}, HTTPStatus.OK)
 
-@team_api.route("/school", methods=["GET"])
+@team_api.route("/byschool", methods=["GET"])
 @jwt_required()
 @inject
 def get_teams_by_school(
+    team_repo: TeamRepository = Provide[Container.team_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
+    '''
+    Lists teams for the current admin (teacher).
+    Returns only hashed identifiers (no plaintext emails).
+    '''
+
+    if not isinstance(current_user, AdminUsers):
+        return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
+    school_id = int(getattr(current_user, "SchoolId", 0))
+    requested_school_id = request.args.get("school_id", type=int)
+
+    if requested_school_id:
+        if user_repo.is_admin():
+            school_id = requested_school_id
+        elif requested_school_id != school_id:
+            return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
+    if school_id <= 0:
+        return make_response({'message': 'Invalid school ID'}, HTTPStatus.BAD_REQUEST)
+
+    teams = team_repo.get_teams_by_school(school_id)
+    teams_sorted = sorted(teams, key=lambda x: x.TeamNumber)
+    
+    payload = []
+    for t in teams_sorted:
+        payload.append({
+            "Id": t.Id,
+            "Name": t.Name,
+        })
+
+    return make_response(payload, HTTPStatus.OK)
+    
+
+@team_api.route("/byschool/details", methods=["GET"])
+@jwt_required()
+@inject
+def get_teams_by_school_detailed(
     team_repo: TeamRepository = Provide[Container.team_repo],
     user_repo: UserRepository = Provide[Container.user_repo],
 ):
@@ -247,6 +287,33 @@ def get_teams_by_school(
         })
 
     return make_response(payload, HTTPStatus.OK)
+
+@team_api.route("/members", methods=["GET"])
+@jwt_required()
+@inject
+def get_members_by_team(
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
+    '''
+    Lists members for a given team.
+    '''
+
+    if not isinstance(current_user, AdminUsers):
+        return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
+    team_id = request.args.get("team_id", type=int)
+    if team_id is None:
+        return make_response({'message': 'team_id is required'}, HTTPStatus.BAD_REQUEST)
+
+    members = user_repo.get_students_for_team(team_id)    
+
+    return jsonify([
+        {
+            "Id": m.Id,
+            "MemberId": m.MemberId,
+        }
+        for m in members
+    ])
 
 @team_api.route("/me", methods=["GET"])
 @jwt_required()

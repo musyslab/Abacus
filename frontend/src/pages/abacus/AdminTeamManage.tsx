@@ -256,7 +256,7 @@ export default function AdminTeamManage() {
         setPageError("");
         try {
             const res = await axios.get<ApiTeam[]>(
-                `${apiBase}/teams/school`,
+                `${apiBase}/teams/byschool/details`,
                 {
                     ...authConfig(),
                     params: managedSchoolId ? { school_id: managedSchoolId } : undefined,

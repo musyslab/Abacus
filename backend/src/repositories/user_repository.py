@@ -144,6 +144,13 @@ class UserRepository:
             StudentUsers.query.filter(StudentUsers.TeamId == team_id)
             .count()
         )
+    
+    def get_students_for_team(self, team_id: int) -> List[StudentUsers]:
+        return (
+            StudentUsers.query.filter(StudentUsers.TeamId == team_id)
+            .order_by(StudentUsers.MemberId.asc())
+            .all()
+        )
 
     def get_student_by_emailhash(self, email_hash: str) -> Optional[StudentUsers]:
         return StudentUsers.query.filter(StudentUsers.EmailHash == email_hash).one_or_none()

@@ -28,7 +28,11 @@ def public_get_schools(
     Public endpoint: lists all schools for the registration flow.
     Returns: [{"id": <id>, "name": "<school name>"}]
     """
-    schools = school_repo.get_all_schools()
+    hasTeams = request.args.get("hasTeams", type=bool) or False
+    if hasTeams:
+        schools = school_repo.get_all_schools_with_teams()
+    else:
+        schools = school_repo.get_all_schools()
     return jsonify([{"id": s.Id, "name": s.Name} for s in schools])
 
 @school_api.route("/all", methods=["GET"])
