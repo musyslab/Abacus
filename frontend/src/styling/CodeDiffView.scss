@@ -356,9 +356,16 @@
 .diff-view {
     width: 95%;
     margin: 1rem auto 2rem;
-    display: grid;
-    grid-template-columns: 16% 1fr;
-    gap: 1rem;
+
+    .section-title {
+        margin-bottom: 0.6rem;
+    }
+
+    .diff-content {
+        display: grid;
+        grid-template-columns: 16% 1fr;
+        gap: 1rem;
+    }
 
     .diff-sidebar {
         background: #fff;

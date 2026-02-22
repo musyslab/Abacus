@@ -18,20 +18,6 @@ type NewJsonResult = {
     shortDiffSameAsLong?: boolean
 }
 
-type LegacyJsonTest = {
-    output?: Array<string>
-    type?: number
-    description?: string
-    name?: string
-    hidden?: boolean
-}
-
-type LegacyJsonResult = {
-    skipped?: boolean
-    passed?: boolean
-    test?: LegacyJsonTest
-}
-
 type AnyPayload = {
     results?: any[]
 }
@@ -59,10 +45,6 @@ type Seg = { text: string; changed: boolean }
 
 const MAX_CHANGE_RATIO_FOR_INTRA = 0.7
 
-function normalizeNewlines(text: string) {
-    return (text ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-}
-
 function safeJsonParse(maybe: any): any {
     if (typeof maybe !== 'string') return maybe
     const s = maybe.trim()
@@ -73,65 +55,6 @@ function safeJsonParse(maybe: any): any {
     } catch {
         return maybe
     }
-}
-
-// Legacy: older grader encoded expected/actual in output blocks
-function parseLegacyOutputs(raw: string): { expected: string; actual: string; hadDiff: boolean } {
-    const txt = raw ?? ''
-    if (txt.includes('~~~diff~~~')) {
-        const [userPart, expectedPart = ''] = txt.split('~~~diff~~~')
-        return { expected: expectedPart, actual: userPart, hadDiff: true }
-    }
-
-    const lines = txt.replace(/\r\n/g, '\n').split('\n')
-    const expectedLines: string[] = []
-    const actualLines: string[] = []
-    let sawDiffMarker = false
-
-    for (const l of lines) {
-        const t = l.trimStart()
-        if (t.startsWith('---')) {
-            sawDiffMarker = true
-            continue
-        }
-        if (t.startsWith('< ')) {
-            expectedLines.push(t.slice(2))
-            sawDiffMarker = true
-            continue
-        }
-        if (t.startsWith('> ')) {
-            actualLines.push(t.slice(2))
-            sawDiffMarker = true
-            continue
-        }
-    }
-
-    if (sawDiffMarker) {
-        return { expected: expectedLines.join('\n'), actual: actualLines.join('\n'), hadDiff: true }
-    }
-    return { expected: '', actual: txt, hadDiff: false }
-}
-
-// Simple unified diff builder (legacy fallback only)
-function buildUnifiedDiffLegacy(expected: string, actual: string, title: string): string {
-    const e = normalizeNewlines(expected).split('\n')
-    const a = normalizeNewlines(actual).split('\n')
-    const lines: string[] = []
-    lines.push(`--- actual:${title}`)
-    lines.push(`+++ expected:${title}`)
-    const max = Math.max(e.length, a.length)
-    for (let i = 0; i < max; i++) {
-        const el = e[i] ?? ''
-        const al = a[i] ?? ''
-        if (el === al) {
-            lines.push(` ${el}`)
-        } else {
-            if (al !== '') lines.push(`-${al}`)
-            if (el !== '') lines.push(`+${el}`)
-            if (el === '' && al === '') lines.push(' ')
-        }
-    }
-    return lines.join('\n')
 }
 
 function intralineSegments(a: string, b: string): { a: Seg[]; b: Seg[] } {
@@ -173,7 +96,7 @@ function renderSegs(segs: Seg[], cls: 'add-ch' | 'del-ch') {
     )
 }
 
-type DiffViewProps = {
+type CodeDiffViewProps = {
     submissionId: number
 
     // Optional: enable grading-like behaviors (AdminGrading uses these)
@@ -201,7 +124,7 @@ type DiffViewProps = {
 
 }
 
-export default function DiffView(props: DiffViewProps) {
+export default function CodeDiffView(props: CodeDiffViewProps) {
     const {
         submissionId,
         diffViewRef,
@@ -355,74 +278,24 @@ export default function DiffView(props: DiffViewProps) {
         const raw = Array.isArray(payload?.results) ? payload.results : []
         const entries: DiffEntry[] = []
 
-        const looksNew =
-            raw.length > 0 &&
-            raw.some((r: any) => r && typeof r === 'object' && ('shortDiff' in r || 'longDiff' in r || 'name' in r))
-
-        if (looksNew) {
-            raw.forEach((r: any, idx: number) => {
-                const rr = (r ?? {}) as NewJsonResult
-                const testName = String(rr.name ?? `Test ${idx + 1}`)
-                const passed = Boolean(rr.passed)
-                const hidden = Boolean((rr as any).hidden)
-                const shortDiff = String(rr.shortDiff ?? '')
-                const longDiff = String(rr.longDiff ?? '')
-                const shortDiffSameAsLong = Boolean((rr as any).shortDiffSameAsLong)
-                const desc = String(rr.description ?? '')
-                entries.push({
-                    id: `${idx}__${testName}`,
-                    num: idx + 1,
-                    test: testName,
-                    description: desc,
-                    status: passed ? 'Passed' : 'Failed',
-                    passed,
-                    skipped: false,
-                    shortDiff,
-                    longDiff,
-                    shortDiffSameAsLong,
-                    hidden,
-                })
-            })
-            return entries.sort((a, b) => Number(a.passed) - Number(b.passed) || a.test.localeCompare(b.test))
-        }
-
-        // Legacy fallback (should be rare now): convert old shape into unified-ish diffs
         raw.forEach((r: any, idx: number) => {
-            const rr = (r ?? {}) as LegacyJsonResult
-            const skipped = Boolean(rr.skipped)
+            const rr = (r ?? {}) as NewJsonResult
+            const testName = String(rr.name ?? `Test ${idx + 1}`)
             const passed = Boolean(rr.passed)
-            const t = rr.test ?? {}
-            const testName = String(t.name ?? `Test ${idx + 1}`)
-            const desc = String(t.description ?? '')
-            const hidden = Boolean((t as any).hidden)
-            const rawOut = (skipped ? ['This test did not run due to a configuration issue.'] : (t.output || [])).join(
-                '\n'
-            )
-            const { expected, actual, hadDiff } = parseLegacyOutputs(rawOut)
-            const unified = buildUnifiedDiffLegacy(expected, actual, testName)
-
             entries.push({
                 id: `${idx}__${testName}`,
                 num: idx + 1,
                 test: testName,
-                description: desc,
-                status: skipped ? 'Skipped' : passed ? 'Passed' : 'Failed',
-                passed,
-                skipped,
-                shortDiff: passed ? '' : unified,
-                longDiff: passed ? '' : unified,
-                shortDiffSameAsLong: !passed && !skipped,
-                hidden,
+                description: String(rr.description ?? ''),
+                status: passed ? 'Passed' : 'Failed',
+                passed: passed,
+                skipped: false,
+                shortDiff: String(rr.shortDiff ?? ''),
+                longDiff: String(rr.longDiff ?? ''),
+                shortDiffSameAsLong: Boolean(rr.shortDiffSameAsLong),
+                hidden: Boolean(rr.hidden),
             })
-
-            // If there was no explicit diff, still show something readable
-            if (!passed && !skipped && !hadDiff && !unified.trim()) {
-                entries[entries.length - 1].shortDiff = buildUnifiedDiffLegacy('', rawOut, testName)
-                entries[entries.length - 1].longDiff = entries[entries.length - 1].shortDiff
-                entries[entries.length - 1].shortDiffSameAsLong = true
-            }
         })
-
         return entries.sort((a, b) => Number(a.passed) - Number(b.passed) || a.test.localeCompare(b.test))
     }, [payload])
 
@@ -513,267 +386,301 @@ export default function DiffView(props: DiffViewProps) {
 
     const isLineClickable = Boolean(onLineMouseDown)
 
-    const DiffViewSection = () => {
+    const DiffView = () => {
         return (
             <section
                 className={`diff-view ${disableCopy ? 'no-user-select' : ''}`}
                 {...copyBlockHandlers}
                 ref={diffViewRef}
             >
-                <aside className="diff-sidebar">
-                    <ul className="diff-file-list">
-                        {!testsLoaded && <li className="muted">Loading…</li>}
-                        {testsLoaded && diffFilesAll.length === 0 && <li className="muted">No tests.</li>}
-                        {diffFilesAll.sort((a, b) => a.num - b.num).map((f) => (
-                            <li
-                                key={f.id}
-                                className={
-                                    'file-item ' +
-                                    (f.id === selectedDiffId ? 'selected ' : '') +
-                                    (f.passed ? 'passed' : 'failed')
-                                }
-                                onClick={() => setSelectedDiffId(f.id)}
-                                title={`Testcase ${f.num}: ${f.test}`}
-                            >
-                                <div className="testcase-name">
-                                    <span className="tc-num">{f.num}.</span> {f.test}
-                                </div>
-                                <div className="testcase-sub">
-                                    <span className={'status-dot ' + (f.passed ? 'is-pass' : 'is-fail')} />
-                                    {f.status}
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                </aside>
+                <h2 className="section-title">Testcases</h2>
+                <div className="diff-content">
+                    <aside className="diff-sidebar">
+                        <ul className="diff-file-list">
+                            {!testsLoaded && <li className="muted">Loading…</li>}
+                            {testsLoaded && diffFilesAll.length === 0 && <li className="muted">No tests.</li>}
+                            {diffFilesAll.sort((a, b) => a.num - b.num).map((f) => (
+                                <li
+                                    key={f.id}
+                                    className={
+                                        'file-item ' +
+                                        (f.id === selectedDiffId ? 'selected ' : '') +
+                                        (f.passed ? 'passed' : 'failed')
+                                    }
+                                    onClick={() => setSelectedDiffId(f.id)}
+                                    title={`Testcase ${f.num}: ${f.test}`}
+                                >
+                                    <div className="testcase-name">
+                                        <span className="tc-num">{f.num}.</span> {f.test}
+                                    </div>
+                                    <div className="testcase-sub">
+                                        <span className={'status-dot ' + (f.passed ? 'is-pass' : 'is-fail')} />
+                                        {f.status}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    </aside>
 
-                <div className="diff-pane">
-                    <div className="diff-toolbar">
-                        <div className="diff-title">
-                            {selectedFile ? `Testcase ${selectedFile.num}: ${selectedFile.test}` : 'No selection'}
+                    <div className="diff-pane">
+                        <div className="diff-toolbar">
+                            <div className="diff-title">
+                                {selectedFile ? `Testcase ${selectedFile.num}: ${selectedFile.test}` : 'No selection'}
+                            </div>
+
+                            <div className="spacer" />
+
+                            {/* Button 1: shortDiff vs longDiff */}
+                            {showDiffModeToggle && (
+                                <button
+                                    type="button"
+                                    className={`btn toggle-mode ${diffMode === 'long' ? 'on' : 'off'}`}
+                                    aria-pressed={diffMode === 'long'}
+                                    onClick={() => {
+                                        const next: DiffMode = diffMode === 'short' ? 'long' : 'short'
+                                        //logUiClick('Diff Mode', diffMode === 'long', next === 'long')
+                                        setDiffMode(next)
+                                    }}
+                                    title="Toggle between shortDiff and longDiff"
+                                >
+                                    Diff Mode: {diffMode === 'short' ? 'Short' : 'Long'}
+                                </button>
+                            )}
+
+                            {/* Button 2: Diff Finder */}
+                            {selectedFile && !selectedFile.passed && (!selectedFile.hidden || revealHiddenOutput) && (
+                                <button
+                                    type="button"
+                                    className={`btn toggle-intra ${intraEnabled ? 'on' : 'off'}`}
+                                    aria-pressed={intraEnabled}
+                                    disabled={!hasIntraInSelected}
+                                    onClick={() => {
+                                        const next = !intraEnabled
+                                        //logUiClick('Diff Finder', initialIntraRef.current, next)
+                                        setIntraEnabled(next)
+                                    }}
+                                    title={
+                                        hasIntraInSelected
+                                            ? 'Toggle intra-line highlighting'
+                                            : 'Intra-line highlighting is not available for this diff'
+                                    }
+                                >
+                                    Diff Finder: {intraEnabled ? 'On' : 'Off'}
+                                </button>
+                            )}
                         </div>
 
-                        <div className="spacer" />
+                        <div className="diff-code">
+                            {!selectedFile && <div className="muted">Select a test on the left to view its diff.</div>}
 
-                        {/* Button 1: shortDiff vs longDiff */}
-                        {showDiffModeToggle && (
-                            <button
-                                type="button"
-                                className={`btn toggle-mode ${diffMode === 'long' ? 'on' : 'off'}`}
-                                aria-pressed={diffMode === 'long'}
-                                onClick={() => {
-                                    const next: DiffMode = diffMode === 'short' ? 'long' : 'short'
-                                    //logUiClick('Diff Mode', diffMode === 'long', next === 'long')
-                                    setDiffMode(next)
-                                }}
-                                title="Toggle between shortDiff and longDiff"
-                            >
-                                Diff Mode: {diffMode === 'short' ? 'Short' : 'Long'}
-                            </button>
-                        )}
-
-                        {/* Button 2: Diff Finder */}
-                        {selectedFile && !selectedFile.passed && (!selectedFile.hidden || revealHiddenOutput) && (
-                            <button
-                                type="button"
-                                className={`btn toggle-intra ${intraEnabled ? 'on' : 'off'}`}
-                                aria-pressed={intraEnabled}
-                                disabled={!hasIntraInSelected}
-                                onClick={() => {
-                                    const next = !intraEnabled
-                                    //logUiClick('Diff Finder', initialIntraRef.current, next)
-                                    setIntraEnabled(next)
-                                }}
-                                title={
-                                    hasIntraInSelected
-                                        ? 'Toggle intra-line highlighting'
-                                        : 'Intra-line highlighting is not available for this diff'
-                                }
-                            >
-                                Diff Finder: {intraEnabled ? 'On' : 'Off'}
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="diff-code">
-                        {!selectedFile && <div className="muted">Select a test on the left to view its diff.</div>}
-
-                        {selectedFile && selectedFile.hidden && (
-                            <div className="diff-content">
-                                <div className="diff-empty hidden" role="status" aria-live="polite">
-                                    <div className="empty-icon" aria-hidden="true">
-                                        <FaLock />
-                                    </div>
-                                    <div className="empty-text">
-                                        <div className="empty-title">Output hidden</div>
-                                        <div className="empty-subtitle">
-                                            This testcase’s output is hidden. Result: {selectedFile.passed ? 'Passed' : 'Failed'}.
+                            {selectedFile && selectedFile.hidden && (
+                                <div className="diff-content">
+                                    <div className="diff-empty hidden" role="status" aria-live="polite">
+                                        <div className="empty-icon" aria-hidden="true">
+                                            <FaLock />
+                                        </div>
+                                        <div className="empty-text">
+                                            <div className="empty-title">Output hidden</div>
+                                            <div className="empty-subtitle">
+                                                This testcase’s output is hidden. Result: {selectedFile.passed ? 'Passed' : 'Failed'}.
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {selectedFile && (!selectedFile.hidden || revealHiddenOutput) && selectedFile.passed && (
+                            {selectedFile && (!selectedFile.hidden || revealHiddenOutput) && selectedFile.passed && (
 
-                            <div className="diff-content">
-                                <div className="diff-empty" role="status" aria-live="polite">
-                                    <div className="empty-icon" aria-hidden="true">
-                                        <FaRegCheckSquare />
-                                    </div>
-                                    <div className="empty-text">
-                                        <div className="empty-title">No differences found</div>
-                                        <div className="empty-subtitle">Your program’s output matches the expected output.</div>
+                                <div className="diff-content">
+                                    <div className="diff-empty" role="status" aria-live="polite">
+                                        <div className="empty-icon" aria-hidden="true">
+                                            <FaRegCheckSquare />
+                                        </div>
+                                        <div className="empty-text">
+                                            <div className="empty-title">No differences found</div>
+                                            <div className="empty-subtitle">Your program’s output matches the expected output.</div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {selectedFile && (!selectedFile.hidden || revealHiddenOutput) && !selectedFile.passed && (
-                            <div className="diff-content">
-                                {(() => {
-                                    const txt = selectedDiffText || ''
-                                    if (!txt.trim()) {
-                                        return <div className="muted">No diff text was provided for this test in {diffMode}.</div>
-                                    }
-
-                                    const lines = txt.split('\n')
-                                    const out: JSX.Element[] = []
-
-                                    for (let i = 0; i < lines.length; i++) {
-                                        const line = lines[i] ?? ''
-
-                                        // Headers/hunks first so they never pair or get intra
-                                        if (line.startsWith('---') || line.startsWith('+++') || line.startsWith('@@')) {
-                                            const headerCls = line.startsWith('---')
-                                                ? 'del header'
-                                                : line.startsWith('+++')
-                                                    ? 'add header'
-                                                    : 'meta header'
-                                            out.push(
-                                                <div key={i} className={`diff-line ${headerCls}`}>
-                                                    {line || ' '}
-                                                </div>
-                                            )
-                                            continue
+                            {selectedFile && (!selectedFile.hidden || revealHiddenOutput) && !selectedFile.passed && (
+                                <div className="diff-content">
+                                    {(() => {
+                                        const txt = selectedDiffText || ''
+                                        if (!txt.trim()) {
+                                            return <div className="muted">No diff text was provided for this test in {diffMode}.</div>
                                         }
 
-                                        const type = line[0]
-                                        const content = line.slice(1)
-                                        const next = lines[i + 1] ?? ''
+                                        const lines = txt.split('\n')
+                                        const out: JSX.Element[] = []
 
-                                        const isSingleAdd = line.startsWith('+') && !line.startsWith('+++')
-                                        const isSingleDel = line.startsWith('-') && !line.startsWith('---')
-                                        const nextIsSingleAdd = next.startsWith('+') && !next.startsWith('+++')
-                                        const nextIsSingleDel = next.startsWith('-') && !next.startsWith('---')
-                                        const pairable = (isSingleDel && nextIsSingleAdd) || (isSingleAdd && nextIsSingleDel)
+                                        for (let i = 0; i < lines.length; i++) {
+                                            const line = lines[i] ?? ''
 
-                                        if (pairable) {
-                                            const otherContent = next.slice(1)
-                                            const addText = type === '-' ? otherContent : content
-                                            const delText = type === '-' ? content : otherContent
+                                            // Headers/hunks first so they never pair or get intra
+                                            if (line.startsWith('---') || line.startsWith('+++') || line.startsWith('@@')) {
+                                                const headerCls = line.startsWith('---')
+                                                    ? 'del header'
+                                                    : line.startsWith('+++')
+                                                        ? 'add header'
+                                                        : 'meta header'
+                                                out.push(
+                                                    <div key={i} className={`diff-line ${headerCls}`}>
+                                                        {line || ' '}
+                                                    </div>
+                                                )
+                                                continue
+                                            }
 
-                                            if (!intraEnabled || !areSimilarForIntra(delText, addText)) {
+                                            const type = line[0]
+                                            const content = line.slice(1)
+                                            const next = lines[i + 1] ?? ''
+
+                                            const isSingleAdd = line.startsWith('+') && !line.startsWith('+++')
+                                            const isSingleDel = line.startsWith('-') && !line.startsWith('---')
+                                            const nextIsSingleAdd = next.startsWith('+') && !next.startsWith('+++')
+                                            const nextIsSingleDel = next.startsWith('-') && !next.startsWith('---')
+                                            const pairable = (isSingleDel && nextIsSingleAdd) || (isSingleAdd && nextIsSingleDel)
+
+                                            if (pairable) {
+                                                const otherContent = next.slice(1)
+                                                const addText = type === '-' ? otherContent : content
+                                                const delText = type === '-' ? content : otherContent
+
+                                                if (!intraEnabled || !areSimilarForIntra(delText, addText)) {
+                                                    out.push(
+                                                        <div key={`d-${i}`} className="diff-line del">
+                                                            <span className="diff-sign">-</span>
+                                                            {delText || '\u00A0'}
+                                                        </div>
+                                                    )
+                                                    out.push(
+                                                        <div key={`a-${i + 1}`} className="diff-line add">
+                                                            <span className="diff-sign">+</span>
+                                                            {addText || '\u00A0'}
+                                                        </div>
+                                                    )
+                                                    i++
+                                                    continue
+                                                }
+
+                                                const { a, b } = intralineSegments(delText, addText)
                                                 out.push(
                                                     <div key={`d-${i}`} className="diff-line del">
                                                         <span className="diff-sign">-</span>
-                                                        {delText || '\u00A0'}
+                                                        {renderSegs(a, 'del-ch')}
                                                     </div>
                                                 )
                                                 out.push(
                                                     <div key={`a-${i + 1}`} className="diff-line add">
                                                         <span className="diff-sign">+</span>
-                                                        {addText || '\u00A0'}
+                                                        {renderSegs(b, 'add-ch')}
                                                     </div>
                                                 )
                                                 i++
                                                 continue
                                             }
 
-                                            const { a, b } = intralineSegments(delText, addText)
+                                            const cls = line.startsWith('+') ? 'add' : line.startsWith('-') ? 'del' : 'ctx'
+
                                             out.push(
-                                                <div key={`d-${i}`} className="diff-line del">
-                                                    <span className="diff-sign">-</span>
-                                                    {renderSegs(a, 'del-ch')}
+                                                <div key={i} className={`diff-line ${cls}`}>
+                                                    {line || ' '}
                                                 </div>
                                             )
-                                            out.push(
-                                                <div key={`a-${i + 1}`} className="diff-line add">
-                                                    <span className="diff-sign">+</span>
-                                                    {renderSegs(b, 'add-ch')}
-                                                </div>
-                                            )
-                                            i++
-                                            continue
                                         }
 
-                                        const cls = line.startsWith('+') ? 'add' : line.startsWith('-') ? 'del' : 'ctx'
-
-                                        out.push(
-                                            <div key={i} className={`diff-line ${cls}`}>
-                                                {line || ' '}
-                                            </div>
-                                        )
-                                    }
-
-                                    return out
-                                })()}
-                            </div>
-                        )}
+                                        return out
+                                    })()}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </section>
         )
     }
 
-    const CodeSection = () => {
+    const CodeView = () => {
         return (
-            <Highlight theme={themes.vsLight} code={codeText} language={language as any}>
-                {({ style, tokens, getLineProps, getTokenProps }) => (
-                    <div
-                        className={`code-block code-viewer ${isLineClickable ? 'line-clickable' : ''}`}
-                        ref={effectiveCodeContainerRef}
-                        onMouseLeave={onLineMouseUp ? () => onLineMouseUp() : undefined}
-                        role="region"
-                        aria-label="Submitted source code"
-                    >
-                        <ol className="code-list" style={style}>
-                            {tokens.map((line, i) => {
-                                const lineNo = i + 1
-                                const { key: lineKey, ...lineProps } = getLineProps({ line, key: i })
-                                const extraCls = getLineClassName ? getLineClassName(lineNo) : ''
-                                return (
-                                    <li
-                                        key={lineKey ?? lineNo}
-                                        ref={(el) => {
-                                            if (lineRefs) lineRefs.current[lineNo] = el
-                                        }}
-                                        {...lineProps}
-                                        className={`code-line ${extraCls} ${lineProps.className ?? ''}`}
-                                        onMouseDown={onLineMouseDown ? () => onLineMouseDown(lineNo) : undefined}
-                                        onMouseEnter={onLineMouseEnter ? () => onLineMouseEnter(lineNo) : undefined}
-                                        onMouseLeave={onLineMouseLeave ? () => onLineMouseLeave(lineNo) : undefined}
-                                        onMouseUp={onLineMouseUp ? () => onLineMouseUp() : undefined}
-                                        title={
-                                            onLineMouseDown ? 'Click this line to add or view grading errors' : undefined
-                                        }
+            <section className="code-section">
+                <h2 className="section-title">{codeSectionTitle}</h2>
+                {codeFiles.length === 0 && <div className="no-data-message">Fetching submitted code…</div>}
+
+                {codeFiles.length > 0 && (
+                    <>
+                        {codeFiles.length > 1 && (
+                            <div className="code-file-picker">
+                                <label className="section-label" htmlFor="codefile-select">
+                                    File Selection
+                                </label>
+                                <div className="select-wrap">
+                                    <select
+                                        id="codefile-select"
+                                        className="select"
+                                        value={selectedCodeFile}
+                                        onChange={(e) => setSelectedCodeFile(e.target.value)}
                                     >
-                                        <span className="gutter">
-                                            <span className="line-number">{lineNo}</span>
-                                        </span>
-                                        <span className="code-text">
-                                            {line.map((token, key) => {
-                                                const { key: tokenKey, ...tokenProps } = getTokenProps({ token, key })
-                                                return <span key={tokenKey ?? key} {...tokenProps} />
-                                            })}
-                                        </span>
-                                    </li>
-                                )
-                            })}
-                        </ol>
-                    </div>
+                                        {codeFiles.map((f) => (
+                                            <option key={f.name} value={f.name}>
+                                                {f.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <FaChevronDown className="select-icon" aria-hidden="true" />
+                                </div>
+                            </div>
+                        )}
+                        <Highlight theme={themes.vsLight} code={codeText} language={language as any}>
+                            {({ style, tokens, getLineProps, getTokenProps }) => (
+                                <div
+                                    className={`code-block code-viewer ${isLineClickable ? 'line-clickable' : ''}`}
+                                    ref={effectiveCodeContainerRef}
+                                    onMouseLeave={onLineMouseUp ? () => onLineMouseUp() : undefined}
+                                    role="region"
+                                    aria-label="Submitted source code"
+                                >
+                                    <ol className="code-list" style={style}>
+                                        {tokens.map((line, i) => {
+                                            const lineNo = i + 1
+                                            const { key: lineKey, ...lineProps } = getLineProps({ line, key: i })
+                                            const extraCls = getLineClassName ? getLineClassName(lineNo) : ''
+                                            return (
+                                                <li
+                                                    key={lineKey ?? lineNo}
+                                                    ref={(el) => {
+                                                        if (lineRefs) lineRefs.current[lineNo] = el
+                                                    }}
+                                                    {...lineProps}
+                                                    className={`code-line ${extraCls} ${lineProps.className ?? ''}`}
+                                                    onMouseDown={onLineMouseDown ? () => onLineMouseDown(lineNo) : undefined}
+                                                    onMouseEnter={onLineMouseEnter ? () => onLineMouseEnter(lineNo) : undefined}
+                                                    onMouseLeave={onLineMouseLeave ? () => onLineMouseLeave(lineNo) : undefined}
+                                                    onMouseUp={onLineMouseUp ? () => onLineMouseUp() : undefined}
+                                                    title={
+                                                        onLineMouseDown ? 'Click this line to add or view grading errors' : undefined
+                                                    }
+                                                >
+                                                    <span className="gutter">
+                                                        <span className="line-number">{lineNo}</span>
+                                                    </span>
+                                                    <span className="code-text">
+                                                        {line.map((token, key) => {
+                                                            const { key: tokenKey, ...tokenProps } = getTokenProps({ token, key })
+                                                            return <span key={tokenKey ?? key} {...tokenProps} />
+                                                        })}
+                                                    </span>
+                                                </li>
+                                            )
+                                        })}
+                                    </ol>
+                                </div>
+                            )}
+                        </Highlight>
+                    </>
                 )}
-            </Highlight>
+            </section>
         )
     }
 
@@ -782,44 +689,12 @@ export default function DiffView(props: DiffViewProps) {
             {rightPanel ? (
                 <div className="diff-code-panel">
                     <div className="diff-and-code">
-                        <DiffViewSection />
+                        <DiffView />
 
                         {betweenDiffAndCode}
 
-                        {/* ==================== CODE SECTION (BOTTOM) ==================== */}
-                        <section className="code-section">
-                            <h2 className="section-title">{codeSectionTitle}</h2>
-                            {codeFiles.length === 0 && <div className="no-data-message">Fetching submitted code…</div>}
-
-                            {codeFiles.length > 0 && (
-                                <>
-                                    {codeFiles.length > 1 && (
-                                        <div className="code-file-picker">
-                                            <label className="section-label" htmlFor="codefile-select">
-                                                File Selection
-                                            </label>
-                                            <div className="select-wrap">
-                                                <select
-                                                    id="codefile-select"
-                                                    className="select"
-                                                    value={selectedCodeFile}
-                                                    onChange={(e) => setSelectedCodeFile(e.target.value)}
-                                                >
-                                                    {codeFiles.map((f) => (
-                                                        <option key={f.name} value={f.name}>
-                                                            {f.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                <FaChevronDown className="select-icon" aria-hidden="true" />
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <CodeSection />
-                                </>
-                            )}
-                        </section>
+                        <CodeView />
+                        
                         {belowCode}
                     </div>
 
@@ -827,44 +702,12 @@ export default function DiffView(props: DiffViewProps) {
                 </div>
             ) : (
                 <>
-                    <DiffViewSection />
+                    <DiffView />
 
                     {betweenDiffAndCode}
 
-                    {/* ==================== CODE SECTION (BOTTOM) ==================== */}
-                    <section className="code-section">
-                        <h2 className="section-title">{codeSectionTitle}</h2>
-                        {codeFiles.length === 0 && <div className="no-data-message">Fetching submitted code…</div>}
+                    <CodeView />
 
-                        {codeFiles.length > 0 && (
-                            <>
-                                {codeFiles.length > 1 && (
-                                    <div className="code-file-picker">
-                                        <label className="section-label" htmlFor="codefile-select">
-                                            File Selection
-                                        </label>
-                                        <div className="select-wrap">
-                                            <select
-                                                id="codefile-select"
-                                                className="select"
-                                                value={selectedCodeFile}
-                                                onChange={(e) => setSelectedCodeFile(e.target.value)}
-                                            >
-                                                {codeFiles.map((f) => (
-                                                    <option key={f.name} value={f.name}>
-                                                        {f.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <FaChevronDown className="select-icon" aria-hidden="true" />
-                                        </div>
-                                    </div>
-                                )}
-
-                                <CodeSection />
-                            </>
-                        )}
-                    </section>
                     {belowCode}
                 </>
             )}

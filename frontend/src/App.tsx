@@ -31,10 +31,11 @@ import AdminProjectList from './pages/abacus/AdminProjectList';
 import AdminProjectManage from './pages/abacus/AdminProjectManage';
 import StudentSubmit from './pages/abacus/StudentSubmit';
 import StudentSubmissions from './pages/abacus/AdminStudentSubmissions';
-import StudentDiff from './pages/abacus/StudentDiff';
 import AdminTeamManage from './pages/abacus/AdminTeamManage';
 import AdminUpload from './pages/abacus/AdminUpload';
 import StudentProjectSelection from './pages/abacus/StudentProjectSelection';
+
+import SubmissionView from './pages/abacus/SubmissionView';
 
 import ProtectedRoute from './pages/components/ProtectedRoute';
 
@@ -66,6 +67,12 @@ class App extends Component {
 
                     <Route path="/" element={<LandingPage />} />
 
+                    <Route path="/submission/:id" element={
+                        <ProtectedRoute>
+                            <SubmissionView />
+                        </ProtectedRoute>
+                    } />
+
                     <Route path="/admin/schools" element={
                         <ProtectedRoute requiredAdminRole={1}>
                             <AdminSchoolRoster />
@@ -80,11 +87,6 @@ class App extends Component {
                     <Route path="/admin/:school_id/student/:student_id" element={
                         <ProtectedRoute>
                             <StudentSubmissions />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/:school_id/student/:student_id/:problem_id/:id" element={
-                        <ProtectedRoute>
-                            <StudentDiff />
                         </ProtectedRoute>
                     } />
                     <Route path="/admin/problems" element={
@@ -117,11 +119,6 @@ class App extends Component {
                     <Route path="/student/:problem_id/submit" element={
                         <ProtectedRoute>
                             <StudentSubmit />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/student/code/:id" element={
-                        <ProtectedRoute>
-                            <StudentDiff />
                         </ProtectedRoute>
                     } />
 

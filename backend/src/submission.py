@@ -3,6 +3,8 @@ import os
 import threading
 import requests
 import urllib3
+from src.repositories.school_repository import SchoolRepository
+from src.repositories.team_repository import TeamRepository
 from src.repositories.user_repository import UserRepository
 from flask import Blueprint
 from flask import make_response, request, current_app, send_file
@@ -786,3 +788,66 @@ def export_project_grades(submission_repo: SubmissionRepository = Provide[Contai
     resp.headers["Project-Name"] = project_name
     resp.headers["Access-Control-Expose-Headers"] = "Content-Disposition, Project-Name"
     return resp
+
+@submission_api.route('/data', methods=['GET'])
+@jwt_required()
+@inject
+def get_submission_data(
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+    school_repo: SchoolRepository = Provide[Container.school_repo],
+    team_repo: TeamRepository = Provide[Container.team_repo],
+):
+    submission_id_raw = request.args.get("id", type=int)
+    if submission_id_raw is None:
+        return make_response("Missing submission ID", HTTPStatus.BAD_REQUEST)
+    submission_id = int(submission_id_raw)
+
+    submission = submission_repo.get_submission_by_submission_id(submission_id)
+    if not submission:
+        return make_response("Submission not found", HTTPStatus.NOT_FOUND)
+
+    # Handles which role accesses the data
+    user_status = user_repo.get_user_status()
+    role = user_status
+    if user_status == "admin" and not user_repo.is_admin():
+        role = "teacher"
+
+    # Verifies if user is an admin or if the user is apart of the team that submitted
+    if user_status and not submission_repo.submission_view_verification(current_user.Id, submission_id):
+        return make_response("Unauthorized", HTTPStatus.FORBIDDEN)
+
+    user_id = int(getattr(submission, "User", 0) or 0)
+    project_id = int(getattr(submission, "Project", 0) or 0)
+    team_id = int(getattr(submission, "Team", 0) or 0)
+
+    if not user_id or not project_id or not team_id:
+        return make_response(
+            jsonify({"message": "Submission has missing associations"}),
+            HTTPStatus.INTERNAL_SERVER_ERROR
+        )
+
+    student = user_repo.get_student_by_id(user_id)
+    if not student:
+        return make_response(jsonify({"message": "User associated with submission not found"}), HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    school_id = int(getattr(student, "SchoolId", 0) or 0)
+    if not school_id:
+        return make_response(jsonify({"message": "School associated with submission not found"}), HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    project = project_repo.get_selected_project(project_id)
+    school = school_repo.get_school_by_id(school_id)
+    team = team_repo.get_team_by_id(team_id)
+
+    data = {
+        "id": submission_id,
+        "userId": user_id,
+        "role": role,
+        "project": {"id": project_id, "name": (getattr(project, "Name", "") or "").strip()},
+        "school": {"id": school_id, "name": (getattr(school, "Name", "") or "").strip()},
+        "team": {"id": team_id, "name": (getattr(team, "Name", "") or "").strip()},
+        "memberId": getattr(student, "MemberId", None),
+        "time": getattr(submission, "Time", "").strftime("%x %X") if getattr(submission, "Time", None) else "",
+    }
+    return make_response(jsonify(data), HTTPStatus.OK)

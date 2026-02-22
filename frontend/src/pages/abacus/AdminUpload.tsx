@@ -3,7 +3,7 @@ import axios from 'axios'
 import MenuComponent from '../components/MenuComponent'
 import LoadingAnimation from '../components/LoadingAnimation'
 import { Helmet } from 'react-helmet'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import Select from 'react-select'
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
 import '../../styling/AdminUpload.scss'
@@ -261,7 +261,7 @@ const AdminUpload = () => {
         try {
             const res = await axios.post(`${API}/upload/`, formData, authConfig())
             setIsLoading(false)
-            navigate(`/student/code/${res.data.sid}`)
+            navigate(`/submission/${res.data.sid}`)
         } catch (err: any) {
             console.log(err)
             alert('Upload failed.')
