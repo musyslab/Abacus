@@ -38,7 +38,6 @@ export default function SubmissionView() {
     }
 
     const [metadata, setMetadata] = useState<SubmissionMetadata | null>(null)
-    const projectName = metadata?.project.name || ""
 
     useEffect(() => {
         async function fetchMetadata() {
@@ -54,10 +53,13 @@ export default function SubmissionView() {
         fetchMetadata()
     }, [API, submissionId])
 
+    const projectName = metadata?.project.name || ""
+    const isAdminMode = metadata?.role === "admin"
+
     return (
         <>
             <Helmet>
-                <title>Abacus</title>
+                <title>{isAdminMode ? "[Admin] Abacus" : "Abacus"}</title>
             </Helmet>
 
             <MenuComponent/>
@@ -76,31 +78,29 @@ export default function SubmissionView() {
                        <div className="submission-details-content">
                         {metadata ? (
                             <div className="submission-details-bar">
-                            {metadata.role === "admin" && (
+                                {isAdminMode && (
+                                    <div className="meta-chip">
+                                        <span className="meta-label">School:</span>
+                                        <span className="meta-value">{metadata.school.name}</span>
+                                    </div>
+                                )}
+
+                                {metadata.role !== "student" && (
+                                    <div className="meta-chip">
+                                        <span className="meta-label">Team:</span>
+                                        <span className="meta-value">{metadata.team.name}</span>
+                                    </div>
+                                )}
+
                                 <div className="meta-chip">
-                                <span className="meta-label">School:</span>
-                                <span className="meta-value">{metadata.school.name}</span>
+                                    <span className="meta-label">Submitted by:</span>
+                                    <span className="meta-value">Member {metadata.memberId}</span>
                                 </div>
-                            )}
 
-                            {metadata.role !== "student" && (
                                 <div className="meta-chip">
-                                <span className="meta-label">Team:</span>
-                                <span className="meta-value">{metadata.team.name}</span>
+                                    <span className="meta-label">Submitted at:</span>
+                                    <span className="meta-value">{metadata.time}</span>
                                 </div>
-                            )}
-
-                            <div className="meta-chip">
-                                <span className="meta-label">Member:</span>
-                                <span className="meta-value">
-                                {metadata.memberId !== null ? metadata.memberId : "N/A"}
-                                </span>
-                            </div>
-
-                            <div className="meta-chip">
-                                <span className="meta-label">Time:</span>
-                                <span className="meta-value">{metadata.time}</span>
-                            </div>
                             </div>
                         ) : (
                             <div>Loading submission details...</div>
