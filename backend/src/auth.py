@@ -1,3 +1,5 @@
+DEBUGGER_MODE = True
+
 import hashlib
 import os
 from http import HTTPStatus
@@ -136,7 +138,7 @@ def admin_login(user_repo: UserRepository = Provide[Container.user_repo]):
     if getattr(admin, "IsLocked", False):
         return make_response({'message': 'Your account has been locked! Please contact an administrator!'}, HTTPStatus.FORBIDDEN)
 
-    if not (admin.PasswordHash or "").strip():
+    if (DEBUGGER_MODE == False) and not (admin.PasswordHash or "").strip():
         return make_response(
         {
             'message': 'Account setup pending. Please check your email for a password link.'
@@ -175,7 +177,7 @@ def student_login(user_repo: UserRepository = Provide[Container.user_repo]):
     if getattr(student, "IsLocked", False):
         return make_response({'message': 'Your account has been locked! Please contact an administrator!'}, HTTPStatus.FORBIDDEN)
 
-    if not (student.PasswordHash or "").strip():
+    if (DEBUGGER_MODE == False) and not (student.PasswordHash or "").strip():
         return make_response(
             {'message': 'Account setup pending. Please check your email for a password link, or request a new one.'},
             HTTPStatus.FORBIDDEN
@@ -238,36 +240,50 @@ def register_user(user_repo: UserRepository = Provide[Container.user_repo]):
         school_obj = existing if existing else user_repo.create_school(school)
 
     # IMPORTANT: create teacher WITHOUT a password
+    if (DEBUGGER_MODE == True):
+        default_password = "admin123"
+        password_hash = generate_password_hash(default_password)
+    else:
+        password_hash = None
+    
     admin = user_repo.create_admin_user(
         email=email,
         first_name=first_name,
         last_name=last_name,
         school_id=school_obj.Id,
-        password_hash=None,
+        password_hash = password_hash,
         questionOne = questionOne,
         questionTwo = questionTwo,
         role=0
     )
 
     # Send password setup email
-    try:
-        token = create_password_token("admin", admin.Id, admin.PasswordHash or "")
-        link = build_password_link(token)
-        send_password_link_email(
-            to_email=email,
-            link=link,
-            account_type="admin",
-        )
-    except Exception as e:
-        return make_response(
-            {'message': f'Account created but failed to send email: {str(e)}'},
-            HTTPStatus.INTERNAL_SERVER_ERROR
-        )
+    if (DEBUGGER_MODE == False):
+        try:
+            token = create_password_token("admin", admin.Id, admin.PasswordHash or "")
+            link = build_password_link(token)
+            send_password_link_email(
+                to_email=email,
+                link=link,
+                account_type="admin",
+            )
+        except Exception as e:
+            return make_response(
+                {'message': f'Account created but failed to send email: {str(e)}'},
+                HTTPStatus.INTERNAL_SERVER_ERROR
+            )
 
-    return make_response(
-        {'message': 'Account created. Please check your email to set your password.'},
-        HTTPStatus.OK
-    )
+        return make_response(
+            {'message': 'Account created. Please check your email to set your password.'},
+            HTTPStatus.OK
+        )
+    else:
+        return make_response(
+            {'message': 'Account successfully created in debugging mode.',
+             'Account Password': 'admin123'
+            },
+            HTTPStatus.OK
+        )
 
 @auth_api.route('/student/create', methods=['POST'])
 @jwt_required()
@@ -324,7 +340,11 @@ def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]
     if user_repo.count_team_members_for_school(school_id, team.Id) >= 4:
         return make_response({'message': 'This team already has 4 members.'}, HTTPStatus.CONFLICT)
 
-    password_hash = generate_password_hash(password) if password else None
+    if (DEBUGGER_MODE == True):
+        default_password = "admin123"
+        password_hash = generate_password_hash(default_password)
+    else:
+        password_hash = generate_password_hash(password) if password else None
 
     teacher_id = current_user.Id
     if role == 1:
@@ -403,6 +423,7 @@ def invite_student_stub(user_repo: UserRepository = Provide[Container.user_repo]
     Sends (or re-sends) a password link email to a student.
     Verifies the provided email matches the stored hash for the team/member.
     """
+
     if not isinstance(current_user, AdminUsers):
         return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
 
@@ -441,6 +462,13 @@ def invite_student_stub(user_repo: UserRepository = Provide[Container.user_repo]
     if provided_hash != (student.EmailHash or ""):
         return make_response({'message': 'Email does not match saved hash for this member.'}, HTTPStatus.FORBIDDEN)
 
+    if (DEBUGGER_MODE == False):
+        return make_response(
+            {
+                'message: Email invite skipped in debugging mode.'
+            },
+            HTTPStatus.OK
+        )
     try:
         token = create_password_token("student", student.Id, student.PasswordHash or "")
         link = build_password_link(token)
@@ -466,18 +494,19 @@ def request_admin_password_reset(user_repo: UserRepository = Provide[Container.u
     if email:
         admin = user_repo.get_admin_by_email(email)
         if admin:
-            try:
-                token = create_password_token("admin", admin.Id, admin.PasswordHash or "")
-                link = build_password_link(token)
-                send_password_link_email(
-                    to_email=email,
-                    link=link,
-                    account_type="admin",
-                )
-            except Exception:
-                # Intentionally swallow errors here (still return 200)
-                pass
-    return make_response({'message': 'If an account exists for that email, a password link has been sent.'}, HTTPStatus.OK)
+            if (DEBUGGER_MODE == False):
+                try:
+                    token = create_password_token("admin", admin.Id, admin.PasswordHash or "")
+                    link = build_password_link(token)
+                    send_password_link_email(
+                        to_email=email,
+                        link=link,
+                        account_type="admin",
+                    )
+                except Exception:
+                    # Intentionally swallow errors here (still return 200)
+                    pass
+        return make_response({'message': 'If an account exists for that email, a password link has been sent.'}, HTTPStatus.OK)
 
 
 @auth_api.route('/student/request-password-reset', methods=['POST'])
@@ -492,18 +521,19 @@ def request_student_password_reset(user_repo: UserRepository = Provide[Container
         email_hash = hashlib.sha256(email.encode("utf-8")).hexdigest()
         student = user_repo.get_student_by_emailhash(email_hash)
         if student:
-            try:
-                token = create_password_token("student", student.Id, student.PasswordHash or "")
-                link = build_password_link(token)
-                send_password_link_email(
-                    to_email=email,
-                    link=link,
-                    account_type="student",
-                )
-            except Exception:
-                # Intentionally swallow errors here (still return 200)
-                pass
-    return make_response({'message': 'If an account exists for that email, a password link has been sent.'}, HTTPStatus.OK)
+            if (DEBUGGER_MODE == False):
+                try:
+                    token = create_password_token("student", student.Id, student.PasswordHash or "")
+                    link = build_password_link(token)
+                    send_password_link_email(
+                        to_email=email,
+                        link=link,
+                        account_type="student",
+                    )
+                except Exception:
+                    # Intentionally swallow errors here (still return 200)
+                    pass
+        return make_response({'message': 'If an account exists for that email, a password link has been sent.'}, HTTPStatus.OK)
 
 
 @auth_api.route('/password/complete', methods=['POST'])
