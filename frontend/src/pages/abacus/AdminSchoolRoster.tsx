@@ -8,12 +8,16 @@ import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
 import MenuComponent from "../components/MenuComponent";
 import "../../styling/AdminSchoolRoster.scss";
 
+type TeacherInfo = {
+  id: number;
+  name: string | null;
+  email: string | null;
+};
+
 type SchoolSummary = {
   id: number;
   name: string;
-  teacherId: number | null;
-  teacherName: string | null;
-  teacherEmail: string | null;
+  teachers: TeacherInfo[] | null;
   teamCount: number;
   studentCount: number;
 };
@@ -64,10 +68,13 @@ const AdminSchoolRoster = () => {
     if (!q) return schools;
 
     return schools.filter((s) => {
-      const teacher = (s.teacherName || "").toLowerCase();
-      const email = (s.teacherEmail || "").toLowerCase();
-      const name = (s.name || "").toLowerCase();
-      return name.includes(q) || teacher.includes(q) || email.includes(q);
+      const schoolName = (s.name || "").toLowerCase();
+      const teacherMatch = (s.teachers || []).some((t) =>
+        (t.name || "").toLowerCase().includes(q) ||
+        (t.email || "").toLowerCase().includes(q)
+      );
+
+      return schoolName.includes(q) || teacherMatch;
     });
   }, [schools, query]);
 
@@ -142,7 +149,7 @@ const AdminSchoolRoster = () => {
               <thead>
                 <tr>
                   <th>School</th>
-                  <th>Teacher</th>
+                  <th>Teachers</th>
                   <th className="num">Teams</th>
                   <th className="num">Students</th>
                   <th className="actions">Actions</th>
@@ -156,54 +163,58 @@ const AdminSchoolRoster = () => {
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((s) => {
-                    const teacherName = (s.teacherName || "").trim();
-                    const teacherEmail = (s.teacherEmail || "").trim();
-                    const teacherLabel = teacherName || "Unassigned";
+                  filtered.map((s) => (
+                    <tr key={s.id}>
+                      <td>
+                        <div className="school-name">{s.name}</div>
+                        <div className="muted small mono">ID: {s.id}</div>
+                      </td>
 
-                    return (
-                      <tr key={s.id}>
-                        <td>
-                          <div className="school-name">{s.name}</div>
-                          <div className="muted small mono">ID: {s.id}</div>
-                        </td>
+                      <td>
+                        {s.teachers && s.teachers.length > 0 ? (
+                          <div className="teacher-cell">
+                            {s.teachers.map((teacher, idx) => {
+                              const teacherName = (teacher.name || "").trim() || "Unassigned";
+                              const teacherEmail = (teacher.email || "").trim();
+                              return (
+                                <div key={teacher.id || idx} className="teacher-entry">
+                                  <div className="teacher-name">{teacherName}
+                                    {teacherEmail ? (
+                                      <div className="muted small">
+                                        <a className="link" href={`mailto:${teacherEmail}`}>
+                                          {teacherEmail}
+                                        </a>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                              </div>
+                              )})}
+                          </div>
+                        ) : (
+                          <div className="muted small">No teachers assigned</div>
+                        )}
+                      </td>
 
-                        <td>
-                          <div className="teacher-name">{teacherLabel}</div>
-                          {teacherEmail ? (
-                            <div className="muted small">
-                              <a className="link" href={`mailto:${teacherEmail}`}>
-                                {teacherEmail}
-                              </a>
-                            </div>
-                          ) : (
-                            <div className="muted small">
-                              {teacherName ? "" : "No teacher assigned"}
-                            </div>
-                          )}
-                        </td>
+                      <td className="num mono">{Number(s.teamCount || 0)}</td>
+                      <td className="num mono">
+                        {Number(s.studentCount || 0)}
+                      </td>
 
-                        <td className="num mono">{Number(s.teamCount || 0)}</td>
-                        <td className="num mono">
-                          {Number(s.studentCount || 0)}
-                        </td>
-
-                        <td className="actions">
-                          <button
-                            type="button"
-                            className="row-action"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              navigate(`/admin/${s.id}/team-manage`);
-                            }}
-                          >
-                            Team Manage
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
+                      <td className="actions">
+                        <button
+                          type="button"
+                          className="row-action"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            navigate(`/admin/${s.id}/team-manage`);
+                          }}
+                        >
+                          Team Manage
+                        </button>
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>

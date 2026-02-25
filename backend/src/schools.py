@@ -128,20 +128,15 @@ def admin_school_summary(
 
     for s in schools:
         # Teacher is the AdminUsers row for this school with Role == 0 (exclude Role 1 admins)
-        teacher = (
-            AdminUsers.query
-            .filter_by(SchoolId=int(s.Id), Role=0)
-            .order_by(AdminUsers.Id.asc())
-            .first()
-        )
-
-        teacher_name = None
-        teacher_email = None
-        if teacher:
-            first = (getattr(teacher, "Firstname", "") or "").strip()
-            last = (getattr(teacher, "Lastname", "") or "").strip()
-            teacher_name = (f"{first} {last}").strip() or None
-            teacher_email = (getattr(teacher, "Email", None) or "").strip() or None
+        teachers = user_repo.get_teachers_by_school(int(s.Id))
+        teacher_data = []
+        for t in teachers:
+            teacher_id = int(getattr(t, "Id", 0) or 0)
+            first = (getattr(t, "Firstname", "") or "").strip()
+            last = (getattr(t, "Lastname", "") or "").strip()
+            name = (f"{first} {last}").strip() or None
+            email = (getattr(t, "Email", None) or "").strip() or None
+            teacher_data.append({"id": teacher_id, "name": name, "email": email})
 
         students = user_repo.get_students_for_school(int(s.Id))
         team_ids = set()
@@ -160,9 +155,7 @@ def admin_school_summary(
             {
                 "id": int(s.Id),
                 "name": getattr(s, "Name", "") or "",
-                "teacherId": int(teacher.Id) if teacher else None,
-                "teacherName": teacher_name,
-                "teacherEmail": teacher_email,
+                "teachers": teacher_data,
                 "teamCount": len(team_ids),
                 "studentCount": len(students),
             }

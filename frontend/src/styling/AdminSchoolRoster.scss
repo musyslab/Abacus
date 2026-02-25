@@ -230,3 +230,20 @@
   color: #6b7280;
 }
 
+.teacher-cell {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 18px;
+  max-width: 40rem;
+}
+
+.teacher-entry {
+  border-right: 1px solid #e5e7eb;
+  padding-right: 18px;
+}
+
+.teacher-entry:last-child {
+  border-right: 0;
+}
+

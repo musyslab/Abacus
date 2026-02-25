@@ -92,6 +92,9 @@ class UserRepository:
             db.session.delete(attempt)
         db.session.commit()
 
+    def get_teachers_by_school(self, school_id: int) -> Optional[AdminUsers]:
+        return AdminUsers.query.filter(AdminUsers.SchoolId == school_id, AdminUsers.Role == 0).order_by(AdminUsers.Id.asc()).all()
+
     # -----------------------------
     # Student operations
     # -----------------------------
