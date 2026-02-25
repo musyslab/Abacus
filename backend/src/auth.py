@@ -1,4 +1,4 @@
-DEBUGGER_MODE = True
+DEBUGGER_MODE = False
 
 import hashlib
 import os
