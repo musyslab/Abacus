@@ -117,6 +117,11 @@ class Schools(db.Model):
     __tablename__ = "Schools"
     Id = Column(Integer, primary_key=True, autoincrement=True)
     Name = Column(String(256), nullable=False, unique=True)
+    TshirtS = Column(Integer, default=0)
+    TshirtM = Column(Integer, default=0)
+    TshirtL = Column(Integer, default=0)
+    TshirtXL = Column(Integer, default=0)
+    TshirtXXL = Column(Integer, default=0)
 
 class Teams(db.Model):
     __tablename__ = "Teams"

@@ -132,6 +132,14 @@ export default function AdminTeamManage() {
     const isAdminMode = Number.isFinite(schoolIdParam) && schoolIdParam > 0;
     const managedSchoolId = isAdminMode ? schoolIdParam : null;
     const [schoolName, setSchoolName] = useState<string>("");
+    const [schoolTshirts, setSchoolTshirts] = useState({
+        tshirtS: 0,
+        tshirtM: 0,
+        tshirtL: 0,
+        tshirtXL: 0,
+        tshirtXXL: 0,
+    });
+    const [isSavingTshirts, setIsSavingTshirts] = useState(false);
 
     function authConfig() {
         const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
@@ -195,6 +203,28 @@ export default function AdminTeamManage() {
         };
     }, []);
 
+    async function saveTshirts() {
+        setIsSavingTshirts(true);
+        try {
+            await axios.put(
+                `${apiBase}/schools/tshirts`,
+                {
+                    tshirtS: schoolTshirts.tshirtS,
+                    tshirtM: schoolTshirts.tshirtM,
+                    tshirtL: schoolTshirts.tshirtL,
+                    tshirtXL: schoolTshirts.tshirtXL,
+                    tshirtXXL: schoolTshirts.tshirtXXL,
+                    ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
+                },
+                authConfig()
+            );
+        } catch (e: any) {
+            alert(e?.response?.data?.message || "Failed to save t-shirt sizes.");
+        } finally {
+            setIsSavingTshirts(false);
+        }
+    }
+
     function getTeamSavedCount(team: TeamVm) {
         return team.members.filter((m) => !!m.studentId).length;
     }
@@ -240,13 +270,27 @@ export default function AdminTeamManage() {
         try {
             if (managedSchoolId) {
                 const res = await axios.get(`${apiBase}/schools/id/${managedSchoolId}`, authConfig());
-                const name = Array.isArray(res.data) ? res.data?.[0]?.name : res.data?.name;
-                setSchoolName(String(name || ""));
+                const data = Array.isArray(res.data) ? res.data?.[0] : res.data;
+                setSchoolName(String(data?.name || ""));
+                setSchoolTshirts({
+                    tshirtS: data?.tshirtS || 0,
+                    tshirtM: data?.tshirtM || 0,
+                    tshirtL: data?.tshirtL || 0,
+                    tshirtXL: data?.tshirtXL || 0,
+                    tshirtXXL: data?.tshirtXXL || 0,
+                });
                 return;
             }
             const res = await axios.get(`${apiBase}/schools/me`, authConfig());
             setSchoolName(String(res.data?.name || ""));
-        } catch {
+            setSchoolTshirts({
+                tshirtS: res.data?.tshirtS || 0,
+                tshirtM: res.data?.tshirtM || 0,
+                tshirtL: res.data?.tshirtL || 0,
+                tshirtXL: res.data?.tshirtXL || 0,
+                tshirtXXL: res.data?.tshirtXXL || 0,
+            });
+        } catch (e: any){
             setSchoolName("");
         }
     }
@@ -785,6 +829,91 @@ export default function AdminTeamManage() {
                     </div>
 
                     {pageError ? <div className="callout callout--error">{pageError}</div> : null}
+
+                    {/* T-SHIRT CARD */}
+                    <div className="panel" style={{ marginBottom: '16px' }}>
+                        <div className="panel__title" style={{ marginBottom: '12px' }}>T-shirt Sizes</div>
+                        
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+                            gap: '12px',
+                            marginBottom: '12px'
+                        }}>
+                            {/* Total First */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '12px',
+                                borderRadius: '8px',
+                                border: '1px solid #1e40af',
+                                background: '#e0e7ff'
+                            }}>
+                                <span style={{ fontWeight: 600, color: '#1e40af' }}>Total</span>
+                                <div style={{ fontSize: '18px', fontWeight: 900, color: '#1e40af', minWidth: '60px', textAlign: 'center' }}>
+                                    {schoolTshirts.tshirtS + schoolTshirts.tshirtM + schoolTshirts.tshirtL + schoolTshirts.tshirtXL + schoolTshirts.tshirtXXL}
+                                </div>
+                            </div>
+                            
+                            {/* Size Pills */}
+                            {[
+                                { key: "tshirtS", label: "S" },
+                                { key: "tshirtM", label: "M" },
+                                { key: "tshirtL", label: "L" },
+                                { key: "tshirtXL", label: "XL" },
+                                { key: "tshirtXXL", label: "XXL" },
+                            ].map((s) => (
+                                <div key={s.key} style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '12px',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(0, 0, 0, 0.10)',
+                                    background: '#fafafa'
+                                }}>
+                                    <span style={{ fontWeight: 600 }}>{s.label}</span>
+                                    <input
+                                        style={{
+                                            width: '60px',
+                                            textAlign: 'center',
+                                            padding: '4px 8px',
+                                            border: '1px solid #ddd',
+                                            borderRadius: '4px',
+                                            fontSize: '16px'
+                                        }}
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={String(schoolTshirts[s.key as keyof typeof schoolTshirts])}
+                                        onFocus={(e) => e.currentTarget.select()}
+                                        onChange={(e) => {
+                                            const raw = e.target.value;
+                                            if (raw === "" || /^[0-9]+$/.test(raw)) {
+                                                setSchoolTshirts(prev => ({
+                                                    ...prev,
+                                                    [s.key]: raw === "" ? 0 : parseInt(raw)
+                                                }));
+                                            }
+                                        }}
+                                        disabled={isSavingTshirts}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                        
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                            <button
+                                className="btn btn--primary"
+                                type="button"
+                                onClick={saveTshirts}
+                                disabled={isSavingTshirts}
+                            >
+                                {isSavingTshirts ? "Saving..." : "Save T-shirt Sizes"}
+                            </button>
+                        </div>
+                    </div>
 
                     <div className="toolbar">
                         <div>

@@ -67,6 +67,11 @@ CREATE TABLE `Projects` (
 CREATE TABLE `Schools` (
   `Id` int NOT NULL AUTO_INCREMENT,
   `Name` varchar(256) NOT NULL,
+  `TshirtS` int NOT NULL DEFAULT 0,
+  `TshirtM` int NOT NULL DEFAULT 0,
+  `TshirtL` int NOT NULL DEFAULT 0,
+  `TshirtXL` int NOT NULL DEFAULT 0,
+  `TshirtXXL` int NOT NULL DEFAULT 0,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `schools_name_unique` (`Name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

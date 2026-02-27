@@ -59,3 +59,26 @@ class SchoolRepository:
         if not student:
             return None
         return self.get_school_by_id(int(student.SchoolId))
+    
+    def update_school_tshirts(
+        self,
+        school_id: int,
+        tshirtS: int,
+        tshirtM: int,
+        tshirtL: int,
+        tshirtXL: int,
+        tshirtXXL: int,
+    ):
+        from src.repositories.models import Schools
+        school = Schools.query.filter(Schools.Id == school_id).one_or_none()
+        if not school:
+            return None
+
+        school.TshirtS = tshirtS
+        school.TshirtM = tshirtM
+        school.TshirtL = tshirtL
+        school.TshirtXL = tshirtXL
+        school.TshirtXXL = tshirtXXL
+
+        db.session.commit()
+        return school

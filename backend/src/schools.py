@@ -105,7 +105,16 @@ def get_my_school(
     if not school:
         return jsonify({}), 404
 
-    return jsonify({"id": school.Id, "name": school.Name, "teacherId": teacher_id_for_school(int(school.Id))})
+    return jsonify({
+        "id": school.Id,
+        "name": school.Name,
+        "teacherId": teacher_id_for_school(int(school.Id)),
+        "tshirtS": int(getattr(school, "TshirtS", 0) or 0),
+        "tshirtM": int(getattr(school, "TshirtM", 0) or 0),
+        "tshirtL": int(getattr(school, "TshirtL", 0) or 0),
+        "tshirtXL": int(getattr(school, "TshirtXL", 0) or 0),
+        "tshirtXXL": int(getattr(school, "TshirtXXL", 0) or 0),
+    })
 
 @school_api.route("/admin/summary", methods=["GET"])
 @jwt_required()
@@ -171,9 +180,76 @@ def get_school_name_from_id(
     school_id: int,
     school_repo: SchoolRepository = Provide[Container.school_repo],
 ):
-    """
-    Matches the old shape from /id/<class_id>, but for schools.
-    Returns: [{"name": "<school name>"}]
-    """
     name = school_repo.get_school_name_with_id(school_id)
-    return jsonify([{"name": name}])
+
+    school = school_repo.get_school_by_id(school_id)
+    
+    if not school:
+        return jsonify([{"name": name}])
+    
+    return jsonify([{
+        "name": name,
+        "tshirtS": int(getattr(school, "TshirtS", 0) or 0),
+        "tshirtM": int(getattr(school, "TshirtM", 0) or 0),
+        "tshirtL": int(getattr(school, "TshirtL", 0) or 0),
+        "tshirtXL": int(getattr(school, "TshirtXL", 0) or 0),
+        "tshirtXXL": int(getattr(school, "TshirtXXL", 0) or 0),
+    }])
+
+@school_api.route('/tshirts', methods=['PUT'])
+@jwt_required()
+@inject
+def update_school_tshirts(
+    school_repo: SchoolRepository = Provide[Container.school_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
+    from flask import make_response
+    from http import HTTPStatus
+    
+    if not isinstance(current_user, AdminUsers):
+        return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
+    data = request.get_json() or {}
+    
+    school_id = int(getattr(current_user, "SchoolId", 0))
+    requested_school_id = data.get("school_id")
+    
+    if requested_school_id:
+        if user_repo.is_admin():
+            school_id = requested_school_id
+        elif requested_school_id != school_id:
+            return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
+    if school_id <= 0:
+        return make_response({'message': 'Invalid school ID'}, HTTPStatus.BAD_REQUEST)
+
+    def to_nonneg_int(v, field_name: str):
+        try:
+            n = int(v)
+        except Exception:
+            return None, f'{field_name} must be an integer.'
+        if n < 0:
+            return None, f'{field_name} cannot be negative.'
+        return n, None
+
+    tshirtS, err = to_nonneg_int(data.get("tshirtS", 0), "tshirtS")
+    if err: return make_response({'message': err}, HTTPStatus.BAD_REQUEST)
+    tshirtM, err = to_nonneg_int(data.get("tshirtM", 0), "tshirtM")
+    if err: return make_response({'message': err}, HTTPStatus.BAD_REQUEST)
+    tshirtL, err = to_nonneg_int(data.get("tshirtL", 0), "tshirtL")
+    if err: return make_response({'message': err}, HTTPStatus.BAD_REQUEST)
+    tshirtXL, err = to_nonneg_int(data.get("tshirtXL", 0), "tshirtXL")
+    if err: return make_response({'message': err}, HTTPStatus.BAD_REQUEST)
+    tshirtXXL, err = to_nonneg_int(data.get("tshirtXXL", 0), "tshirtXXL")
+    if err: return make_response({'message': err}, HTTPStatus.BAD_REQUEST)
+
+    school_repo.update_school_tshirts(
+        school_id,
+        tshirtS=tshirtS,
+        tshirtM=tshirtM,
+        tshirtL=tshirtL,
+        tshirtXL=tshirtXL,
+        tshirtXXL=tshirtXXL,
+    )
+
+    return make_response({'message': 'Success'}, HTTPStatus.OK)
