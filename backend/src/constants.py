@@ -1,4 +1,12 @@
-STUDENT_ROLE = 0
+from datetime import datetime
+
+TEACHER_ROLE = 0
 ADMIN_ROLE = 1
 EMPTY=-1
 BLUE_TEAM_MAX = 85
+
+COMPETITION_START = datetime(2026, 4, 15, 9)
+COMPETITION_END = datetime(2026, 4, 15, 12)
+
+PRACTICE_START = datetime(2026, 4, 15, 8, 30)
+PRACTICE_END = datetime(2026, 4, 15, 9)

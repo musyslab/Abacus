@@ -41,6 +41,8 @@ projects_api = Blueprint('projects_api', __name__)
 
 ALLOWED_SOURCE_EXTS = {'.py', '.c', '.java', '.rkt'}
 TS_DIR_RE = re.compile(r"^\d{8}_\d{6}$")
+PROJECT_TYPES = {'competition', 'practice', 'none'}
+DIFFICULTIES = {'easy', 'medium', 'hard'}
 
 def project_root() -> str:
     return "/tabot-files/project-files"
@@ -94,6 +96,12 @@ def seed_version_dir(dest_dir: str, *, seed_from_dir: str | None, seed_solution_
         if p and os.path.isfile(p):
             shutil.copy2(p, os.path.join(dest_dir, os.path.basename(p)))
 
+def ts_str() -> str:
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+def safe_name(s: str) -> str:
+    return secure_filename(s or "").replace(" ", "_")
+
 @projects_api.route('/all_projects', methods=['GET'])
 @jwt_required()
 @inject
@@ -144,62 +152,6 @@ def list_solution_files(project_repo: ProjectRepository = Provide[Container.proj
     except Exception:
         return make_response([], HTTPStatus.OK)
 
-@projects_api.route('/check_time_conflict', methods=['POST'])
-@jwt_required()
-@inject
-def check_time_conflict(project_repo: ProjectRepository = Provide[Container.project_repo]):
-    """
-    JSON body:
-      {
-        "project_id": <int>,     # current project id (exclude from comparison)
-        "class_id": <int>,       # class scope for comparison
-        "start_date": "YYYY-MM-DDTHH:MM",
-        "end_date":   "YYYY-MM-DDTHH:MM"
-      }
-    Returns: { "conflict": bool, "conflicts": [ {id,name,start,end}, ... ] }
-    """
-    if current_user.Role != ADMIN_ROLE:
-        return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
-
-    data = request.get_json(silent=True) or {}
-    pid = int(str(data.get('project_id', 0)) or 0)
-    class_id = str(data.get('class_id', '')).strip()
-    start_s = str(data.get('start_date', '')).strip()
-    end_s = str(data.get('end_date', '')).strip()
-
-    if not class_id or not start_s or not end_s:
-        return make_response({'message': 'Missing required fields'}, HTTPStatus.BAD_REQUEST)
-
-    try:
-        start_dt = datetime.fromisoformat(start_s)
-        end_dt = datetime.fromisoformat(end_s)
-    except ValueError:
-        return make_response({'message': 'Invalid datetime format'}, HTTPStatus.BAD_REQUEST)
-
-    conflicts = []
-    try:
-        projects = project_repo.get_projects_by_class_id(class_id)
-        for p in projects:
-            if getattr(p, 'Id', None) == pid:
-                continue
-            p_start = getattr(p, 'Start', None)
-            p_end = getattr(p, 'End', None)
-            if not p_start or not p_end:
-                continue
-            # strict overlap: allows back-to-back intervals without conflict
-            if (start_dt < p_end) and (p_start < end_dt):
-                conflicts.append({
-                    'id': getattr(p, 'Id', None),
-                    'name': getattr(p, 'Name', ''),
-                    'start': p_start.isoformat(),
-                    'end': p_end.isoformat(),
-                })
-    except Exception:
-        # Fail-safe: treat as no conflicts if repo call fails
-        conflicts = []
-
-    return jsonify({'conflict': bool(conflicts), 'conflicts': conflicts})
-
 @projects_api.route('/run-plagiarism', methods=['POST'])
 @jwt_required()
 @inject
@@ -240,14 +192,6 @@ def get_projects_by_user(project_repo: ProjectRepository = Provide[Container.pro
 @jwt_required()
 @inject
 def create_project(project_repo: ProjectRepository = Provide[Container.project_repo], user_repo: UserRepository = Provide[Container.user_repo]):
-
-    def ts_str() -> str:
-        return datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    def safe_name(s: str) -> str:
-        # normalize and remove unsafe chars; also collapse spaces
-        return secure_filename(s or "").replace(" ", "_")
-
     if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
@@ -260,9 +204,11 @@ def create_project(project_repo: ProjectRepository = Provide[Container.project_r
         return make_response({'message': 'No assignment description file'}, HTTPStatus.BAD_REQUEST)
 
     # Read form
-    name = request.form.get('name', '')
-    language = request.form.get('language', '')
-    if name == '' or language == '':
+    name = request.form.get('name', '').strip()
+    language = request.form.get('language', '').strip()
+    project_type = request.form.get('project_type', '').strip()
+    difficulty = request.form.get('difficulty', '').strip()
+    if name == '' or language == '' or (project_type not in PROJECT_TYPES) or (difficulty not in DIFFICULTIES):
         return make_response("Error in form", HTTPStatus.BAD_REQUEST)
 
     base_proj = safe_name(name)
@@ -295,7 +241,15 @@ def create_project(project_repo: ProjectRepository = Provide[Container.project_r
             add_up.save(dst)
             add_names.append(orig_name)
     selected_path = path
-    new_project_id = project_repo.create_project(name, language, selected_path, assignmentdesc_path, json.dumps(add_names))
+
+    # Find order index if project is a competition project
+    order_index = None
+    if project_type == "competition":
+        order_index = project_repo.get_project_order_index()
+        if order_index is None:
+            return make_response({'message': 'Maximum number of competition projects reached'}, HTTPStatus.BAD_REQUEST)
+
+    new_project_id = project_repo.create_project(name, language, project_type, difficulty, order_index, selected_path, assignmentdesc_path, json.dumps(add_names))
 
     return make_response(str(new_project_id), HTTPStatus.OK)
 
@@ -303,13 +257,6 @@ def create_project(project_repo: ProjectRepository = Provide[Container.project_r
 @jwt_required()
 @inject
 def edit_project(project_repo: ProjectRepository = Provide[Container.project_repo], user_repo: UserRepository = Provide[Container.user_repo]):
-
-    def ts_str() -> str:
-        return datetime.now().strftime("%Y%m%d_%H%M%S")
-
-    def safe_name(s: str) -> str:
-        return secure_filename(s or "").replace(" ", "_")
-
     if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
@@ -320,8 +267,16 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
 
     name = request.form.get('name', '')
     language = request.form.get('language', '')
-    if name == '' or language == '':
-        return make_response("Error in form", HTTPStatus.BAD_REQUEST)
+    project_type = request.form.get('project_type', '').strip()
+    difficulty = request.form.get('difficulty', '').strip()
+    
+    if name == '' or language == '' or (project_type not in PROJECT_TYPES) or (difficulty not in DIFFICULTIES):
+        return make_response({'message': 'Error in form'}, HTTPStatus.BAD_REQUEST)
+    
+    clear_order = False
+    # Clear order index of non-competition problems
+    if project_type != "competition":
+        clear_order = True
 
     # Ensure base_proj exists before any use (fix NameError) and compute project folder
     base_proj = safe_name(name)
@@ -346,7 +301,6 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
     path = existing_path
     assignmentdesc_path = project_repo.get_project_desc_path(pid)
     existing_proj = project_repo.get_selected_project(pid)
-    add_path = getattr(existing_proj, "AdditionalFilePath", "") if existing_proj else ""
 
     # Determine whether we need to mint a new version directory
     solution_uploads = request.files.getlist('solutionFiles')
@@ -459,7 +413,6 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
                 os.remove(os.path.join(path, n))
             except Exception:
                 pass
-        add_paths = []
         additional_file_changed = True
     # Append newly uploaded additional files
     for add_up in new_add_uploads:
@@ -475,7 +428,7 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
     if latest_version:
         path = latest_version
 
-    project_repo.edit_project(name, language, pid, path, assignmentdesc_path, json.dumps(add_names))
+    project_repo.edit_project(name, language, project_type, difficulty, pid, path, assignmentdesc_path, json.dumps(add_names), clear_order)
 
     # Recompute testcase outputs **against the path we just wrote**, so we don't depend on
     # any cached ORM objects or delayed reads.
@@ -500,7 +453,7 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
 def has_allowed_ext(path: str) -> bool:
     return os.path.splitext(path)[1].lower() in ALLOWED_SOURCE_EXTS
 
-def run_solution_for_input(solution_root: str, language: str, input_text: str, project_id: int, class_id: int, additional_file_path: str = "") -> str:
+def run_solution_for_input(solution_root: str, language: str, input_text: str, project_id: int, additional_file_path: str = "") -> str:
     """
     Execute code strictly via /tabot-files/grading-scripts/grade.py (ADMIN path).
     Returns stdout (or stderr) with normalized newlines, or "" on failure.
@@ -538,7 +491,6 @@ def run_solution_for_input(solution_root: str, language: str, input_text: str, p
         solution_root,        # file or directory
         add_arg,
         str(project_id or 0),
-        str(class_id or 0),
     ]
     try:
         proc = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=os.path.dirname(solution_root) if os.path.isfile(solution_root) else solution_root)
@@ -613,15 +565,6 @@ def recompute_expected_outputs(project_repo, project_id, *, solution_override_pa
 
     cases = project_repo.get_testcases(str(project_id))
 
-    # Determine class id (needed by repo call)
-    class_id = getattr(proj_obj, "ClassId", 0) if proj_obj else 0
-    if not class_id:
-        try:
-            cname = project_repo.get_className_by_projectId(str(project_id))
-            class_id = project_repo.get_class_id_by_name(cname)
-        except Exception:
-            class_id = 0
-
     for tc_id, vals in cases.items():
         add_path = getattr(proj_obj, "AdditionalFilePath", "") if proj_obj else ""
         try:
@@ -631,7 +574,7 @@ def recompute_expected_outputs(project_repo, project_id, *, solution_override_pa
         except Exception:
             name, desc, inp = "", "", "", False
 
-        new_out = run_solution_for_input(solution_root, lang, inp, project_id, class_id, add_path)
+        new_out = run_solution_for_input(solution_root, lang, inp, project_id, add_path)
         try:
             project_repo.add_or_update_testcase(
                 int(project_id),
@@ -640,7 +583,6 @@ def recompute_expected_outputs(project_repo, project_id, *, solution_override_pa
                 desc or "",
                 inp or "",
                 new_out,
-                int(class_id),
             )
         except Exception:
             # continue on individual failures
@@ -839,18 +781,6 @@ def remove_testcase(project_repo: ProjectRepository = Provide[Container.project_
         id_val=request.form['id']
     project_repo.remove_testcase(id_val)
     return make_response("Testcase Removed", HTTPStatus.OK)
-    
-@projects_api.route('/get_projects_by_class_id', methods=['GET'])
-@jwt_required()
-@inject
-def get_projects_by_class_id(project_repo: ProjectRepository = Provide[Container.project_repo], submission_repo: SubmissionRepository = Provide[Container.submission_repo]):
-    data = project_repo.get_projects_by_class_id(request.args.get('id'))
-    
-    new_projects = []
-    thisdic = submission_repo.get_total_submission_for_all_projects()
-    for proj in data:
-        new_projects.append(ProjectJson(proj.Id, proj.Name, proj.Start.strftime("%x %X"), proj.End.strftime("%x %X"), thisdic[proj.Id]).toJson())
-    return jsonify(new_projects)
 
 @projects_api.route('/getAssignmentDescription', methods=['GET'])
 @jwt_required()

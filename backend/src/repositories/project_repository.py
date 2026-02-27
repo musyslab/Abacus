@@ -76,8 +76,8 @@ class ProjectRepository():
         class_projects = Projects.query.filter(Projects.ClassId==class_id)
         return class_projects
     
-    def create_project(self, name: str, language:str, file_path:str, description_path:str, additional_file_path:str):
-        project = Projects(Name=name, Language=language, solutionpath=file_path, AsnDescriptionPath=description_path, AdditionalFilePath=additional_file_path)
+    def create_project(self, name: str, language:str, project_type:str, difficulty:str, order_index: int | None, file_path:str, description_path:str, additional_file_path:str):
+        project = Projects(Name=name, Language=language, Type=project_type, Difficulty=difficulty, OrderIndex=order_index, solutionpath=file_path, AsnDescriptionPath=description_path, AdditionalFilePath=additional_file_path)
         db.session.add(project)
         db.session.commit()
         return project.Id
@@ -102,18 +102,39 @@ class ProjectRepository():
             str(project_solutionFile),
             str(project_descriptionfile),
             project_additionalfiles,
+            str(project_data.Type),
+            str(project_data.Difficulty),
         ]
         return project
 
-    def edit_project(self, name: str, language:str, project_id:int, path:str, description_path:str, additional_file_path:str):
+    def edit_project(self, name: str, language:str, project_type: str, difficulty: str, project_id:int, path:str, description_path:str, additional_file_path:str, clear_order: bool):
         project = Projects.query.filter(Projects.Id == project_id).first()
         project.Name = name
         project.Language = language
+        project.Type = project_type
+        project.Difficulty = difficulty
         project.solutionpath = path
         project.AsnDescriptionPath = description_path
         project.AdditionalFilePath = additional_file_path
+        if clear_order:
+            project.OrderIndex = None
         db.session.commit() 
-        
+
+    def get_project_order_index(self) -> Optional[int]:
+        """
+        Returns the next available order index (1..10) for projects in a given role.
+        If all 10 slots are taken, returns None.
+        """
+        rows = (
+            Projects.query.filter(Projects.Type == "competition", Projects.OrderIndex.isnot(None)).order_by(asc(Projects.OrderIndex)).all()
+        )
+
+        used = {int(r[0]) for r in rows if r[0] is not None and 1 <= int(r[0]) <= 10}
+        for i in range(1, 11):
+            if i not in used:
+                return i
+        return None
+
     def get_testcases(self, project_id: int) -> Dict[int, list]:
         testcases = Testcases.query.filter(Testcases.ProjectId == project_id).all()
         testcase_info: Dict[int, list] = {}

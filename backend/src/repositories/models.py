@@ -9,11 +9,13 @@ from src.repositories.database import db
 
 class Projects(db.Model):
     __tablename__ = "Projects"
-    Id = Column(Integer, primary_key=True, autoincrement=True)
-    Name = Column(String)
-    Language = Column(String)
+    Id = Column(Integer, primary_key=True, autoincrement=True, unique=True)
+    Name = Column(String, nullable=False)
+    Language = Column(String, nullable=False)
+    Type = Column(String, nullable=False)
+    Difficulty = Column(String, nullable=False)
+    OrderIndex = Column(Integer, unique=True)
     Submissions=relationship('Submissions') 
-    StudentUnlocks=relationship('StudentUnlocks') 
     solutionpath=Column(String)
     AsnDescriptionPath = Column(String)
     AdditionalFilePath = Column(String)

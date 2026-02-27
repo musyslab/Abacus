@@ -22,6 +22,17 @@ import {
     FaUpload,
 } from 'react-icons/fa'
 
+const SUPPORTED_RE = /\.(py|java)$/i
+const SOLUTION_ALLOWED_RE = /\.(py|java)$/i
+const DESC_ALLOWED_RE = /\.(pdf|docx?|txt)$/i
+const SOLUTION_ACCEPT = '.py,.java'
+const DESC_ACCEPT = '.pdf,.doc,.docx,.txt'
+
+const ADD_ALLOWED_RE = /\.(txt)$/i
+const ADD_ACCEPT = '.txt'
+
+const JAVA_MAIN_RE = /\bpublic\s+static\s+void\s+main\s*\(/
+
 class Testcase {
     constructor() {
         this.id = 0
@@ -40,12 +51,37 @@ class Testcase {
     hidden: boolean
 }
 
-const AdminProjectManage = () => {
+type SolutionLang = 'java' | 'python'
+type ProjectType = 'competition' | 'practice' | 'none'
+type ProjectDifficulty = 'easy' | 'medium' | 'hard'
+
+const isJavaFileName = (n: string) => /\.java$/i.test(n)
+
+const basename = (p: string) => (p || '').split(/[\\/]/).pop() || ''
+
+function parseHidden(v: any): boolean {
+    if (typeof v === 'boolean') return v
+    if (typeof v === 'number') return v !== 0
+    if (typeof v === 'string') {
+        const s = v.trim().toLowerCase()
+        return s === '1' || s === 'true' || s === 'yes' || s === 'y'
+    }
+    return false
+}
+
+function solutionLangFor(name: string): SolutionLang | null {
+    const lower = name.toLowerCase()
+    if (lower.endsWith('.java')) return 'java'
+    if (lower.endsWith('.py')) return 'python'
+    return null
+}
+
+export default function AdminProjectManage() {
     const { id } = useParams()
     const project_id = Number(id)
 
     if (Number.isNaN(project_id)) {
-        return <>Error: Missing or invalid project or class ID.</>
+        return <>Error: Missing or invalid project ID.</>
     }
 
     const API = (import.meta.env.VITE_API_URL as string) || "";
@@ -55,7 +91,6 @@ const AdminProjectManage = () => {
         return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
     }
 
-    const [CreateNewState, setCreateNewState] = useState<boolean>()
     const [testcases, setTestcases] = useState<Array<Testcase>>([])
     const [ProjectName, setProjectName] = useState<string>('')
     const [ProjectLanguage, setProjectLanguage] = useState<string>('')
@@ -87,6 +122,8 @@ const AdminProjectManage = () => {
     const [additionalFileNames, setAdditionalFileNames] = useState<string[]>([])
     const [removedAdditionalFiles, setRemovedAdditionalFiles] = useState<string[]>([])
     const [mainJavaFileName, setMainJavaFileName] = useState<string>('')
+    const [projectType, setProjectType] = useState<ProjectType>('none')
+    const [projectDifficulty, setProjectDifficulty] = useState<ProjectDifficulty>('easy')
 
     // Lock page scroll whenever either modal is open
     useEffect(() => {
@@ -100,38 +137,6 @@ const AdminProjectManage = () => {
             document.body.style.overflow = prev
         }
     }, [modalOpen, previewOpen])
-
-    const SUPPORTED_RE = /\.(py|java)$/i
-    const SOLUTION_ALLOWED_RE = /\.(py|java)$/i
-    const DESC_ALLOWED_RE = /\.(pdf|docx?|txt)$/i
-    const SOLUTION_ACCEPT = '.py,.java'
-    const DESC_ACCEPT = '.pdf,.doc,.docx,.txt'
-
-    const ADD_ALLOWED_RE = /\.(txt)$/i
-    const ADD_ACCEPT = '.txt'
-
-    const JAVA_MAIN_RE = /\bpublic\s+static\s+void\s+main\s*\(/
-    const isJavaFileName = (n: string) => /\.java$/i.test(n)
-
-    const basename = (p: string) => (p || '').split(/[\\/]/).pop() || ''
-
-    const parseHidden = (v: any): boolean => {
-        if (typeof v === 'boolean') return v
-        if (typeof v === 'number') return v !== 0
-        if (typeof v === 'string') {
-            const s = v.trim().toLowerCase()
-            return s === '1' || s === 'true' || s === 'yes' || s === 'y'
-        }
-        return false
-    }
-
-    type SolutionLang = 'java' | 'python'
-    const solutionLangFor = (name: string): SolutionLang | null => {
-        const lower = name.toLowerCase()
-        if (lower.endsWith('.java')) return 'java'
-        if (lower.endsWith('.py')) return 'python'
-        return null
-    }
 
     function pickMainJavaFile(allJavaNames: string[], namesWithMain: string[]): string {
         if (namesWithMain.length === 1) return namesWithMain[0]
@@ -319,13 +324,11 @@ const AdminProjectManage = () => {
     }, [edit, project_id])
 
     useEffect(() => {
-        axios
-            .get(`${API}/projects/get_testcases?id=${project_id}`, authConfig())
-            .then(res => {
-                const data = res.data
+        async function loadData() {
+            try {
+                const res = await axios.get(`${API}/projects/get_testcases?id=${project_id}`, authConfig())
                 const rows: Array<Testcase> = []
-
-                Object.entries(data).map(([key, value]) => {
+                Object.entries(res.data).map(([key, value]) => {
                     const testcase = new Testcase()
                     const values = value as Array<string>
 
@@ -339,7 +342,6 @@ const AdminProjectManage = () => {
                     rows.push(testcase)
                     return testcase
                 })
-
                 const testcase = new Testcase()
                 testcase.id = -1
                 testcase.name = ''
@@ -350,49 +352,48 @@ const AdminProjectManage = () => {
 
                 rows.push(testcase)
                 setTestcases(rows)
-            })
-            .catch(err => {
-                console.log(err)
-            })
-
-        if (!CreateNewState && project_id != 0) {
-            axios
-                .get(`${API}/projects/get_project_id?id=${project_id}`, authConfig())
-                .then(res => {
+            } catch (e) {
+                console.log(e)
+            }
+            if (project_id != 0) {
+                try {
+                    const res = await axios.get(`${API}/projects/get_project_id?id=${project_id}`, authConfig())
                     const data = res.data
-                    if (!CreateNewState) {
-                        setProjectName(data[project_id][0])
-                        setProjectLanguage(data[project_id][1])
-                        setServerProjectLanguageSnapshot(data[project_id][1])
-                        setSolutionFileNames([])
-                        setSolutionFiles([])
-                        const serverDesc = (data[project_id][3] || '') as string
-                        setDescFileName(serverDesc)
-                        setServerDescFileName(serverDesc)
+                    setProjectName(data[project_id][0])
+                    setProjectLanguage(data[project_id][1])
+                    setProjectType(data[project_id][5] as ProjectType)
+                    setProjectDifficulty(data[project_id][6] as ProjectDifficulty)
+                    setServerProjectLanguageSnapshot(data[project_id][1])
+                    setSolutionFileNames([])
+                    setSolutionFiles([])
+                    const serverDesc = (data[project_id][3] || '') as string
+                    setDescFileName(serverDesc)
+                    setServerDescFileName(serverDesc)
 
-                        const rawAdd = data[project_id][4] ?? []
-                        let addList: string[] = []
-                        if (Array.isArray(rawAdd)) {
-                            addList = rawAdd as string[]
-                        } else if (typeof rawAdd === 'string') {
-                            try {
-                                const parsed = JSON.parse(rawAdd)
-                                addList = Array.isArray(parsed) ? parsed : (rawAdd ? [rawAdd] : [])
-                            } catch {
-                                addList = rawAdd ? [rawAdd] : []
-                            }
+                    const rawAdd = data[project_id][4] ?? []
+                    let addList: string[] = []
+                    if (Array.isArray(rawAdd)) {
+                        addList = rawAdd as string[]
+                    } else if (typeof rawAdd === 'string') {
+                        try {
+                            const parsed = JSON.parse(rawAdd)
+                            addList = Array.isArray(parsed) ? parsed : (rawAdd ? [rawAdd] : [])
+                        } catch {
+                            addList = rawAdd ? [rawAdd] : []
                         }
-
-                        setAdditionalFileNames(addList.map(basename).filter(Boolean))
-                        setShowAdditionalFile(addList.length > 0)
-                        setEdit(true)
-                        setSubmitButton('Submit changes')
                     }
-                })
-                .catch(err => {
-                    console.log(err)
-                })
+
+                    setAdditionalFileNames(addList.map(basename).filter(Boolean))
+                    setShowAdditionalFile(addList.length > 0)
+                    setEdit(true)
+                    setSubmitButton('Submit changes')
+                } catch (e) {
+                    console.log(e)
+                }
+            }
         }
+
+        loadData()
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
@@ -424,7 +425,7 @@ const AdminProjectManage = () => {
         })
     }
 
-    function buttonhandleTrashClick(testcase: number) {
+    async function buttonhandleTrashClick(testcase: number) {
         let test: Testcase = new Testcase()
         for (let i = 0; i < testcases.length; i++) {
             if (testcases[i].id === testcase) {
@@ -436,54 +437,49 @@ const AdminProjectManage = () => {
         const formData = new FormData()
         formData.append('id', test.id.toString())
 
-        axios
-            .post(`${API}/projects/remove_testcase`, formData, authConfig())
-            .then(function (response) {
-                reloadtests()
-            })
-            .catch(function (error) {
-                console.log(error)
-            })
+        try {
+            await axios.post(`${API}/projects/remove_testcase`, formData, authConfig())
+            reloadtests()
+        } catch (e) {
+            console.log(e)
+        }
 
         setModalOpen(false)
     }
 
-    function reloadtests() {
-        return axios
-            .get(`${API}/projects/get_testcases?id=${project_id}`, authConfig())
-            .then(res => {
-                const data = res.data
-                const rows: Array<Testcase> = []
+    async function reloadtests() {
+        try {
+            const res = await axios.get(`${API}/projects/get_testcases?id=${project_id}`, authConfig())
+            const rows: Array<Testcase> = []
 
-                Object.entries(data).map(([key, value]) => {
-                    const testcase = new Testcase()
-                    const values = value as Array<string>
-
-                    testcase.id = parseInt(key)
-                    testcase.name = values[1]
-                    testcase.description = values[2]
-                    testcase.input = values[3]
-                    testcase.output = values[4]
-                    testcase.hidden = parseHidden((values as any)[5])
-                    rows.push(testcase)
-
-                    return testcase
-                })
-
+            Object.entries(res.data).map(([key, value]) => {
                 const testcase = new Testcase()
-                testcase.id = -1
-                testcase.name = ''
-                testcase.description = ''
-                testcase.input = ''
-                testcase.output = ''
-                testcase.hidden = false
+                const values = value as Array<string>
 
+                testcase.id = parseInt(key)
+                testcase.name = values[1]
+                testcase.description = values[2]
+                testcase.input = values[3]
+                testcase.output = values[4]
+                testcase.hidden = parseHidden((values as any)[5])
                 rows.push(testcase)
-                setTestcases(rows)
+
+                return testcase
             })
-            .catch(err => {
-                console.log(err)
-            })
+
+            const testcase = new Testcase()
+            testcase.id = -1
+            testcase.name = ''
+            testcase.description = ''
+            testcase.input = ''
+            testcase.output = ''
+            testcase.hidden = false
+
+            rows.push(testcase)
+            setTestcases(rows)
+        } catch (e) {
+            console.log(e)
+        }
     }
 
     async function handleJsonSubmit() {
@@ -529,6 +525,8 @@ const AdminProjectManage = () => {
             }
             formData.append('name', ProjectName)
             formData.append('language', ProjectLanguage)
+            formData.append('project_type', projectType)
+            formData.append('difficulty', projectDifficulty)
 
             const res = await axios.post(`${API}/projects/create_project`, formData, authConfig())
             const newId = res.data
@@ -571,12 +569,15 @@ const AdminProjectManage = () => {
 
             formData.append('name', ProjectName)
             formData.append('language', ProjectLanguage)
+            formData.append('project_type', projectType)
+            formData.append('difficulty', projectDifficulty)
 
             await axios.post(`${API}/projects/edit_project`, formData, authConfig())
 
             window.alert('Project information saved. Next, go to the "Test Cases" tab to create test cases.')
             window.location.href = `/admin/problem/manage/${project_id}`
-        } catch (error) {
+        } catch (error: any) {
+            window.alert(error?.response?.data?.message || 'An error occurred while saving the project.')
             console.log(error)
         }
         finally {
@@ -792,40 +793,37 @@ const AdminProjectManage = () => {
         }
     }
 
-    function get_testcase_json() {
-        axios
-            .get(`${API}/projects/get_testcases?id=${project_id}`, authConfig())
-            .then(res => {
-                const data = res.data
-                const rows: Array<Testcase> = []
+    async function get_testcase_json() {
+        try {
+            const res = await axios.get(`${API}/projects/get_testcases?id=${project_id}`, authConfig())
+            const rows: Array<Testcase> = []
 
-                Object.entries(data).map(([key, value]) => {
-                    const testcase = new Testcase()
-                    const values = value as Array<string>
-                    testcase.id = -1
-                    testcase.name = values[1]
-                    testcase.description = values[2]
-                    testcase.input = values[3]
-                    testcase.output = values[4]
-                    testcase.hidden = parseHidden((values as any)[5])
-                    rows.push(testcase)
-                    return testcase
-                })
+            Object.entries(res.data).map(([key, value]) => {
+                const testcase = new Testcase()
+                const values = value as Array<string>
+                testcase.id = -1
+                testcase.name = values[1]
+                testcase.description = values[2]
+                testcase.input = values[3]
+                testcase.output = values[4]
+                testcase.hidden = parseHidden((values as any)[5])
+                rows.push(testcase)
+                return testcase
+            })
 
-                const fileContent = JSON.stringify(rows, null, 2)
-                const fileName = ProjectName + '.json'
-                const blob = new Blob([fileContent], { type: 'text/plain' })
-                const url = URL.createObjectURL(blob)
-                const link = document.createElement('a')
-                link.href = url
-                link.download = fileName
-                document.body.appendChild(link)
-                link.click()
-                document.body.removeChild(link)
-            })
-            .catch(error => {
-                console.error(error)
-            })
+            const fileContent = JSON.stringify(rows, null, 2)
+            const fileName = ProjectName + '.json'
+            const blob = new Blob([fileContent], { type: 'text/plain' })
+            const url = URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = url
+            link.download = fileName
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+        } catch (e) {
+            console.log(e)
+        }
     }
 
     const selectedTestCase = modalDraft
@@ -965,6 +963,49 @@ const AdminProjectManage = () => {
                                                     value={ProjectName}
                                                     onChange={e => setProjectName(e.currentTarget.value)}
                                                 />
+                                            </div>
+                                            <div className="form-field input-field">
+                                                <label>Project Type</label>
+                                                <div className="radio-group">
+                                                    <div>
+                                                        <label>None</label>
+                                                        <input
+                                                            type="radio"
+                                                            name="projectType"
+                                                            value="none"
+                                                            checked={projectType === 'none'}
+                                                            onChange={(e) => setProjectType(e.currentTarget.value as ProjectType)}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label>Competition</label>
+                                                        <input
+                                                            type="radio"
+                                                            name="projectType"
+                                                            value="competition"
+                                                            checked={projectType === 'competition'}
+                                                            onChange={(e) => setProjectType(e.currentTarget.value as ProjectType)}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label>Practice</label>
+                                                        <input
+                                                            type="radio"
+                                                            name="projectType"
+                                                            value="practice"
+                                                            checked={projectType === 'practice'}
+                                                            onChange={(e) => setProjectType(e.currentTarget.value as ProjectType)}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="form-field input-field">
+                                                <label>Project Difficulty</label>
+                                                <select value={projectDifficulty} onChange={e => setProjectDifficulty(e.currentTarget.value as ProjectDifficulty)}>
+                                                    <option value="easy">Easy</option>
+                                                    <option value="medium">Medium</option>
+                                                    <option value="hard">Hard</option>
+                                                </select>
                                             </div>
 
                                             <div className="form-group language-group">
@@ -1111,7 +1152,7 @@ const AdminProjectManage = () => {
                                                 <div className="info-segment">
                                                     <h1 className="info-title">
                                                         {edit
-                                                            ? 'Download or Change Problem Description File' + serverDescFileName + ' end'
+                                                            ? 'Download or Change Problem Description File: ' + serverDescFileName
                                                             : 'Upload problem description'}
                                                     </h1>
                                                     <div
@@ -1637,5 +1678,3 @@ const AdminProjectManage = () => {
         </>
     )
 }
-
-export default AdminProjectManage
