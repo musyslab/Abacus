@@ -21,6 +21,7 @@ import {
     FaTimes,
     FaUpload,
 } from 'react-icons/fa'
+import SegmentedControl from '../components/SegmentedControl'
 
 const SUPPORTED_RE = /\.(py|java)$/i
 const SOLUTION_ALLOWED_RE = /\.(py|java)$/i
@@ -964,48 +965,33 @@ export default function AdminProjectManage() {
                                                     onChange={e => setProjectName(e.currentTarget.value)}
                                                 />
                                             </div>
-                                            <div className="form-field input-field">
+                                            <div className="form-field input-field small">
                                                 <label>Project Type</label>
-                                                <div className="radio-group">
-                                                    <div>
-                                                        <label>None</label>
-                                                        <input
-                                                            type="radio"
-                                                            name="projectType"
-                                                            value="none"
-                                                            checked={projectType === 'none'}
-                                                            onChange={(e) => setProjectType(e.currentTarget.value as ProjectType)}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label>Competition</label>
-                                                        <input
-                                                            type="radio"
-                                                            name="projectType"
-                                                            value="competition"
-                                                            checked={projectType === 'competition'}
-                                                            onChange={(e) => setProjectType(e.currentTarget.value as ProjectType)}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label>Practice</label>
-                                                        <input
-                                                            type="radio"
-                                                            name="projectType"
-                                                            value="practice"
-                                                            checked={projectType === 'practice'}
-                                                            onChange={(e) => setProjectType(e.currentTarget.value as ProjectType)}
-                                                        />
-                                                    </div>
-                                                </div>
+                                                <SegmentedControl
+                                                    className="segment-project-type"
+                                                    options={[
+                                                        { label: "None", value: "none" },
+                                                        { label: "Competition", value: "competition" },
+                                                        { label: "Practice", value: "practice" },
+                                                    ]}
+                                                    value={projectType}
+                                                    onChange={(v) => setProjectType(v as ProjectType)}
+                                                    getOptionClassName={(v) => v.toLowerCase()}
+                                                />
                                             </div>
-                                            <div className="form-field input-field">
+                                            <div className="form-field input-field small">
                                                 <label>Project Difficulty</label>
-                                                <select value={projectDifficulty} onChange={e => setProjectDifficulty(e.currentTarget.value as ProjectDifficulty)}>
-                                                    <option value="easy">Easy</option>
-                                                    <option value="medium">Medium</option>
-                                                    <option value="hard">Hard</option>
-                                                </select>
+                                                <SegmentedControl
+                                                    className="segment-project-difficulty"
+                                                    options={[
+                                                        { label: "Easy", value: "easy" },
+                                                        { label: "Medium", value: "medium" },
+                                                        { label: "Hard", value: "hard" },
+                                                    ]}
+                                                    value={projectDifficulty}
+                                                    onChange={(v) => setProjectDifficulty(v as ProjectDifficulty)}
+                                                    getOptionClassName={(v) => v.toLowerCase()}
+                                                />
                                             </div>
 
                                             <div className="form-group language-group">
