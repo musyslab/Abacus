@@ -26,8 +26,6 @@ from src.email import send_password_link_email
 
 import re
 
-DEBUGGER_MODE = False
-
 auth_api = Blueprint('auth_api', __name__)
 
 def frontend_base_url() -> str:
@@ -53,6 +51,12 @@ def is_valid_password(password: str) -> bool:
     if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
         return False
     return True
+
+# Takes value of DEBUGGER_MODE in .env.backend, returns result of comparing to "true"
+# Local server must be restarted if DEBUGGER_MODE is switched
+def get_debugger_mode() -> bool:
+    raw = os.getenv("DEBUGGER_MODE")
+    return str(raw).lower() == "true"
 
 def password_token_max_age_seconds() -> int:
     raw = os.getenv("PASSWORD_TOKEN_MAX_AGE_SECONDS") or current_app.config.get("PASSWORD_TOKEN_MAX_AGE_SECONDS")
@@ -139,7 +143,7 @@ def admin_login(user_repo: UserRepository = Provide[Container.user_repo]):
     if getattr(admin, "IsLocked", False):
         return make_response({'message': 'Your account has been locked! Please contact an administrator!'}, HTTPStatus.FORBIDDEN)
 
-    if (not DEBUGGER_MODE) and not (admin.PasswordHash or "").strip():
+    if (not get_debugger_mode()) and not (admin.PasswordHash or "").strip():
         return make_response(
         {
             'message': 'Account setup pending. Please check your email for a password link.'
@@ -178,7 +182,7 @@ def student_login(user_repo: UserRepository = Provide[Container.user_repo]):
     if getattr(student, "IsLocked", False):
         return make_response({'message': 'Your account has been locked! Please contact an administrator!'}, HTTPStatus.FORBIDDEN)
 
-    if (not DEBUGGER_MODE) and not (student.PasswordHash or "").strip():
+    if (not get_debugger_mode()) and not (student.PasswordHash or "").strip():
         return make_response(
             {'message': 'Account setup pending. Please check your email for a password link, or request a new one.'},
             HTTPStatus.FORBIDDEN
@@ -241,7 +245,7 @@ def register_user(user_repo: UserRepository = Provide[Container.user_repo]):
         school_obj = existing if existing else user_repo.create_school(school)
 
     # IMPORTANT: create teacher WITHOUT a password
-    if (DEBUGGER_MODE):
+    if (get_debugger_mode()):
         default_password = "admin123"
         password_hash = generate_password_hash(default_password)
     else:
@@ -259,7 +263,7 @@ def register_user(user_repo: UserRepository = Provide[Container.user_repo]):
     )
 
     # Send password setup email
-    if (not DEBUGGER_MODE):
+    if (not get_debugger_mode()):
         try:
             token = create_password_token("admin", admin.Id, admin.PasswordHash or "")
             link = build_password_link(token)
@@ -341,7 +345,7 @@ def create_student_user(user_repo: UserRepository = Provide[Container.user_repo]
     if user_repo.count_team_members_for_school(school_id, team.Id) >= 4:
         return make_response({'message': 'This team already has 4 members.'}, HTTPStatus.CONFLICT)
 
-    if (DEBUGGER_MODE):
+    if (get_debugger_mode()):
         default_password = "admin123"
         password_hash = generate_password_hash(default_password)
     else:
@@ -463,7 +467,7 @@ def invite_student_stub(user_repo: UserRepository = Provide[Container.user_repo]
     if provided_hash != (student.EmailHash or ""):
         return make_response({'message': 'Email does not match saved hash for this member.'}, HTTPStatus.FORBIDDEN)
 
-    if (not DEBUGGER_MODE):
+    if (not get_debugger_mode()):
         return make_response(
             {
                 'message: Email invite skipped in debugging mode.'
@@ -495,7 +499,7 @@ def request_admin_password_reset(user_repo: UserRepository = Provide[Container.u
     if email:
         admin = user_repo.get_admin_by_email(email)
         if admin:
-            if (not DEBUGGER_MODE):
+            if (not get_debugger_mode()):
                 try:
                     token = create_password_token("admin", admin.Id, admin.PasswordHash or "")
                     link = build_password_link(token)
@@ -522,7 +526,7 @@ def request_student_password_reset(user_repo: UserRepository = Provide[Container
         email_hash = hashlib.sha256(email.encode("utf-8")).hexdigest()
         student = user_repo.get_student_by_emailhash(email_hash)
         if student:
-            if (not DEBUGGER_MODE):
+            if (not get_debugger_mode()):
                 try:
                     token = create_password_token("student", student.Id, student.PasswordHash or "")
                     link = build_password_link(token)
