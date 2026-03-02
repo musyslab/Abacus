@@ -10,11 +10,14 @@ import "../../styling/AdminProjectList.scss";
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs"
 import MenuComponent from "../components/MenuComponent"
 
-interface ProjectObject {
+type ProjectObject = {
     Id: number;
     Name: string;
     Language: string;
     TotalSubmissions: number;
+    Type: string;
+    Difficulty: string;
+    OrderIndex: number | null;
 }
 
 const AdminProjectList = () => {
@@ -30,7 +33,14 @@ const AdminProjectList = () => {
         axios
             .get(`${API}/projects/all_projects`, authConfig())
             .then((res) => {
-                setProjects(res.data);
+                const data = res.data as ProjectObject[];
+                data.sort((a, b) => {
+                    if (a.OrderIndex === null && b.OrderIndex === null) return 0;
+                    if (a.OrderIndex === null) return 1;
+                    if (b.OrderIndex === null) return -1;
+                    return a.OrderIndex - b.OrderIndex;
+                });
+                setProjects(data);
             })
             .catch((err) => console.log(err));
     }, []);
@@ -46,7 +56,7 @@ const AdminProjectList = () => {
             showAdminUpload={true}
         />
 
-        <div className="admin-problem-list-root">
+        <div className="admin-project-list-root">
             <DirectoryBreadcrumbs
                 items={[
                     { label: 'School List', to:'/admin/schools' },
@@ -55,36 +65,65 @@ const AdminProjectList = () => {
             />
             <div className="pageTitle">Problem List</div>
 
-            <div className="admin-problem-list-content">
+            <div className="admin-project-list-content">
+                <div className="projects-container">
+
                 <table className="projects-table">
                     <thead className="projects-table-head">
                         <tr className="projects-table-row">
-                            <th className="projects-table-header">Problem Name</th>
-                            <th className="projects-table-header">Language</th>
-                            <th className="projects-table-header">Total Submissions</th>
-                            <th className="projects-table-header">Edit Problem</th>
+                            <th className="projects-table-header project-order">#</th>
+                            <th className="projects-table-header project-name">Problem</th>
+                            <th className="projects-table-header project-difficulty">Difficulty</th>
+                            <th className="projects-table-header project-submissions">Submissions</th>
+                            <th className="projects-table-header project-edit">Edit</th>
                         </tr>
                     </thead>
                     <tbody className="projects-table-body">
-                        {projects.map((project) => (
+                        {projects.map((project) => {
+                            const orderIndex = project.OrderIndex ?? "-";
+                            const difficulty = project.Difficulty.toLowerCase();
+
+                            const isCompetition = project.Type === "competition";
+                            const isPractice = project.Type === "practice";
+                            //const isActive = something
+
+                            return (
                             <tr
-                                className="project-row is-active"
+                                className={`project-row ${isCompetition ? "is-active" : ""}`}
                                 key={project.Id}
-                                aria-current="true"
                             >
+                                <td className="project-order">{orderIndex}</td>
                                 <td className="project-name">
                                     {project.Name}
-                                    <span
-                                        className="badge-active"
-                                        title="Project is active today"
-                                        aria-label="Project is active today"
-                                    >
-                                        ● Active
-                                    </span>
+                                    {isCompetition && (
+                                        <span
+                                            className="badge badge-competition"
+                                            title="Competition problem"
+                                        >
+                                            Competition
+                                        </span>
+                                    )}
+                                    {isPractice && (
+                                        <span
+                                            className="badge badge-practice"
+                                            title="Practice problem"
+                                        >
+                                            Practice
+                                        </span>
+                                    )}
+                                    {isCompetition && (
+                                        <span
+                                            className="badge badge-active"
+                                            title="Project is active now"
+                                        >
+                                            ● Active
+                                        </span>
+                                    )}
                                 </td>
-                                <td className="project-language">{project.Language}</td>
-                                <td className="project-total-submissions">{project.TotalSubmissions}</td>
-
+                                <td className="project-difficulty">
+                                    <span className={`badge badge-${difficulty}`}>{difficulty}</span>
+                                </td>
+                                <td className="project-submissions">{project.TotalSubmissions}</td>
                                 <td className="project-edit">
                                     <Link className="button button-edit" to={`/admin/problem/manage/${project.Id}`}>
                                         <FaEdit aria-hidden="true" />
@@ -92,10 +131,11 @@ const AdminProjectList = () => {
                                     </Link>
                                 </td>
                             </tr>
-                        ))}
+                            );
+                        })}
                     </tbody>
                 </table>
-
+                </div>
                 <Link className="button button-create-assignment" to={`/admin/problem/manage/0`}>
                     <FaPlusCircle aria-hidden="true" />
                     <span className="button-text">Create new problem</span>

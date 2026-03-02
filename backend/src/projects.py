@@ -112,12 +112,14 @@ def all_projects(project_repo: ProjectRepository = Provide[Container.project_rep
     data = project_repo.get_all_projects()
     thisdic = submission_repo.get_total_submission_for_all_projects()
     new_projects = [
-        ProjectJson(
-            proj.Id,
-            proj.Name,
-            proj.Language,
-            thisdic.get(proj.Id, 0)
-        ).to_dict() for proj in data
+        {
+            "Id": proj.Id,
+            "Name": proj.Name,
+            "Type": proj.Type,
+            "Difficulty": proj.Difficulty,
+            "OrderIndex": proj.OrderIndex,
+            "TotalSubmissions": thisdic.get(proj.Id, 0)
+        } for proj in data
     ]
     return jsonify(new_projects)
 
@@ -245,7 +247,7 @@ def create_project(project_repo: ProjectRepository = Provide[Container.project_r
     # Find order index if project is a competition project
     order_index = None
     if project_type == "competition":
-        order_index = project_repo.get_project_order_index()
+        order_index = project_repo.get_next_order_index()
         if order_index is None:
             return make_response({'message': 'Maximum number of competition projects reached'}, HTTPStatus.BAD_REQUEST)
 
@@ -267,16 +269,21 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
 
     name = request.form.get('name', '')
     language = request.form.get('language', '')
-    project_type = request.form.get('project_type', '').strip()
-    difficulty = request.form.get('difficulty', '').strip()
+    project_type = request.form.get('project_type', '').strip().lower()
+    difficulty = request.form.get('difficulty', '').strip().lower()
     
     if name == '' or language == '' or (project_type not in PROJECT_TYPES) or (difficulty not in DIFFICULTIES):
         return make_response({'message': 'Error in form'}, HTTPStatus.BAD_REQUEST)
     
-    clear_order = False
-    # Clear order index of non-competition problems
-    if project_type != "competition":
-        clear_order = True
+    # Computes order_index for competition projects
+    if project_type == "competition":
+        current_index = project_repo.get_project_order_index(pid) if pid else None
+        order_index = current_index if current_index is not None else project_repo.get_next_order_index()
+        
+        if order_index is None:
+            return make_response({'message': 'Maximum number of competition projects reached'}, HTTPStatus.BAD_REQUEST)
+    else:
+        order_index = None
 
     # Ensure base_proj exists before any use (fix NameError) and compute project folder
     base_proj = safe_name(name)
@@ -428,7 +435,7 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
     if latest_version:
         path = latest_version
 
-    project_repo.edit_project(name, language, project_type, difficulty, pid, path, assignmentdesc_path, json.dumps(add_names), clear_order)
+    project_repo.edit_project(name, language, project_type, difficulty, order_index, pid, path, assignmentdesc_path, json.dumps(add_names))
 
     # Recompute testcase outputs **against the path we just wrote**, so we don't depend on
     # any cached ORM objects or delayed reads.

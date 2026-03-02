@@ -16,7 +16,7 @@ from pyston import PystonClient,File
 import asyncio
 import json
 
-
+from src.constants import COMPETITION_PROBLEM_MAX
 
 class ProjectRepository():
 
@@ -107,7 +107,7 @@ class ProjectRepository():
         ]
         return project
 
-    def edit_project(self, name: str, language:str, project_type: str, difficulty: str, project_id:int, path:str, description_path:str, additional_file_path:str, clear_order: bool):
+    def edit_project(self, name: str, language:str, project_type: str, difficulty: str, order_index: int | None, project_id:int, path:str, description_path:str, additional_file_path:str):
         project = Projects.query.filter(Projects.Id == project_id).first()
         project.Name = name
         project.Language = language
@@ -116,23 +116,35 @@ class ProjectRepository():
         project.solutionpath = path
         project.AsnDescriptionPath = description_path
         project.AdditionalFilePath = additional_file_path
-        if clear_order:
-            project.OrderIndex = None
+        project.OrderIndex = order_index
         db.session.commit() 
 
-    def get_project_order_index(self) -> Optional[int]:
+    def get_next_order_index(self) -> Optional[int]:
         """
-        Returns the next available order index (1..10) for projects in a given role.
+        Returns the next available order index (1..10) for competition.
         If all 10 slots are taken, returns None.
         """
         rows = (
             Projects.query.filter(Projects.Type == "competition", Projects.OrderIndex.isnot(None)).order_by(asc(Projects.OrderIndex)).all()
         )
 
-        used = {int(r[0]) for r in rows if r[0] is not None and 1 <= int(r[0]) <= 10}
-        for i in range(1, 11):
+        used = {
+            int(row.OrderIndex) for row in rows
+            if row.OrderIndex is not None and 1 <= int(row.OrderIndex) <= COMPETITION_PROBLEM_MAX
+        }
+        
+        for i in range(1, COMPETITION_PROBLEM_MAX + 1):
             if i not in used:
                 return i
+        return None
+
+    def get_project_order_index(self, project_id: int) -> Optional[int]:
+        """
+        Returns the order index for a given project ID, or None if not set.
+        """
+        project = Projects.query.filter(Projects.Id == project_id).first()
+        if project and project.Type == "competition":
+            return project.OrderIndex
         return None
 
     def get_testcases(self, project_id: int) -> Dict[int, list]:

@@ -942,7 +942,7 @@ export default function AdminProjectManage() {
                                 }
                                 onClick={() => setActiveTab('psettings')}
                             >
-                                Project Settings
+                                Problem Settings
                             </button>
                             <button
                                 className={`menu-item-testcases ${activeTab === 'testcases' ? 'active' : ''}`}
@@ -958,40 +958,42 @@ export default function AdminProjectManage() {
                                     <form className="form-project-settings">
                                         <div className="segment-main">
                                             <div className="form-field input-field">
-                                                <label>Project Name</label>
+                                                <label>Problem Name</label>
                                                 <input
                                                     type="text"
                                                     value={ProjectName}
                                                     onChange={e => setProjectName(e.currentTarget.value)}
                                                 />
                                             </div>
-                                            <div className="form-field input-field small">
-                                                <label>Project Type</label>
-                                                <SegmentedControl
-                                                    className="segment-project-type"
-                                                    options={[
-                                                        { label: "None", value: "none" },
-                                                        { label: "Competition", value: "competition" },
-                                                        { label: "Practice", value: "practice" },
-                                                    ]}
-                                                    value={projectType}
-                                                    onChange={(v) => setProjectType(v as ProjectType)}
-                                                    getOptionClassName={(v) => v.toLowerCase()}
-                                                />
-                                            </div>
-                                            <div className="form-field input-field small">
-                                                <label>Project Difficulty</label>
-                                                <SegmentedControl
-                                                    className="segment-project-difficulty"
-                                                    options={[
-                                                        { label: "Easy", value: "easy" },
-                                                        { label: "Medium", value: "medium" },
-                                                        { label: "Hard", value: "hard" },
-                                                    ]}
-                                                    value={projectDifficulty}
-                                                    onChange={(v) => setProjectDifficulty(v as ProjectDifficulty)}
-                                                    getOptionClassName={(v) => v.toLowerCase()}
-                                                />
+                                            <div className="project-type-difficulty">
+                                                <div className="form-field input-field">
+                                                        <label>Problem Type</label>
+                                                        <SegmentedControl
+                                                            className="segment-project-type"
+                                                            options={[
+                                                                { label: "None", value: "none" },
+                                                                { label: "Competition", value: "competition" },
+                                                                { label: "Practice", value: "practice" },
+                                                            ]}
+                                                            value={projectType}
+                                                            onChange={(v) => setProjectType(v as ProjectType)}
+                                                            getOptionClassName={(v) => v.toLowerCase()}
+                                                        />
+                                                    </div>
+                                                <div className="form-field input-field">
+                                                    <label>Problem Difficulty</label>
+                                                    <SegmentedControl
+                                                        className="segment-project-difficulty"
+                                                        options={[
+                                                            { label: "Easy", value: "easy" },
+                                                            { label: "Medium", value: "medium" },
+                                                            { label: "Hard", value: "hard" },
+                                                        ]}
+                                                        value={projectDifficulty}
+                                                        onChange={(v) => setProjectDifficulty(v as ProjectDifficulty)}
+                                                        getOptionClassName={(v) => v.toLowerCase()}
+                                                    />
+                                                </div>
                                             </div>
 
                                             <div className="form-group language-group">
@@ -1209,7 +1211,7 @@ export default function AdminProjectManage() {
                                                 </div>
 
                                                 <div className="filesystem-segment">
-                                                    <h1 className="info-title">Project Filesystem View</h1>
+                                                    <h1 className="info-title">Problem Filesystem View</h1>
                                                     {directoryEntries.length > 0 ? (
                                                         <div className="directory-tree" role="tree" aria-label="Current directory">
                                                             <div className="tree-rail" aria-hidden="true"></div>
