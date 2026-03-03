@@ -885,3 +885,44 @@ def unlockStudentAccount(user_repo: UserRepository = Provide[Container.user_repo
         'message': 'Success'
     }
     return make_response(message, HTTPStatus.OK)
+
+@projects_api.route('/reorder', methods=['POST'])
+@jwt_required()
+@inject
+def reorder_projects(
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
+    if not user_repo.is_admin():
+        return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
+
+    projects = project_repo.get_competition_projects()
+    id_order = request.get_json().get('id_order', [])
+
+    if not isinstance(id_order, list) or not all(isinstance(i, int) for i in id_order):
+        return make_response({'message': 'Invalid ID order format'}, HTTPStatus.BAD_REQUEST)
+    if len(id_order) != len(projects):
+        return make_response({'message': 'ID order length mismatch'}, HTTPStatus.BAD_REQUEST)
+    if len(id_order) != len(set(id_order)):
+        return make_response({'message': 'Duplicate IDs in order'}, HTTPStatus.BAD_REQUEST)
+
+    id_to_proj = {str(p.Id): p for p in projects}
+
+    # First pass to flush the order
+    for idx, proj_id in enumerate(id_order):
+        proj = id_to_proj.get(str(proj_id))
+        if proj:
+            project_repo.edit_project_order(proj.Id, -idx - 1)
+        else:
+            return make_response({'message': f'Project ID {proj_id} not found'}, HTTPStatus.BAD_REQUEST)
+
+    # Second pass to set the correct order.
+    # Avoids duplicate unique values
+    for idx, proj_id in enumerate(id_order):
+        proj = id_to_proj.get(str(proj_id))
+        if proj:
+            project_repo.edit_project_order(proj.Id, idx + 1)
+        else:
+            return make_response({'message': f'Project ID {proj_id} not found'}, HTTPStatus.BAD_REQUEST)
+
+    return make_response("Projects Reordered", HTTPStatus.OK)

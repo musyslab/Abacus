@@ -534,7 +534,8 @@ export default function AdminProjectManage() {
 
             window.alert('Your project has been created! Next, open the "Test Cases" tab to add test cases.')
             window.location.href = `/admin/problem/manage/${newId}`
-        } catch (error) {
+        } catch (error: any) {
+            window.alert(error?.response?.data?.message || 'An error occurred while saving the project.')
             console.log(error)
         }
         finally {
@@ -783,11 +784,12 @@ export default function AdminProjectManage() {
 
         try {
             setSubmittingTestcase(true)
-            await axios.post(`${API}/projects/add_or_update_testcase`, formData, authConfig())
+            const res = await axios.post(`${API}/projects/add_or_update_testcase`, formData, authConfig())
             await reloadtests()
             setModalOpen(false)
             setModalDraft(null)
-        } catch (error) {
+        } catch (error: any) {
+            alert(error?.response?.data?.message || 'An error occurred while submitting the test case.')
             console.log(error)
         } finally {
             setSubmittingTestcase(false)

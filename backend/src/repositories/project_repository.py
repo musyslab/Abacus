@@ -29,20 +29,6 @@ class ProjectRepository():
         project = Projects.query.filter(Projects.End >= now, Projects.Start < now).first()
         return project
 
-    def get_current_project_by_class(self, class_id: int) -> Optional[Projects]:
-        """Identifies the current project based on the start and end date.
-
-        Args:
-            class_id (int): The ID of the class.
-
-        Returns:
-            Optional[Projects]: The currently assigned project object.
-        """
-        now = datetime.now()
-        project = Projects.query.filter(Projects.ClassId==class_id,Projects.End >= now, Projects.Start < now).first()
-        #Start and end time format: 2023-05-31 14:33:00
-        return project
-
     def get_all_projects(self) -> Projects:
         """Get all projects from the mySQL database and return a project object sorted by end date.
 
@@ -62,19 +48,6 @@ class ProjectRepository():
         project= Projects.query.filter(Projects.Id == project_id).first()
         return project
 
-
-    def get_projects_by_class_id(self,class_id: int) -> int:
-        """
-        Returns a list of projects associated with a given class ID.
-
-        Args:
-        class_id (int): The ID of the class to retrieve projects for.
-
-        Returns:
-        A list of project objects associated with the given class ID.
-        """
-        class_projects = Projects.query.filter(Projects.ClassId==class_id)
-        return class_projects
     
     def create_project(self, name: str, language:str, project_type:str, difficulty:str, order_index: int | None, file_path:str, description_path:str, additional_file_path:str):
         project = Projects(Name=name, Language=language, Type=project_type, Difficulty=difficulty, OrderIndex=order_index, solutionpath=file_path, AsnDescriptionPath=description_path, AdditionalFilePath=additional_file_path)
@@ -117,7 +90,17 @@ class ProjectRepository():
         project.AsnDescriptionPath = description_path
         project.AdditionalFilePath = additional_file_path
         project.OrderIndex = order_index
-        db.session.commit() 
+        db.session.commit()
+    
+    def get_competition_projects(self) -> list:
+        projects = Projects.query.filter(Projects.Type == "competition").order_by(asc(Projects.OrderIndex)).all()
+        return projects
+    
+    def edit_project_order(self, project_id: int, new_order_index: int):
+        project = Projects.query.filter(Projects.Id == project_id).first()
+        if project and project.Type == "competition":
+            project.OrderIndex = new_order_index
+            db.session.commit()
 
     def get_next_order_index(self) -> Optional[int]:
         """
