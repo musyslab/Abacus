@@ -930,498 +930,82 @@ export default function AdminProjectManage() {
                 ]}
             />
 
-            <div className="main-grid">
-                <>
-                    <div className={`admin-project-config-container${modalOpen ? ' blurred' : ''}`}>
-                        <div className="pageTitle">{edit ? 'Edit Problem' : 'Create Problem'}</div>
+            <div className={`admin-project-config-container${modalOpen ? ' blurred' : ''}`}>
+                <div className="pageTitle">{edit ? 'Edit Problem' : 'Create Problem'}</div>
 
-                        <div className="tab-menu">
-                            <button
-                                className={
-                                    activeTab === 'psettings'
-                                        ? 'active menu-item-project-settings'
-                                        : 'menu-item-project-settings'
-                                }
-                                onClick={() => setActiveTab('psettings')}
-                            >
-                                Problem Settings
-                            </button>
-                            <button
-                                className={`menu-item-testcases ${activeTab === 'testcases' ? 'active' : ''}`}
-                                onClick={() => setActiveTab('testcases')}
-                            >
-                                Test Cases
-                            </button>
-                        </div>
+                <div className="tab-menu">
+                    <button
+                        className={
+                            activeTab === 'psettings'
+                                ? 'active menu-item-project-settings'
+                                : 'menu-item-project-settings'
+                        }
+                        onClick={() => setActiveTab('psettings')}
+                    >
+                        Problem Settings
+                    </button>
+                    <button
+                        className={`menu-item-testcases ${activeTab === 'testcases' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('testcases')}
+                    >
+                        Test Cases
+                    </button>
+                </div>
 
-                        <div className="tab-content">
-                            {activeTab === 'psettings' && (
-                                <div className="pane-project-settings">
-                                    <form className="form-project-settings">
-                                        <div className="segment-main">
-                                            <div className="form-field input-field">
-                                                <label>Problem Name</label>
-                                                <input
-                                                    type="text"
-                                                    value={ProjectName}
-                                                    onChange={e => setProjectName(e.currentTarget.value)}
+                <div className="tab-content">
+                    {activeTab === 'psettings' && (
+                        <div className="pane-project-settings">
+                            <form className="form-project-settings">
+                                <div className="segment-main">
+                                    <div className="form-field input-field">
+                                        <label>Problem Name</label>
+                                        <input
+                                            type="text"
+                                            value={ProjectName}
+                                            onChange={e => setProjectName(e.currentTarget.value)}
+                                        />
+                                    </div>
+                                    <div className="project-type-difficulty">
+                                        <div className="form-field input-field">
+                                                <label>Problem Type</label>
+                                                <SegmentedControl
+                                                    className="segment-project-type"
+                                                    options={[
+                                                        { label: "None", value: "none" },
+                                                        { label: "Competition", value: "competition" },
+                                                        { label: "Practice", value: "practice" },
+                                                    ]}
+                                                    value={projectType}
+                                                    onChange={(v) => setProjectType(v as ProjectType)}
+                                                    getOptionClassName={(v) => v.toLowerCase()}
                                                 />
                                             </div>
-                                            <div className="project-type-difficulty">
-                                                <div className="form-field input-field">
-                                                        <label>Problem Type</label>
-                                                        <SegmentedControl
-                                                            className="segment-project-type"
-                                                            options={[
-                                                                { label: "None", value: "none" },
-                                                                { label: "Competition", value: "competition" },
-                                                                { label: "Practice", value: "practice" },
-                                                            ]}
-                                                            value={projectType}
-                                                            onChange={(v) => setProjectType(v as ProjectType)}
-                                                            getOptionClassName={(v) => v.toLowerCase()}
-                                                        />
-                                                    </div>
-                                                <div className="form-field input-field">
-                                                    <label>Problem Difficulty</label>
-                                                    <SegmentedControl
-                                                        className="segment-project-difficulty"
-                                                        options={[
-                                                            { label: "Easy", value: "easy" },
-                                                            { label: "Medium", value: "medium" },
-                                                            { label: "Hard", value: "hard" },
-                                                        ]}
-                                                        value={projectDifficulty}
-                                                        onChange={(v) => setProjectDifficulty(v as ProjectDifficulty)}
-                                                        getOptionClassName={(v) => v.toLowerCase()}
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            <div className="form-group language-group">
-                                                <label>Language</label>
-                                                <div className="detected-language">{languageLabel}</div>
-                                            </div>
-
-                                            <div className="file-section">
-                                                <div className="info-segment">
-                                                    <h1 className="info-title">
-                                                        {edit ? 'Preview or Change Solution Files' : 'Upload solution files'}
-                                                    </h1>
-                                                    <div
-                                                        className="file-drop-area"
-                                                        onDragOver={e => e.preventDefault()}
-                                                        onDrop={e => {
-                                                            e.preventDefault()
-                                                            const files = e.dataTransfer.files
-                                                            if (files && files.length > 0) {
-                                                                handleSolutionFilesChange({ target: { files } } as any)
-                                                            }
-                                                        }}
-                                                    >
-                                                        {SolutionFiles.length === 0 && (!edit || serverSolutionFileNames.length === 0) ? (
-                                                            <>
-                                                                <input
-                                                                    type="file"
-                                                                    className="file-input"
-                                                                    multiple
-                                                                    accept={SOLUTION_ACCEPT}
-                                                                    onChange={handleSolutionFilesChange}
-                                                                />
-                                                                <div className="file-drop-message">
-                                                                    Drag &amp; drop your file here or&nbsp;
-                                                                    <span className="browse-text">browse</span>
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <div className="file-preview">
-                                                                {(() => {
-                                                                    const shownNames =
-                                                                        SolutionFiles.length > 0
-                                                                            ? SolutionFiles.map(f => f.name)
-                                                                            : serverSolutionFileNames
-                                                                    const showMainTag =
-                                                                        ProjectLanguage === 'java' &&
-                                                                        shownNames.filter(isJavaFileName).length > 1 &&
-                                                                        !!mainJavaFileName
-                                                                    return (
-                                                                        <>
-                                                                            <button
-                                                                                type="button"
-                                                                                className="exchange-icon"
-                                                                                title={
-                                                                                    SolutionFiles.length > 0
-                                                                                        ? 'Clear selected solution files'
-                                                                                        : 'Replace server solution files'
-                                                                                }
-                                                                                aria-label={
-                                                                                    SolutionFiles.length > 0
-                                                                                        ? 'Clear selected solution files'
-                                                                                        : 'Replace server solution files'
-                                                                                }
-                                                                                onClick={(e) => {
-                                                                                    e.preventDefault()
-                                                                                    if (SolutionFiles.length > 0) {
-                                                                                        setSolutionFiles([])
-                                                                                        setSolutionFileNames([])
-                                                                                    } else if (edit && serverSolutionFileNames.length > 0) {
-                                                                                        setServerSolutionFileNames([])
-                                                                                    }
-                                                                                }}
-                                                                            >
-                                                                                <FaExchangeAlt aria-hidden="true" />
-                                                                            </button>
-
-                                                                            <div
-                                                                                className="file-preview-list"
-                                                                                role={shownNames.length > 1 ? 'button' : undefined}
-                                                                                tabIndex={shownNames.length > 1 ? 0 : undefined}
-                                                                                title={
-                                                                                    shownNames.length > 1
-                                                                                        ? 'Click to preview ALL solution files'
-                                                                                        : undefined
-                                                                                }
-                                                                                onClick={(e) => {
-                                                                                    if (shownNames.length > 1) {
-                                                                                        e.preventDefault()
-                                                                                        openAllSolutionPreview()
-                                                                                    }
-                                                                                }}
-                                                                                onKeyDown={(e) => {
-                                                                                    if (shownNames.length > 1 && (e.key === 'Enter' || e.key === ' ')) {
-                                                                                        e.preventDefault()
-                                                                                        openAllSolutionPreview()
-                                                                                    }
-                                                                                }}
-                                                                            >
-                                                                                {shownNames.map((name) => (
-                                                                                    <div key={name} className="file-preview-row solution-file-card">
-                                                                                        <span className="file-icon-wrapper" aria-hidden="true">
-                                                                                            <FaRegFile className="file-outline-icon" aria-hidden="true" />
-                                                                                            {getFileIcon(name)}
-                                                                                        </span>
-
-                                                                                        {shownNames.length > 1 ? (
-                                                                                            <span className="file-name">
-                                                                                                {name}
-                                                                                                {showMainTag && isJavaFileName(name) && name === mainJavaFileName && (
-                                                                                                    <span className="main-indicator">Main</span>
-                                                                                                )}
-                                                                                            </span>
-                                                                                        ) : (
-                                                                                            <button
-                                                                                                type="button"
-                                                                                                className="file-name"
-                                                                                                title="Click to preview"
-                                                                                                onClick={(e) => {
-                                                                                                    e.preventDefault()
-                                                                                                    if (SolutionFiles.length > 0) {
-                                                                                                        const file = SolutionFiles.find(x => x.name === name)
-                                                                                                        if (file) openLocalPreview(file)
-                                                                                                    } else {
-                                                                                                        openServerPreview(name)
-                                                                                                    }
-                                                                                                }}
-                                                                                            >
-                                                                                                {name}
-                                                                                                {showMainTag && isJavaFileName(name) && name === mainJavaFileName && (
-                                                                                                    <span className="main-indicator">Main</span>
-                                                                                                )}
-                                                                                            </button>
-                                                                                        )}
-                                                                                    </div>
-                                                                                ))}
-                                                                            </div>
-                                                                        </>
-                                                                    )
-                                                                })()}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="info-segment">
-                                                    <h1 className="info-title">
-                                                        {edit
-                                                            ? 'Download or Change Problem Description File: ' + serverDescFileName
-                                                            : 'Upload problem description'}
-                                                    </h1>
-                                                    <div
-                                                        className="file-drop-area"
-                                                        onDragOver={e => e.preventDefault()}
-                                                        onDrop={e => {
-                                                            e.preventDefault()
-                                                            const files = e.dataTransfer.files
-                                                            if (files && files.length > 0) {
-                                                                handleSolutionFilesChange({ target: { files } } as any)
-                                                            }
-                                                        }}
-                                                    >
-                                                        {!descfileName ? (
-                                                            <>
-                                                                <input
-                                                                    type="file"
-                                                                    className="file-input"
-                                                                    id="descFile"
-                                                                    accept={DESC_ACCEPT}
-                                                                    onChange={handleDescFileChange}
-                                                                />
-                                                                <div className="file-drop-message">
-                                                                    Drag &amp; drop your file here or&nbsp;
-                                                                    <span className="browse-text">browse</span>
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <div className="file-preview">
-                                                                <button
-                                                                    type="button"
-                                                                    className="exchange-icon"
-                                                                    onClick={() => {
-                                                                        setDescFileName('')
-                                                                        setDesc(undefined)
-                                                                        const el = document.getElementById('descFile') as HTMLInputElement | null
-                                                                        if (el) el.value = ''
-                                                                    }}
-                                                                >
-                                                                    <FaExchangeAlt aria-hidden="true" />
-                                                                </button>
-
-                                                                <div className="file-preview-list">
-                                                                    <div className="file-preview-row solution-file-card">
-                                                                        <span className="file-icon-wrapper" aria-hidden="true">
-                                                                            <FaRegFile className="file-outline-icon" aria-hidden="true" />
-                                                                            {getFileIcon(descfileName)}
-                                                                        </span>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="file-name"
-                                                                            title="Click to download"
-                                                                            onClick={(e) => {
-                                                                                e.preventDefault()
-                                                                                const lower = (descfileName || '').toLowerCase()
-                                                                                if (/\.(pdf|docx?)$/.test(lower) && edit && !AssignmentDesc) {
-                                                                                    downloadAssignmentDescription()
-                                                                                }
-                                                                            }}
-                                                                        >
-                                                                            {descfileName}
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                <div className="filesystem-segment">
-                                                    <h1 className="info-title">Problem Filesystem View</h1>
-                                                    {directoryEntries.length > 0 ? (
-                                                        <div className="directory-tree" role="tree" aria-label="Current directory">
-                                                            <div className="tree-rail" aria-hidden="true"></div>
-                                                            <ul className="tree-list">
-                                                                {directoryEntries.map((entry) => {
-                                                                    const name = entry.name
-                                                                    const isAdded = !!selectedAddFiles.find(f => f.name === name)
-                                                                    const isServer = additionalFileNames.includes(name)
-
-                                                                    return (
-                                                                        <li className="tree-row" role="treeitem" key={entry.key}>
-                                                                            <span className="tree-icon" aria-hidden="true">
-                                                                                <span className="fs-file-icon-wrapper">
-                                                                                    <FaRegFile className="fs-file-outline-icon" aria-hidden="true" />
-                                                                                    <span className="fs-file-language-icon" aria-hidden="true">
-                                                                                        {getFileIcon(name)}
-                                                                                    </span>
-                                                                                </span>
-                                                                            </span>
-                                                                            <span className="tree-name">
-                                                                                {name}
-                                                                                {fsShowMainTag && isJavaFileName(name) && name === mainJavaFileName && (
-                                                                                    <span className="main-indicator">Main</span>
-                                                                                )}
-                                                                            </span>
-                                                                            {entry.status === 'remove' && (
-                                                                                <span className="file-status removed">Submit changes to remove</span>
-                                                                            )}
-                                                                            {entry.status === 'add' && (
-                                                                                <span className="file-status added">Submit changes to add</span>
-                                                                            )}
-                                                                            {isServer ? (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    className="tree-remove-button from-server"
-                                                                                    onClick={() => removeServerAdditional(name)}
-                                                                                >
-                                                                                    Remove
-                                                                                </button>
-                                                                            ) : isAdded ? (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    className="tree-remove-button from-selected"
-                                                                                    onClick={() => removeSelectedAdditional(name)}
-                                                                                >
-                                                                                    Remove
-                                                                                </button>
-                                                                            ) : null}
-                                                                        </li>
-                                                                    )
-                                                                })}
-                                                            </ul>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="filesystem-empty">No files yet.</div>
-                                                    )}
-                                                </div>
-
-                                                <div className="optional-file-toggle">
-                                                    <button
-                                                        type="button"
-                                                        className={`toggle-optional-file ${showAdditionalFile ? 'on' : 'off'}`}
-                                                        aria-pressed={showAdditionalFile}
-                                                        onClick={() => setShowAdditionalFile(prev => !prev)}
-                                                    >
-                                                        {showAdditionalFile
-                                                            ? 'Optional additional text file: On'
-                                                            : 'Optional additional text file: Off'}
-                                                    </button>
-                                                </div>
-
-                                                {showAdditionalFile && (
-                                                    <div className="info-segment optional-additional-file-segment">
-                                                        <h1 className="info-title">Optional Additional Files</h1>
-                                                        <div
-                                                            className="file-drop-area optional-additional-file-drop"
-                                                            onDragOver={e => e.preventDefault()}
-                                                            onDrop={e => {
-                                                                e.preventDefault()
-                                                                const files = e.dataTransfer.files
-                                                                if (files && files.length > 0) {
-                                                                    handleAdditionalFileChange({ target: { files } } as any)
-                                                                }
-                                                            }}
-                                                        >
-                                                            <input
-                                                                type="file"
-                                                                className="file-input optional-additional-file-input"
-                                                                multiple
-                                                                accept={ADD_ACCEPT}
-                                                                onChange={handleAdditionalFileChange}
-                                                            />
-                                                            <div className="file-drop-message">
-                                                                Drag &amp; drop your file(s) here or&nbsp;
-                                                                <span className="browse-text">browse</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <button
-                                                type="button"
-                                                className="submit-button"
-                                                onClick={edit ? handleEditSubmit : handleNewSubmit}
-                                                disabled={submittingProject}
-                                            >
-                                                {submittingProject ? (
-                                                    <>
-                                                        <FaCircleNotch className="spin" aria-hidden="true" />
-                                                        &nbsp;{edit ? 'Saving...' : 'Creating...'}
-                                                    </>
-                                                ) : (
-                                                    SubmitButton
-                                                )}
-                                            </button>
+                                        <div className="form-field input-field">
+                                            <label>Problem Difficulty</label>
+                                            <SegmentedControl
+                                                className="segment-project-difficulty"
+                                                options={[
+                                                    { label: "Easy", value: "easy" },
+                                                    { label: "Medium", value: "medium" },
+                                                    { label: "Hard", value: "hard" },
+                                                ]}
+                                                value={projectDifficulty}
+                                                onChange={(v) => setProjectDifficulty(v as ProjectDifficulty)}
+                                                getOptionClassName={(v) => v.toLowerCase()}
+                                            />
                                         </div>
-                                    </form>
-                                </div>
-                            )}
+                                    </div>
 
-                            {activeTab === 'testcases' && (
-                                <div className="pane-testcases">
-                                    <div className="testcase-management-group">
-                                        <div className="form-testcases-overview">
-                                            <table className="testcases-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Name</th>
-                                                        <th>Input</th>
-                                                        <th>Output</th>
-                                                        <th>Description</th>
-                                                        <th>Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {testcases
-                                                        .filter(tc => tc.id !== -1)
-                                                        .map(tc => (
-                                                            <tr
-                                                                key={tc.id}
-                                                                className={tc.hidden ? 'hidden-testcase' : undefined}
-                                                                aria-label={tc.hidden ? 'Hidden test case' : undefined}
-                                                            >
-                                                                <td>{tc.name}</td>
-                                                                <td>
-                                                                    <pre className="testcase-input">{tc.input}</pre>
-                                                                </td>
-                                                                <td>
-                                                                    <pre className="testcase-output">{tc.output}</pre>
-                                                                </td>
-                                                                <td>{tc.description}</td>
-                                                                <td>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="testcase-edit-button"
-                                                                        onClick={() => handleOpenModal(tc.id)}
-                                                                    >
-                                                                        <FaEdit aria-hidden="true" /> Edit
-                                                                    </button>
+                                    <div className="form-group language-group">
+                                        <label>Language</label>
+                                        <div className="detected-language">{languageLabel}</div>
+                                    </div>
 
-                                                                    <div className="testcase-hidden-toggle">
-                                                                        <span className="toggle-label">Hidden</span>
-                                                                        <label className="switch">
-                                                                            <input
-                                                                                type="checkbox"
-                                                                                checked={!!tc.hidden}
-                                                                                onChange={(e) => setHiddenFromRow(tc, e.currentTarget.checked)}
-                                                                                aria-label="Toggle hidden test case"
-                                                                            />
-                                                                            <span className="slider" aria-hidden="true" />
-                                                                        </label>
-                                                                    </div>
-
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    <tr>
-                                                        <td colSpan={6} className="add-row-cell">
-                                                            <button
-                                                                type="button"
-                                                                className="add-testcase-button"
-                                                                onClick={() => handleOpenModal(-1)}
-                                                            >
-                                                                <FaPlusCircle aria-hidden="true" /> Add Test Case
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-
-                                        <div className="export-json-segment">
-                                            <button
-                                                type="button"
-                                                className="export-json-button"
-                                                onClick={get_testcase_json}
-                                            >
-                                                <FaDownload aria-hidden="true" /> Export test cases to JSON
-                                            </button>
-                                        </div>
-
-                                        <div className="or-separator">
-                                            <span>or</span>
-                                        </div>
-
-                                        <div className="upload-testcases-segment">
-                                            <h1 className="upload-title">Upload Test Cases</h1>
+                                    <div className="file-section">
+                                        <div className="info-segment">
+                                            <h1 className="info-title">
+                                                {edit ? 'Preview or Change Solution Files' : 'Upload solution files'}
+                                            </h1>
                                             <div
                                                 className="file-drop-area"
                                                 onDragOver={e => e.preventDefault()}
@@ -1429,241 +1013,653 @@ export default function AdminProjectManage() {
                                                     e.preventDefault()
                                                     const files = e.dataTransfer.files
                                                     if (files && files.length > 0) {
-                                                        handleDescFileChange({ target: { files } } as any)
+                                                        handleSolutionFilesChange({ target: { files } } as any)
                                                     }
                                                 }}
                                             >
-                                                {!jsonfilename ? (
+                                                {SolutionFiles.length === 0 && (!edit || serverSolutionFileNames.length === 0) ? (
                                                     <>
                                                         <input
-                                                            id="jsonFile"
                                                             type="file"
                                                             className="file-input"
-                                                            accept=".json,application/json"
-                                                            onChange={handleJsonFileChange}
+                                                            multiple
+                                                            accept={SOLUTION_ACCEPT}
+                                                            onChange={handleSolutionFilesChange}
                                                         />
                                                         <div className="file-drop-message">
-                                                            Drag &amp; drop your JSON file here or&nbsp;
+                                                            Drag &amp; drop your file here or&nbsp;
                                                             <span className="browse-text">browse</span>
                                                         </div>
                                                     </>
                                                 ) : (
-                                                    <div className="file-preview json-file-preview">
-                                                        <span className="file-icon-wrapper" aria-hidden="true">
-                                                            <FaRegFile className="file-outline-icon" aria-hidden="true" />
-                                                            {getFileIcon(jsonfilename)}
-                                                        </span>
-                                                        <span className="file-name">{jsonfilename}</span>
+                                                    <div className="file-preview">
+                                                        {(() => {
+                                                            const shownNames =
+                                                                SolutionFiles.length > 0
+                                                                    ? SolutionFiles.map(f => f.name)
+                                                                    : serverSolutionFileNames
+                                                            const showMainTag =
+                                                                ProjectLanguage === 'java' &&
+                                                                shownNames.filter(isJavaFileName).length > 1 &&
+                                                                !!mainJavaFileName
+                                                            return (
+                                                                <>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="exchange-icon"
+                                                                        title={
+                                                                            SolutionFiles.length > 0
+                                                                                ? 'Clear selected solution files'
+                                                                                : 'Replace server solution files'
+                                                                        }
+                                                                        aria-label={
+                                                                            SolutionFiles.length > 0
+                                                                                ? 'Clear selected solution files'
+                                                                                : 'Replace server solution files'
+                                                                        }
+                                                                        onClick={(e) => {
+                                                                            e.preventDefault()
+                                                                            if (SolutionFiles.length > 0) {
+                                                                                setSolutionFiles([])
+                                                                                setSolutionFileNames([])
+                                                                            } else if (edit && serverSolutionFileNames.length > 0) {
+                                                                                setServerSolutionFileNames([])
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        <FaExchangeAlt aria-hidden="true" />
+                                                                    </button>
+
+                                                                    <div
+                                                                        className="file-preview-list"
+                                                                        role={shownNames.length > 1 ? 'button' : undefined}
+                                                                        tabIndex={shownNames.length > 1 ? 0 : undefined}
+                                                                        title={
+                                                                            shownNames.length > 1
+                                                                                ? 'Click to preview ALL solution files'
+                                                                                : undefined
+                                                                        }
+                                                                        onClick={(e) => {
+                                                                            if (shownNames.length > 1) {
+                                                                                e.preventDefault()
+                                                                                openAllSolutionPreview()
+                                                                            }
+                                                                        }}
+                                                                        onKeyDown={(e) => {
+                                                                            if (shownNames.length > 1 && (e.key === 'Enter' || e.key === ' ')) {
+                                                                                e.preventDefault()
+                                                                                openAllSolutionPreview()
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        {shownNames.map((name) => (
+                                                                            <div key={name} className="file-preview-row solution-file-card">
+                                                                                <span className="file-icon-wrapper" aria-hidden="true">
+                                                                                    <FaRegFile className="file-outline-icon" aria-hidden="true" />
+                                                                                    {getFileIcon(name)}
+                                                                                </span>
+
+                                                                                {shownNames.length > 1 ? (
+                                                                                    <span className="file-name">
+                                                                                        {name}
+                                                                                        {showMainTag && isJavaFileName(name) && name === mainJavaFileName && (
+                                                                                            <span className="main-indicator">Main</span>
+                                                                                        )}
+                                                                                    </span>
+                                                                                ) : (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        className="file-name"
+                                                                                        title="Click to preview"
+                                                                                        onClick={(e) => {
+                                                                                            e.preventDefault()
+                                                                                            if (SolutionFiles.length > 0) {
+                                                                                                const file = SolutionFiles.find(x => x.name === name)
+                                                                                                if (file) openLocalPreview(file)
+                                                                                            } else {
+                                                                                                openServerPreview(name)
+                                                                                            }
+                                                                                        }}
+                                                                                    >
+                                                                                        {name}
+                                                                                        {showMainTag && isJavaFileName(name) && name === mainJavaFileName && (
+                                                                                            <span className="main-indicator">Main</span>
+                                                                                        )}
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </>
+                                                            )
+                                                        })()}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="info-segment">
+                                            <h1 className="info-title">
+                                                {edit
+                                                    ? 'Download or Change Problem Description File: ' + serverDescFileName
+                                                    : 'Upload problem description'}
+                                            </h1>
+                                            <div
+                                                className="file-drop-area"
+                                                onDragOver={e => e.preventDefault()}
+                                                onDrop={e => {
+                                                    e.preventDefault()
+                                                    const files = e.dataTransfer.files
+                                                    if (files && files.length > 0) {
+                                                        handleSolutionFilesChange({ target: { files } } as any)
+                                                    }
+                                                }}
+                                            >
+                                                {!descfileName ? (
+                                                    <>
+                                                        <input
+                                                            type="file"
+                                                            className="file-input"
+                                                            id="descFile"
+                                                            accept={DESC_ACCEPT}
+                                                            onChange={handleDescFileChange}
+                                                        />
+                                                        <div className="file-drop-message">
+                                                            Drag &amp; drop your file here or&nbsp;
+                                                            <span className="browse-text">browse</span>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div className="file-preview">
                                                         <button
                                                             type="button"
                                                             className="exchange-icon"
                                                             onClick={() => {
-                                                                setjsonfilename('')
-                                                                const jsonInput = document.getElementById('jsonFile') as HTMLInputElement | null
-                                                                if (jsonInput) jsonInput.value = ''
+                                                                setDescFileName('')
+                                                                setDesc(undefined)
+                                                                const el = document.getElementById('descFile') as HTMLInputElement | null
+                                                                if (el) el.value = ''
                                                             }}
                                                         >
                                                             <FaExchangeAlt aria-hidden="true" />
                                                         </button>
+
+                                                        <div className="file-preview-list">
+                                                            <div className="file-preview-row solution-file-card">
+                                                                <span className="file-icon-wrapper" aria-hidden="true">
+                                                                    <FaRegFile className="file-outline-icon" aria-hidden="true" />
+                                                                    {getFileIcon(descfileName)}
+                                                                </span>
+                                                                <button
+                                                                    type="button"
+                                                                    className="file-name"
+                                                                    title="Click to download"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault()
+                                                                        const lower = (descfileName || '').toLowerCase()
+                                                                        if (/\.(pdf|docx?)$/.test(lower) && edit && !AssignmentDesc) {
+                                                                            downloadAssignmentDescription()
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    {descfileName}
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
                                         </div>
 
-                                        <div className="json-button-group">
+                                        <div className="filesystem-segment">
+                                            <h1 className="info-title">Problem Filesystem View</h1>
+                                            {directoryEntries.length > 0 ? (
+                                                <div className="directory-tree" role="tree" aria-label="Current directory">
+                                                    <div className="tree-rail" aria-hidden="true"></div>
+                                                    <ul className="tree-list">
+                                                        {directoryEntries.map((entry) => {
+                                                            const name = entry.name
+                                                            const isAdded = !!selectedAddFiles.find(f => f.name === name)
+                                                            const isServer = additionalFileNames.includes(name)
+
+                                                            return (
+                                                                <li className="tree-row" role="treeitem" key={entry.key}>
+                                                                    <span className="tree-icon" aria-hidden="true">
+                                                                        <span className="fs-file-icon-wrapper">
+                                                                            <FaRegFile className="fs-file-outline-icon" aria-hidden="true" />
+                                                                            <span className="fs-file-language-icon" aria-hidden="true">
+                                                                                {getFileIcon(name)}
+                                                                            </span>
+                                                                        </span>
+                                                                    </span>
+                                                                    <span className="tree-name">
+                                                                        {name}
+                                                                        {fsShowMainTag && isJavaFileName(name) && name === mainJavaFileName && (
+                                                                            <span className="main-indicator">Main</span>
+                                                                        )}
+                                                                    </span>
+                                                                    {entry.status === 'remove' && (
+                                                                        <span className="file-status removed">Submit changes to remove</span>
+                                                                    )}
+                                                                    {entry.status === 'add' && (
+                                                                        <span className="file-status added">Submit changes to add</span>
+                                                                    )}
+                                                                    {isServer ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            className="tree-remove-button from-server"
+                                                                            onClick={() => removeServerAdditional(name)}
+                                                                        >
+                                                                            Remove
+                                                                        </button>
+                                                                    ) : isAdded ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            className="tree-remove-button from-selected"
+                                                                            onClick={() => removeSelectedAdditional(name)}
+                                                                        >
+                                                                            Remove
+                                                                        </button>
+                                                                    ) : null}
+                                                                </li>
+                                                            )
+                                                        })}
+                                                    </ul>
+                                                </div>
+                                            ) : (
+                                                <div className="filesystem-empty">No files yet.</div>
+                                            )}
+                                        </div>
+
+                                        <div className="optional-file-toggle">
                                             <button
                                                 type="button"
-                                                className="json-submit-button"
-                                                onClick={handleJsonSubmit}
-                                                disabled={submittingJson}
+                                                className={`toggle-optional-file ${showAdditionalFile ? 'on' : 'off'}`}
+                                                aria-pressed={showAdditionalFile}
+                                                onClick={() => setShowAdditionalFile(prev => !prev)}
                                             >
-                                                {submittingJson ? (
-                                                    <>
-                                                        <FaCircleNotch className="spin" aria-hidden="true" />
-                                                        &nbsp;Submitting...
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <FaUpload aria-hidden="true" /> Submit JSON file
-                                                    </>
-                                                )}
+                                                {showAdditionalFile
+                                                    ? 'Optional additional text file: On'
+                                                    : 'Optional additional text file: Off'}
                                             </button>
                                         </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
 
-                    {previewOpen && (
-                        <div className="preview-overlay">
-                            <div className="preview-modal">
-                                <div className="preview-header">
-                                    <strong>{previewTitle}</strong>
+                                        {showAdditionalFile && (
+                                            <div className="info-segment optional-additional-file-segment">
+                                                <h1 className="info-title">Optional Additional Files</h1>
+                                                <div
+                                                    className="file-drop-area optional-additional-file-drop"
+                                                    onDragOver={e => e.preventDefault()}
+                                                    onDrop={e => {
+                                                        e.preventDefault()
+                                                        const files = e.dataTransfer.files
+                                                        if (files && files.length > 0) {
+                                                            handleAdditionalFileChange({ target: { files } } as any)
+                                                        }
+                                                    }}
+                                                >
+                                                    <input
+                                                        type="file"
+                                                        className="file-input optional-additional-file-input"
+                                                        multiple
+                                                        accept={ADD_ACCEPT}
+                                                        onChange={handleAdditionalFileChange}
+                                                    />
+                                                    <div className="file-drop-message">
+                                                        Drag &amp; drop your file(s) here or&nbsp;
+                                                        <span className="browse-text">browse</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <button
                                         type="button"
-                                        className="preview-close-button"
-                                        onClick={() => {
-                                            setPreviewOpen(false)
-                                        }}
+                                        className="submit-button"
+                                        onClick={edit ? handleEditSubmit : handleNewSubmit}
+                                        disabled={submittingProject}
                                     >
-                                        &times;
+                                        {submittingProject ? (
+                                            <>
+                                                <FaCircleNotch className="spin" aria-hidden="true" />
+                                                &nbsp;{edit ? 'Saving...' : 'Creating...'}
+                                            </>
+                                        ) : (
+                                            SubmitButton
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    )}
+
+                    {activeTab === 'testcases' && (
+                        <div className="pane-testcases">
+                            <div className="testcase-management-group">
+                                <div className="form-testcases-overview">
+                                    <table className="testcases-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Input</th>
+                                                <th>Output</th>
+                                                <th>Description</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {testcases
+                                                .filter(tc => tc.id !== -1)
+                                                .map(tc => (
+                                                    <tr
+                                                        key={tc.id}
+                                                        className={tc.hidden ? 'hidden-testcase' : undefined}
+                                                        aria-label={tc.hidden ? 'Hidden test case' : undefined}
+                                                    >
+                                                        <td>{tc.name}</td>
+                                                        <td>
+                                                            <pre className="testcase-input">{tc.input}</pre>
+                                                        </td>
+                                                        <td>
+                                                            <pre className="testcase-output">{tc.output}</pre>
+                                                        </td>
+                                                        <td>{tc.description}</td>
+                                                        <td>
+                                                            <button
+                                                                type="button"
+                                                                className="testcase-edit-button"
+                                                                onClick={() => handleOpenModal(tc.id)}
+                                                            >
+                                                                <FaEdit aria-hidden="true" /> Edit
+                                                            </button>
+
+                                                            <div className="testcase-hidden-toggle">
+                                                                <span className="toggle-label">Hidden</span>
+                                                                <label className="switch">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={!!tc.hidden}
+                                                                        onChange={(e) => setHiddenFromRow(tc, e.currentTarget.checked)}
+                                                                        aria-label="Toggle hidden test case"
+                                                                    />
+                                                                    <span className="slider" aria-hidden="true" />
+                                                                </label>
+                                                            </div>
+
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            <tr>
+                                                <td colSpan={6} className="add-row-cell">
+                                                    <button
+                                                        type="button"
+                                                        className="add-testcase-button"
+                                                        onClick={() => handleOpenModal(-1)}
+                                                    >
+                                                        <FaPlusCircle aria-hidden="true" /> Add Test Case
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div className="export-json-segment">
+                                    <button
+                                        type="button"
+                                        className="export-json-button"
+                                        onClick={get_testcase_json}
+                                    >
+                                        <FaDownload aria-hidden="true" /> Export test cases to JSON
                                     </button>
                                 </div>
 
-                                {serverFiles && (
-                                    <div className="preview-file-list">
-                                        {serverFiles.length === 0 ? (
-                                            <div>No previewable files.</div>
+                                <div className="or-separator">
+                                    <span>or</span>
+                                </div>
+
+                                <div className="upload-testcases-segment">
+                                    <h1 className="upload-title">Upload Test Cases</h1>
+                                    <div
+                                        className="file-drop-area"
+                                        onDragOver={e => e.preventDefault()}
+                                        onDrop={e => {
+                                            e.preventDefault()
+                                            const files = e.dataTransfer.files
+                                            if (files && files.length > 0) {
+                                                handleDescFileChange({ target: { files } } as any)
+                                            }
+                                        }}
+                                    >
+                                        {!jsonfilename ? (
+                                            <>
+                                                <input
+                                                    id="jsonFile"
+                                                    type="file"
+                                                    className="file-input"
+                                                    accept=".json,application/json"
+                                                    onChange={handleJsonFileChange}
+                                                />
+                                                <div className="file-drop-message">
+                                                    Drag &amp; drop your JSON file here or&nbsp;
+                                                    <span className="browse-text">browse</span>
+                                                </div>
+                                            </>
                                         ) : (
-                                            <ul>
-                                                {serverFiles.map(fp => (
-                                                    <li key={fp}>
-                                                        <button
-                                                            type="button"
-                                                            className="preview-file-link"
-                                                            onClick={(e) => {
-                                                                e.preventDefault()
-                                                                e.stopPropagation()
-                                                                openServerPreview(fp)
-                                                            }}
-                                                        >
-                                                            {fp}
-                                                        </button>
-                                                    </li>
-                                                ))}
-                                            </ul>
+                                            <div className="file-preview json-file-preview">
+                                                <span className="file-icon-wrapper" aria-hidden="true">
+                                                    <FaRegFile className="file-outline-icon" aria-hidden="true" />
+                                                    {getFileIcon(jsonfilename)}
+                                                </span>
+                                                <span className="file-name">{jsonfilename}</span>
+                                                <button
+                                                    type="button"
+                                                    className="exchange-icon"
+                                                    onClick={() => {
+                                                        setjsonfilename('')
+                                                        const jsonInput = document.getElementById('jsonFile') as HTMLInputElement | null
+                                                        if (jsonInput) jsonInput.value = ''
+                                                    }}
+                                                >
+                                                    <FaExchangeAlt aria-hidden="true" />
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
-                                )}
+                                </div>
 
-                                <div className="preview-body">
-                                    {previewText || (!serverFiles ? 'No content loaded.' : 'Pick a file above.')}
+                                <div className="json-button-group">
+                                    <button
+                                        type="button"
+                                        className="json-submit-button"
+                                        onClick={handleJsonSubmit}
+                                        disabled={submittingJson}
+                                    >
+                                        {submittingJson ? (
+                                            <>
+                                                <FaCircleNotch className="spin" aria-hidden="true" />
+                                                &nbsp;Submitting...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <FaUpload aria-hidden="true" /> Submit JSON file
+                                            </>
+                                        )}
+                                    </button>
                                 </div>
                             </div>
                         </div>
                     )}
+                </div>
+            </div>
 
-                    {modalOpen && (
-                        <>
-                            <div
-                                className="modal-overlay"
+            {previewOpen && (
+                <div className="preview-overlay">
+                    <div className="preview-modal">
+                        <div className="preview-header">
+                            <strong>{previewTitle}</strong>
+                            <button
+                                type="button"
+                                className="preview-close-button"
+                                onClick={() => {
+                                    setPreviewOpen(false)
+                                }}
+                            >
+                                &times;
+                            </button>
+                        </div>
+
+                        {serverFiles && (
+                            <div className="preview-file-list">
+                                {serverFiles.length === 0 ? (
+                                    <div>No previewable files.</div>
+                                ) : (
+                                    <ul>
+                                        {serverFiles.map(fp => (
+                                            <li key={fp}>
+                                                <button
+                                                    type="button"
+                                                    className="preview-file-link"
+                                                    onClick={(e) => {
+                                                        e.preventDefault()
+                                                        e.stopPropagation()
+                                                        openServerPreview(fp)
+                                                    }}
+                                                >
+                                                    {fp}
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="preview-body">
+                            {previewText || (!serverFiles ? 'No content loaded.' : 'Pick a file above.')}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {modalOpen && (
+                <>
+                    <div
+                        className="modal-overlay--testcase"
+                        onClick={() => {
+                            setModalOpen(false)
+                            setModalDraft(null)
+                        }}
+                    />
+                    <div className="testcase-modal">
+                        <div className="modal-header">
+                            <div className="modal-title">Test Case Information</div>
+                            <button
+                                type="button"
+                                className="modal-close-button"
+                                aria-label="Close test case modal"
                                 onClick={() => {
                                     setModalOpen(false)
                                     setModalDraft(null)
                                 }}
-                            />
-                            <div className="testcase-modal">
-                                <div className="modal-header">
-                                    <div className="modal-title">Test Case Information</div>
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="modal-content">
+                            <form>
+                                <div className="form-field modal-input">
+                                    <label>Test Case Name</label>
+                                    <textarea
+                                        className="modal-textarea"
+                                        rows={1}
+                                        value={selectedTestCase?.name || ''}
+                                        onChange={e => handleNameChange(selectedTestCaseId!, e.currentTarget.value)}
+                                    />
+                                </div>
+
+                                <div className="form-field modal-textarea">
+                                    <label>Input</label>
+                                    <textarea
+                                        className="modal-textarea textarea--input"
+                                        rows={1}
+                                        value={selectedTestCase?.input || ''}
+                                        onChange={e => handleInputChange(selectedTestCaseId!, e.currentTarget.value)}
+                                    />
+                                </div>
+
+                                <div className="form-field modal-textarea">
+                                    <label>Output</label>
+                                    <textarea
+                                        className="modal-textarea textarea--output"
+                                        //rows={1}
+                                        value={selectedTestCase?.output || ''}
+                                        readOnly
+                                        aria-readonly="true"
+                                    />
+                                </div>
+
+                                <div className="grid">
+                                    <div className="grid-column grid-column-13">
+                                        <div className="form-field modal-description-field">
+                                            <label>Description</label>
+                                            <textarea
+                                                className="modal-textarea"
+                                                rows={1}
+                                                value={selectedTestCase?.description || ''}
+                                                onChange={e =>
+                                                    handleDescriptionChange(selectedTestCaseId!, e.currentTarget.value)
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="form-field modal-checkbox">
+                                    <label>
+                                        <input
+                                            type="checkbox"
+                                            checked={!!selectedTestCase?.hidden}
+                                            onChange={(e) => handleHiddenChange(selectedTestCaseId!, e.currentTarget.checked)}
+                                        />
+                                        Hidden test case
+                                    </label>
+                                </div>
+
+                                <div className="modal-action-buttons">
                                     <button
                                         type="button"
-                                        className="modal-close-button"
-                                        aria-label="Close test case modal"
-                                        onClick={() => {
-                                            setModalOpen(false)
-                                            setModalDraft(null)
-                                        }}
+                                        className="modal-submit-button"
+                                        onClick={() => buttonhandleClick(selectedTestCaseId!)}
+                                        disabled={submittingTestcase}
                                     >
-                                        ✕
+                                        {submittingTestcase ? (
+                                            <>
+                                                <FaCircleNotch className="spin" aria-hidden="true" />
+                                                &nbsp;Submitting...
+                                            </>
+                                        ) : selectedTestCaseId === -1 ? (
+                                            'Submit new testcase'
+                                        ) : (
+                                            'Submit changes'
+                                        )}
                                     </button>
+
+                                    {selectedTestCaseId !== -1 && (
+                                        <button
+                                            type="button"
+                                            className="modal-trash-button"
+                                            onClick={() => buttonhandleTrashClick(selectedTestCaseId!)}
+                                        >
+                                            Remove testcase
+                                        </button>
+                                    )}
                                 </div>
-                                <div className="modal-content">
-                                    <form>
-                                        <div className="form-field modal-input">
-                                            <label>Test Case Name</label>
-                                            <textarea
-                                                className="modal-textarea"
-                                                rows={1}
-                                                value={selectedTestCase?.name || ''}
-                                                onChange={e => handleNameChange(selectedTestCaseId!, e.currentTarget.value)}
-                                            />
-                                        </div>
-
-                                        <div className="form-field modal-textarea">
-                                            <label>Input</label>
-                                            <textarea
-                                                className="modal-textarea"
-                                                rows={1}
-                                                value={selectedTestCase?.input || ''}
-                                                onChange={e => handleInputChange(selectedTestCaseId!, e.currentTarget.value)}
-                                            />
-                                        </div>
-
-                                        <div className="form-field modal-textarea">
-                                            <label>Output</label>
-                                            <textarea
-                                                className="modal-textarea"
-                                                rows={1}
-                                                value={selectedTestCase?.output || ''}
-                                                readOnly
-                                                aria-readonly="true"
-                                            />
-                                        </div>
-
-                                        <div className="grid">
-                                            <div className="grid-column grid-column-13">
-                                                <div className="form-field modal-description-field">
-                                                    <label>Description</label>
-                                                    <textarea
-                                                        className="modal-textarea"
-                                                        rows={1}
-                                                        value={selectedTestCase?.description || ''}
-                                                        onChange={e =>
-                                                            handleDescriptionChange(selectedTestCaseId!, e.currentTarget.value)
-                                                        }
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="form-field modal-checkbox">
-                                            <label>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={!!selectedTestCase?.hidden}
-                                                    onChange={(e) => handleHiddenChange(selectedTestCaseId!, e.currentTarget.checked)}
-                                                />
-                                                Hidden test case
-                                            </label>
-                                        </div>
-
-                                        <div className="modal-action-buttons">
-                                            <button
-                                                type="button"
-                                                className="modal-submit-button"
-                                                onClick={() => buttonhandleClick(selectedTestCaseId!)}
-                                                disabled={submittingTestcase}
-                                            >
-                                                {submittingTestcase ? (
-                                                    <>
-                                                        <FaCircleNotch className="spin" aria-hidden="true" />
-                                                        &nbsp;Submitting...
-                                                    </>
-                                                ) : selectedTestCaseId === -1 ? (
-                                                    'Submit new testcase'
-                                                ) : (
-                                                    'Submit changes'
-                                                )}
-                                            </button>
-
-                                            {selectedTestCaseId !== -1 && (
-                                                <button
-                                                    type="button"
-                                                    className="modal-trash-button"
-                                                    onClick={() => buttonhandleTrashClick(selectedTestCaseId!)}
-                                                >
-                                                    Remove testcase
-                                                </button>
-                                            )}
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </>
-                    )}
+                            </form>
+                        </div>
+                    </div>
                 </>
-            </div>
+            )}
             <LoadingAnimation show={showFullScreenLoader} message={loaderMessage} />
         </>
     )

@@ -22,7 +22,9 @@ import {
 interface ProjectObject {
     Id: number;
     Name: string;
-    Language: string;
+    Type: string;
+    Difficulty: string;
+    OrderIndex: number;
     TotalSubmissions: number;
 }
 
