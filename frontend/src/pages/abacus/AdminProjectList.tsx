@@ -257,7 +257,7 @@ export default function AdminProjectList() {
                             {orderModal.projects.map((project, index) => {
                                 const difficulty = project.Difficulty.toLowerCase();
                                 return (
-                                <div className="reorder__row">
+                                <div className="reorder__row" key={project.Id}>
                                     <div className="reorder__index">{index + 1}.</div>
                                     <div className="reorder-card">
                                         <span className="reorder-card__title">{project.Name}</span>

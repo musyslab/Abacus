@@ -326,14 +326,14 @@
         justify-content: space-between;
     }
 
-    .reorder_list {
+    .reorder-list {
         display: flex;
         flex-direction: column;
     }
 
     .reorder__row {
         display: grid;
-        grid-template-columns: auto 1fr 12%;
+        grid-template-columns: 5% 1fr 10%;
         align-items: center;
         gap: .5rem;
         padding: 10px;

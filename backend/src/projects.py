@@ -681,8 +681,10 @@ def get_project(project_repo: ProjectRepository = Provide[Container.project_repo
     if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
-    project_info=project_repo.get_project(request.args.get('id'))
-    return make_response(json.dumps(project_info), HTTPStatus.OK)
+    project_id = request.args.get('id')
+    project_info = project_repo.get_project(project_id)
+
+    return make_response(jsonify(project_info), HTTPStatus.OK)
     
 @projects_api.route('/get_testcases', methods=['GET'])
 @jwt_required()
@@ -694,8 +696,7 @@ def get_testcases(project_repo: ProjectRepository = Provide[Container.project_re
     project_id = request.args.get('id')
     testcases = project_repo.get_testcases(project_id)
 
-    return make_response(json.dumps(testcases), HTTPStatus.OK)
-
+    return make_response(jsonify(testcases), HTTPStatus.OK)
 
 @projects_api.route('/json_add_testcases', methods=['POST'])
 @jwt_required()
@@ -768,7 +769,7 @@ def add_or_update_testcase(project_repo: ProjectRepository = Provide[Container.p
         language = (getattr(project, "Language", "") or "")
         solution_root = (getattr(project, "solutionpath", "") or "")
         add_path = getattr(project, "AdditionalFilePath", "") if project else ""
-        output = run_solution_for_input(solution_root, language, input_data, int(project_id), int(school_id_int), add_path)
+        output = run_solution_for_input(solution_root, language, input_data, int(project_id), add_path)
     except Exception:
         # Fall back to the submitted output if recomputation fails
         pass
@@ -896,8 +897,9 @@ def reorder_projects(
     if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
+    data = request.get_json() or {}
     projects = project_repo.get_competition_projects()
-    id_order = request.get_json().get('id_order', [])
+    id_order = data.get('id_order', [])
 
     if not isinstance(id_order, list) or not all(isinstance(i, int) for i in id_order):
         return make_response({'message': 'Invalid ID order format'}, HTTPStatus.BAD_REQUEST)

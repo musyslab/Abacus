@@ -55,9 +55,8 @@ class ProjectRepository():
         db.session.commit()
         return project.Id
         
-    def get_project(self, project_id:int) -> Projects:
+    def get_project(self, project_id:int) -> Dict[str, any]:
         project_data = Projects.query.filter(Projects.Id == project_id).first()
-        project ={}
         project_solutionFile = project_data.solutionpath
         #Strip just the file name from the path
         project_solutionFile = project_solutionFile.split("/")[-1]
@@ -69,15 +68,18 @@ class ProjectRepository():
         except Exception:
             add_list = []
         project_additionalfiles = [os.path.basename(p) for p in add_list if p]
-        project[project_data.Id] = [
-            str(project_data.Name),
-            str(project_data.Language),
-            str(project_solutionFile),
-            str(project_descriptionfile),
-            project_additionalfiles,
-            str(project_data.Type),
-            str(project_data.Difficulty),
-        ]
+
+        project = {
+            "id": project_data.Id,
+            "language": str(project_data.Language),
+            "name": str(project_data.Name),
+            "type": str(project_data.Type),
+            "difficulty": str(project_data.Difficulty),
+            "solutionFile": str(project_solutionFile),
+            "descriptionFile": str(project_descriptionfile),
+            "additionalFiles": project_additionalfiles
+        }
+
         return project
 
     def edit_project(self, name: str, language:str, project_type: str, difficulty: str, order_index: int | None, project_id:int, path:str, description_path:str, additional_file_path:str):
@@ -130,18 +132,20 @@ class ProjectRepository():
             return project.OrderIndex
         return None
 
-    def get_testcases(self, project_id: int) -> Dict[int, list]:
+    def get_testcases(self, project_id: int) -> list[dict]:
         testcases = Testcases.query.filter(Testcases.ProjectId == project_id).all()
-        testcase_info: Dict[int, list] = {}
-        for test in testcases:
-            testcase_data = []
-            testcase_data.append(test.Id)          
-            testcase_data.append(test.Name)        
-            testcase_data.append(test.Description) 
-            testcase_data.append(test.input)       
-            testcase_data.append(test.Output) 
-            testcase_data.append(bool(getattr(test, "Hidden", False)))     
-            testcase_info[test.Id] = testcase_data
+        testcase_info: list[dict] = []
+
+        for t in testcases:
+            testcase_info.append({
+                "id": t.Id,
+                "name": t.Name,
+                "description": t.Description,
+                "input": t.input,
+                "output": t.Output,
+                "hidden": bool(getattr(t, "Hidden", False))
+            })
+
         return testcase_info
 
     def add_or_update_testcase(

@@ -328,21 +328,21 @@ export default function AdminProjectManage() {
         async function loadData() {
             try {
                 const res = await axios.get(`${API}/projects/get_testcases?id=${project_id}`, authConfig())
+                const data = res.data 
                 const rows: Array<Testcase> = []
-                Object.entries(res.data).map(([key, value]) => {
+
+                data.map((t: any) => {
                     const testcase = new Testcase()
-                    const values = value as Array<string>
-
-                    testcase.id = parseInt(key)
-                    testcase.name = values[1]
-                    testcase.description = values[2]
-                    testcase.input = values[3]
-                    testcase.output = values[4]
-                    testcase.hidden = parseHidden((values as any)[5])
-
+                    testcase.id = t.id
+                    testcase.name = t.name
+                    testcase.description = t.description
+                    testcase.input = t.input
+                    testcase.output = t.output
+                    testcase.hidden = parseHidden(t.hidden)
                     rows.push(testcase)
                     return testcase
                 })
+
                 const testcase = new Testcase()
                 testcase.id = -1
                 testcase.name = ''
@@ -360,18 +360,18 @@ export default function AdminProjectManage() {
                 try {
                     const res = await axios.get(`${API}/projects/get_project_id?id=${project_id}`, authConfig())
                     const data = res.data
-                    setProjectName(data[project_id][0])
-                    setProjectLanguage(data[project_id][1])
-                    setProjectType(data[project_id][5] as ProjectType)
-                    setProjectDifficulty(data[project_id][6] as ProjectDifficulty)
-                    setServerProjectLanguageSnapshot(data[project_id][1])
+                    setProjectName(data["name"] || '')
+                    setProjectLanguage(data["language"] || '')
+                    setProjectType(data["type"] as ProjectType)
+                    setProjectDifficulty(data["difficulty"] as ProjectDifficulty)
+                    setServerProjectLanguageSnapshot(data["language"] || '')
                     setSolutionFileNames([])
                     setSolutionFiles([])
-                    const serverDesc = (data[project_id][3] || '') as string
+                    const serverDesc = (data["descriptionFile"] || '') as string
                     setDescFileName(serverDesc)
                     setServerDescFileName(serverDesc)
 
-                    const rawAdd = data[project_id][4] ?? []
+                    const rawAdd = data["additionalFiles"] ?? []
                     let addList: string[] = []
                     if (Array.isArray(rawAdd)) {
                         addList = rawAdd as string[]
@@ -451,20 +451,18 @@ export default function AdminProjectManage() {
     async function reloadtests() {
         try {
             const res = await axios.get(`${API}/projects/get_testcases?id=${project_id}`, authConfig())
+            const data = res.data
             const rows: Array<Testcase> = []
 
-            Object.entries(res.data).map(([key, value]) => {
+            data.map((t: any) => {
                 const testcase = new Testcase()
-                const values = value as Array<string>
-
-                testcase.id = parseInt(key)
-                testcase.name = values[1]
-                testcase.description = values[2]
-                testcase.input = values[3]
-                testcase.output = values[4]
-                testcase.hidden = parseHidden((values as any)[5])
+                testcase.id = t.id
+                testcase.name = t.name
+                testcase.description = t.description
+                testcase.input = t.input
+                testcase.output = t.output
+                testcase.hidden = parseHidden(t.hidden)
                 rows.push(testcase)
-
                 return testcase
             })
 
@@ -799,17 +797,17 @@ export default function AdminProjectManage() {
     async function get_testcase_json() {
         try {
             const res = await axios.get(`${API}/projects/get_testcases?id=${project_id}`, authConfig())
+            const data = res.data
             const rows: Array<Testcase> = []
 
-            Object.entries(res.data).map(([key, value]) => {
+           data.map((t: any) => {
                 const testcase = new Testcase()
-                const values = value as Array<string>
-                testcase.id = -1
-                testcase.name = values[1]
-                testcase.description = values[2]
-                testcase.input = values[3]
-                testcase.output = values[4]
-                testcase.hidden = parseHidden((values as any)[5])
+                testcase.id = t.id
+                testcase.name = t.name
+                testcase.description = t.description
+                testcase.input = t.input
+                testcase.output = t.output
+                testcase.hidden = parseHidden(t.hidden)
                 rows.push(testcase)
                 return testcase
             })
