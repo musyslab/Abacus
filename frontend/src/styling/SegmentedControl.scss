@@ -1,0 +1,43 @@
+// src/styling/SegmentedControl.scss
+
+.segment-btn {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    width: 100%;
+    align-items: center;
+    border-radius: 999px;
+    background: #f3f4f6;
+    border: 1px solid #ccc;
+
+    .segment-option {
+        min-width: 0;
+        border: none;
+        background: transparent;
+        font-size: 15px;
+        font-weight: 500;
+        padding: 8px 12px;
+        border-radius: 999px;
+        color: #374151;
+        cursor: pointer;
+        white-space: nowrap;
+
+        transition:
+            background 0.2s ease,
+            color 0.2s ease,
+            transform 0.05s ease,
+            box-shadow 0.2s ease;
+
+        &:not(.selected):hover {
+            background: rgba(17, 24, 39, 0.06);
+        }
+        &:active {
+            transform: scale(0.98);
+        }
+    }
+    .selected {
+        background: #fff;
+        color: #111827;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+}

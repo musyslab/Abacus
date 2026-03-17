@@ -7,6 +7,7 @@ import { useParams } from "react-router-dom";
 
 import MenuComponent from "../components/MenuComponent";
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
+import SegmentedControl from "../components/SegmentedControl";
 import "../../styling/AdminTeamManage.scss";
 
 import { FaPen } from "react-icons/fa";
@@ -852,41 +853,24 @@ export default function AdminTeamManage() {
                                             </div>
                                             <div className="panel__header-update">
                                                 <label className="panel__label">Division</label>
-                                                <div className="segment-btn segment-division">
-                                                    {DIVISIONS.map(option => {
-                                                        const isSelected = team.division === option;
-                                                        return (
-                                                            <button
-                                                                key={option}
-                                                                className={`segment-option ${isSelected ? "selected" : ""} ${option.toLowerCase()}`}
-                                                                type="button"
-                                                                disabled={isLoading}
-                                                                onClick={() => updateTeamDivision(team.id, option as Division)}
-                                                            >
-                                                                {option}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
+                                                <SegmentedControl
+                                                    className="segment-division"
+                                                    options={DIVISIONS.map((d) => ({ label: d, value: d }))}
+                                                    value={team.division}
+                                                    disabled={isLoading}
+                                                    onChange={(v) => updateTeamDivision(team.id, v)}
+                                                    getOptionClassName={(v) => v.toLowerCase()}
+                                                />
                                             </div>
+                                            
                                             <div className="panel__header-update">
                                                 <label className="panel__label">Attendance</label>
-                                                <div className="segment-btn segment-attendance">
-                                                    {ATTENDANCE.map(option => {
-                                                        const isSelected = team.isOnline === option.value;
-                                                        return (
-                                                            <button
-                                                                key={option.label}
-                                                                className={`segment-option ${isSelected ? "selected" : ""}`}
-                                                                type="button"
-                                                                disabled={isLoading}
-                                                                onClick={() => updateTeamAttendance(team.id, option.value)}
-                                                            >
-                                                                {option.label}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
+                                                <SegmentedControl
+                                                    options={ATTENDANCE.map((o) => ({ label: o.label, value: o.value }))}
+                                                    value={team.isOnline}
+                                                    disabled={isLoading}
+                                                    onChange={(v) => updateTeamAttendance(team.id, v)}
+                                                />
                                             </div>
                                         </div>
                                         {canDeleteTeam ? (

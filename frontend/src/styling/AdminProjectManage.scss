@@ -2,15 +2,6 @@ body {
   background: #f5f5f5;
 }
 
-.directory+.main-grid {
-  margin-top: 15px;
-  padding-top: 0;
-}
-
-.directory+.main-grid .admin-project-config-container .pageTitle {
-  margin-top: 0;
-}
-
 .admin-project-config-container {
   width: 100%;
   margin: 0 auto;
@@ -845,13 +836,13 @@ body {
   }
 }
 
-/* blur everything under .admin-project-config-container when modalOpen */
+/* blur everything under .admin-project-config-container when modalOpen 
 .admin-project-config-container.blurred {
   filter: blur(4px);
   pointer-events: none;
   user-select: none;
 }
-
+*/
 /* lock background/page scroll whenever the preview modal exists */
 body:has(.preview-modal) {
   overflow: hidden;
@@ -1067,7 +1058,7 @@ body:has(.testcase-modal) {
   }
 }
 
-.modal-overlay {
+.modal-overlay--testcase {
   position: fixed;
   top: 0;
   left: 0;
@@ -1226,7 +1217,15 @@ body:has(.testcase-modal) {
         min-block-size: calc(1lh + 1.4rem + 2px);
         height: auto;
         resize: none;
-        overflow: hidden;
+        overflow-y: auto;
+      }
+
+      &.textarea.modal-textarea,
+      textarea.modal-textarea.textarea--input,
+      textarea.modal-textarea.textarea--output {
+        min-height: 72px;
+        max-height: 220px;
+        resize: vertical;
       }
     }
 
@@ -1243,6 +1242,7 @@ body:has(.testcase-modal) {
 
       input[type="checkbox"] {
         appearance: none;
+        box-sizing: border-box;
         inline-size: 46px;
         block-size: 26px;
         border-radius: 999px;
@@ -1255,13 +1255,16 @@ body:has(.testcase-modal) {
         &::after {
           content: "";
           position: absolute;
-          inset: 3px auto auto 3px;
+          top: 0;
+          bottom: 0;
+          margin-block: auto;
+          left: 3px;
           width: 20px;
           height: 20px;
           border-radius: 50%;
           background: #ffffff;
           box-shadow: 0 1px 2px rgba(2, 6, 23, .15);
-          transition: transform .18s ease;
+          transition: left .18s ease;
         }
 
         &:hover {
@@ -1278,7 +1281,7 @@ body:has(.testcase-modal) {
           border-color: #10b981;
 
           &::after {
-            transform: translateX(20px);
+            left: calc(100% - 3px - 20px);
           }
         }
 
@@ -1410,33 +1413,30 @@ body:has(.testcase-modal) {
   }
 }
 
-.react-datepicker__day--highlighted-red {
-  background-color: #b4b0b0 !important;
-  /* Light Red Background */
-  color: #474040 !important;
-  /* Dark Red Text */
-  border-radius: 0.3rem;
-  font-weight: bold;
-
-  &:hover {
-    background-color: #302e2e !important;
-  }
-}
-
-.react-datepicker__time--highlighted-red {
-  background-color: #b4b0b0 !important;
-  color: #555252 !important;
-  font-weight: bold;
-
-  /* Optional: Change color slightly on hover */
-  &:hover {
-    background-color: #302e2e !important;
-  }
-}
-
 .overlap-error-text {
   color: #e74c3c;
   font-size: 0.95rem;
   margin-top: -0.75rem;
   margin-bottom: 0.5rem;
+}
+
+.project-type-difficulty {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10rem;
+}
+
+.segment-project-type {
+  .segment-option.selected { color: #fff; font-weight: 600; }
+  .segment-option.selected.none { background: #9ca3af; }
+  .segment-option.selected.competition { background: #1d63c1; }
+  .segment-option.selected.practice { background: #7e3ff2; }
+}
+
+.segment-project-difficulty {
+  .segment-option.selected { color: #fff; font-weight: 600; }
+  .segment-option.selected.easy { background: #2e8b57; }
+  .segment-option.selected.medium { background: #d98c00; }
+  .segment-option.selected.hard { background: #c62828; }
 }

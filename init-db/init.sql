@@ -54,11 +54,15 @@ CREATE TABLE `Projects` (
   `Id` int NOT NULL AUTO_INCREMENT COMMENT 'Table to keep track of projects',
   `Name` varchar(1000) NOT NULL,
   `Language` varchar(45) NOT NULL,
+  `Type` varchar(20) NOT NULL,
+  `Difficulty` varchar(10) NOT NULL,
+  `OrderIndex` int DEFAULT NULL,
   `solutionpath` varchar(1000) DEFAULT NULL,
   `AsnDescriptionPath` varchar(1000) DEFAULT NULL,
   `AdditionalFilePath` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`Id`),
-  UNIQUE KEY `idProjects_UNIQUE` (`Id`)
+  UNIQUE KEY `idProjects_UNIQUE` (`Id`),
+  UNIQUE KEY `projects_orderindex_unique` (`OrderIndex`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
