@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Helmet } from "react-helmet"
 import { Link } from "react-router-dom";
-import { FaPlusCircle, FaEdit, FaChevronUp, FaChevronDown } from "react-icons/fa";
+import { FaPlusCircle, FaEdit, FaEye, FaChevronUp, FaChevronDown } from "react-icons/fa";
 import axios from "axios";
 import Select from "react-select";
 
@@ -100,7 +100,7 @@ export default function AdminProjectList() {
         const order = orderModal.projects.map(p => p.Id);
         setOrderModal({ ...orderModal, isSaving: true });
         try {
-            const res = await axios.post(`${API}/projects/reorder`, {id_order: order,}, authConfig());
+            const res = await axios.post(`${API}/projects/reorder`, { id_order: order, }, authConfig());
             fetchProjects();
         } catch (err) {
             alert("Failed to save project order.");
@@ -109,7 +109,7 @@ export default function AdminProjectList() {
             setOrderModal(null);
         }
     }
-    
+
     function moveProject(index: number, direction: "up" | "down") {
         if (!orderModal) return;
         const newProjects = [...orderModal.projects];
@@ -121,182 +121,193 @@ export default function AdminProjectList() {
     }
 
     const competitionCount = projects.filter(p => p.Type === "competition").length;
-    
+
     return (
-    <>
-        <Helmet>
-            <title>[Admin] Abacus</title>
-        </Helmet>
+        <>
+            <Helmet>
+                <title>[Admin] Abacus</title>
+            </Helmet>
 
-        <MenuComponent
-            showProblemList={true}
-            showAdminUpload={true}
-        />
-
-        <div className="admin-project-list-root">
-            <DirectoryBreadcrumbs
-                items={[
-                    { label: 'School List', to:'/admin/schools' },
-                    { label: 'Problem List' },
-                ]}
+            <MenuComponent
+                showProblemList={true}
+                showAdminUpload={true}
             />
-            <div className="pageTitle">Problem List</div>
 
-            <div className="admin-project-list-content">
-                <div className="projects-container">
-                    <div className="projects-header">
-                        <div className="projects-header-actions">
-                            <span className="projects-filter-label">Type: </span>
-                            <Select
-                                className="projects-filter-select"
-                                classNamePrefix="projects-select"
-                                options={[
-                                    { value: "", label: "All" },
-                                    { value: "competition", label: "Competition" },
-                                    { value: "practice", label: "Practice" },
-                                    { value: "none", label: "None" },
-                                ]}
-                                value={filter ? { value: filter, label: filter.charAt(0).toUpperCase() + filter.slice(1) } : { value: "", label: "All" }}
-                                onChange={(option) => setFilter(option ? (option.value as ProjectType) : null)}
-                            />
+            <div className="admin-project-list-root">
+                <DirectoryBreadcrumbs
+                    items={[
+                        { label: 'School List', to: '/admin/schools' },
+                        { label: 'Problem List' },
+                    ]}
+                />
+                <div className="pageTitle">Problem List</div>
 
-                            <button 
-                                className="button button-reorder" 
-                                onClick={openOrderModal}
-                                disabled={competitionCount < 2}
-                            >
-                                Reorder Competition Problems
+                <div className="admin-project-list-content">
+                    <div className="projects-container">
+                        <div className="projects-header">
+                            <div className="projects-header-actions">
+                                <span className="projects-filter-label">Type: </span>
+                                <Select
+                                    className="projects-filter-select"
+                                    classNamePrefix="projects-select"
+                                    options={[
+                                        { value: "", label: "All" },
+                                        { value: "competition", label: "Competition" },
+                                        { value: "practice", label: "Practice" },
+                                        { value: "none", label: "None" },
+                                    ]}
+                                    value={filter ? { value: filter, label: filter.charAt(0).toUpperCase() + filter.slice(1) } : { value: "", label: "All" }}
+                                    onChange={(option) => setFilter(option ? (option.value as ProjectType) : null)}
+                                />
+
+                                <button
+                                    className="button button-reorder"
+                                    onClick={openOrderModal}
+                                    disabled={competitionCount < 2}
+                                >
+                                    Reorder Competition Problems
+                                </button>
+                            </div>
+                        </div>
+                        <table className="projects-table">
+                            <thead className="projects-table-head">
+                                <tr className="projects-table-row">
+                                    <th className="projects-table-header project-order">#</th>
+                                    <th className="projects-table-header project-name">Problem</th>
+                                    <th className="projects-table-header project-difficulty">Difficulty</th>
+                                    <th className="projects-table-header project-review">Submissions</th>
+                                    <th className="projects-table-header project-edit">Edit</th>
+                                </tr>
+                            </thead>
+                            <tbody className="projects-table-body">
+                                {filteredProjects.map((project) => {
+                                    const orderIndex = project.OrderIndex ?? "-";
+                                    const difficulty = project.Difficulty.toLowerCase();
+
+                                    const isCompetition = project.Type === "competition";
+                                    const isPractice = project.Type === "practice";
+                                    //const isActive = when a project is available to students
+
+                                    return (
+                                        <tr
+                                            className={`project-row ${isCompetition ? "is-active" : ""}`}
+                                            key={project.Id}
+                                        >
+                                            <td className="project-order">{orderIndex}</td>
+                                            <td className="project-name">
+                                                {project.Name}
+                                                {isCompetition && (
+                                                    <span
+                                                        className="project-badge badge--competition"
+                                                        title="Competition problem"
+                                                    >
+                                                        Competition
+                                                    </span>
+                                                )}
+                                                {isPractice && (
+                                                    <span
+                                                        className="project-badge badge--practice"
+                                                        title="Practice problem"
+                                                    >
+                                                        Practice
+                                                    </span>
+                                                )}
+                                                {isCompetition && (
+                                                    <span
+                                                        className="project-badge badge--active"
+                                                        title="Problem is active to students"
+                                                    >
+                                                        ● Active
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="project-difficulty">
+                                                <span className={`project-badge badge--${difficulty}`}>{difficulty}</span>
+                                            </td>
+
+                                            <td className="project-review">
+                                                <Link
+                                                    className="button button-review"
+                                                    to={`/admin/problem/${project.Id}/review`}
+                                                    aria-label={`Review submissions for ${project.Name}`}
+                                                >
+                                                    <FaEye aria-hidden="true" />
+                                                    <span className="button-text">Review</span>
+                                                </Link>
+                                            </td>
+
+                                            <td className="project-edit">
+                                                <Link className="button button-edit" to={`/admin/problem/manage/${project.Id}`}>
+                                                    <FaEdit aria-hidden="true" />
+                                                    <span className="button-text">Edit</span>
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                    <Link className="button button-create-assignment" to={`/admin/problem/manage/0`}>
+                        <FaPlusCircle aria-hidden="true" />
+                        <span className="button-text">Create new problem</span>
+                    </Link>
+                </div>
+            </div>
+
+            {orderModal && (
+                <div className="modal-overlay" aria-modal="true">
+                    <div className="modal modal--reorder">
+                        <div className="modal__title">Reorder Competition Problems</div>
+                        <div className="modal__body">
+                            <div className="modal__subtitle">
+                                <div className="muted">Click the arrows to reorder the problems.</div>
+                                <div className="muted">{orderModal.projects.length} / 10</div>
+                            </div>
+                            <div className="reorder-list callout">
+                                {orderModal.projects.map((project, index) => {
+                                    const difficulty = project.Difficulty.toLowerCase();
+                                    return (
+                                        <div className="reorder__row" key={project.Id}>
+                                            <div className="reorder__index">{index + 1}.</div>
+                                            <div className="reorder-card">
+                                                <span className="reorder-card__title">{project.Name}</span>
+                                                <span className={`project-badge badge--${difficulty}`}>{difficulty}</span>
+                                            </div>
+                                            <div className="reorder-card__actions">
+                                                {index > 0 &&
+                                                    <button
+                                                        type="button"
+                                                        className="reorder-btn"
+                                                        onClick={() => moveProject(index, "up")}
+                                                    >
+                                                        <FaChevronUp className="reorder-btn__icon" aria-hidden="true" />
+                                                    </button>
+                                                }
+                                                {index < orderModal.projects.length - 1 &&
+                                                    <button
+                                                        type="button"
+                                                        className="reorder-btn"
+                                                        onClick={() => moveProject(index, "down")}
+                                                    >
+                                                        <FaChevronDown className="reorder-btn__icon" aria-hidden="true" />
+                                                    </button>
+                                                }
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        <div className="modal__actions reorder__actions">
+                            <button className="btn" onClick={() => setOrderModal(null)}>Cancel</button>
+                            <button className="btn btn-primary" onClick={confirmOrderModal} disabled={orderModal.isSaving}>
+                                {orderModal.isSaving ? "Saving..." : "Save"}
                             </button>
                         </div>
                     </div>
-                    <table className="projects-table">
-                        <thead className="projects-table-head">
-                            <tr className="projects-table-row">
-                                <th className="projects-table-header project-order">#</th>
-                                <th className="projects-table-header project-name">Problem</th>
-                                <th className="projects-table-header project-difficulty">Difficulty</th>
-                                <th className="projects-table-header project-submissions">Submissions</th>
-                                <th className="projects-table-header project-edit">Edit</th>
-                            </tr>
-                        </thead>
-                        <tbody className="projects-table-body">
-                            {filteredProjects.map((project) => {
-                                const orderIndex = project.OrderIndex ?? "-";
-                                const difficulty = project.Difficulty.toLowerCase();
-
-                                const isCompetition = project.Type === "competition";
-                                const isPractice = project.Type === "practice";
-                                //const isActive = when a project is available to students
-
-                                return (
-                                <tr
-                                    className={`project-row ${isCompetition ? "is-active" : ""}`}
-                                    key={project.Id}
-                                >
-                                    <td className="project-order">{orderIndex}</td>
-                                    <td className="project-name">
-                                        {project.Name}
-                                        {isCompetition && (
-                                            <span
-                                                className="project-badge badge--competition"
-                                                title="Competition problem"
-                                            >
-                                                Competition
-                                            </span>
-                                        )}
-                                        {isPractice && (
-                                            <span
-                                                className="project-badge badge--practice"
-                                                title="Practice problem"
-                                            >
-                                                Practice
-                                            </span>
-                                        )}
-                                        {isCompetition && (
-                                            <span
-                                                className="project-badge badge--active"
-                                                title="Problem is active to students"
-                                            >
-                                                ● Active
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="project-difficulty">
-                                        <span className={`project-badge badge--${difficulty}`}>{difficulty}</span>
-                                    </td>
-                                    <td className="project-submissions">{project.TotalSubmissions}</td>
-                                    <td className="project-edit">
-                                        <Link className="button button-edit" to={`/admin/problem/manage/${project.Id}`}>
-                                            <FaEdit aria-hidden="true" />
-                                            <span className="button-text">Edit</span>
-                                        </Link>
-                                    </td>
-                                </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
                 </div>
-                <Link className="button button-create-assignment" to={`/admin/problem/manage/0`}>
-                    <FaPlusCircle aria-hidden="true" />
-                    <span className="button-text">Create new problem</span>
-                </Link>
-            </div>
-        </div>
-
-        {orderModal && (
-            <div className="modal-overlay" aria-modal="true">
-                <div className="modal modal--reorder">
-                    <div className="modal__title">Reorder Competition Problems</div>
-                    <div className="modal__body">
-                        <div className="modal__subtitle">
-                            <div className="muted">Click the arrows to reorder the problems.</div>
-                            <div className="muted">{orderModal.projects.length} / 10</div>
-                        </div>
-                        <div className="reorder-list callout">
-                            {orderModal.projects.map((project, index) => {
-                                const difficulty = project.Difficulty.toLowerCase();
-                                return (
-                                <div className="reorder__row" key={project.Id}>
-                                    <div className="reorder__index">{index + 1}.</div>
-                                    <div className="reorder-card">
-                                        <span className="reorder-card__title">{project.Name}</span>
-                                        <span className={`project-badge badge--${difficulty}`}>{difficulty}</span>
-                                    </div>
-                                    <div className="reorder-card__actions">
-                                        {index > 0 && 
-                                            <button 
-                                                type="button"
-                                                className="reorder-btn"
-                                                onClick={() => moveProject(index, "up")}
-                                            >
-                                                <FaChevronUp className="reorder-btn__icon" aria-hidden="true" />
-                                            </button>
-                                        }
-                                        {index < orderModal.projects.length - 1 && 
-                                            <button 
-                                                type="button"
-                                                className="reorder-btn"
-                                                onClick={() => moveProject(index, "down")}
-                                            >
-                                                <FaChevronDown className="reorder-btn__icon" aria-hidden="true" />
-                                            </button>
-                                        }
-                                    </div>
-                                </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                    <div className="modal__actions reorder__actions">
-                        <button className="btn" onClick={() => setOrderModal(null)}>Cancel</button>
-                        <button className="btn btn-primary" onClick={confirmOrderModal} disabled={orderModal.isSaving}>
-                            {orderModal.isSaving ? "Saving..." : "Save"}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        )}
-    </>
-  )
+            )}
+        </>
+    )
 }

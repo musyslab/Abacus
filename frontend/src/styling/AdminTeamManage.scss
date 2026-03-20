@@ -131,16 +131,46 @@
 }
 
 .segment-division {
-    .segment-option.selected { color: #fff; }
-    .segment-option.selected.blue { background: #1e40af; }
-    .segment-option.selected.gold { background: #f59e0b; }
-    .segment-option.selected.eagle { background: #1CB2A9; }
+  .segment-option.selected {
+    color: #fff;
+  }
+
+  .segment-option.selected.blue {
+    background: #1e40af;
+  }
+
+  .segment-option.selected.gold {
+    background: #f59e0b;
+  }
+
+  .segment-option.selected.eagle {
+    background: #1CB2A9;
+  }
 }
 
 .panel__header-actions {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.btn--view-submissions {
+  min-width: 190px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(20, 20, 20, 0.08);
+}
+
+.btn--view-submissions:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(20, 20, 20, 0.12);
+}
+
+.btn--view-submissions:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(20, 20, 20, 0.08);
 }
 
 .panel__title {
@@ -522,6 +552,7 @@
     transform: translateY(10px) scale(0.98);
     opacity: 0.0;
   }
+
   to {
     transform: translateY(0) scale(1);
     opacity: 1.0;

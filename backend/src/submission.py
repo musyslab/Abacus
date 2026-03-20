@@ -29,9 +29,6 @@ from openpyxl import Workbook
 from src.ai_suggestions import ERROR_DEFS
 from src.repositories.models import Testcases
 
-# Default grading error definitions (must match AdminGrading.tsx BASE_ERROR_DEFS).
-# We store them here so exports can resolve default point values when ErrorPointsJson
-# only contains overrides (for DB efficiency).
 ADMIN_GRADING_ERROR_DEFS = [
     {"id": "MISSPELL", "label": "Spelling or word substitution error", "description": "A word or short phrase is wrong compared to expected output (including valid English words used incorrectly, missing/extra letters, or wrong small words) when the rest of the line is otherwise correct.", "points": 10},
     {"id": "FORMAT", "label": "Formatting mismatch", "description": "Correct content but incorrect formatting (spacing/newlines/case/spelling/precision).", "points": 5},
@@ -194,15 +191,14 @@ def codefinder(
     fmt = (request.args.get("format", "") or "").strip().lower()
     want_json = fmt in ("json", "view", "preview")
 
-    # Verifies if user is an admin or if the user is apart of the team that submitted
-    if user_repo.get_user_status() != "admin" and not submission_repo.submission_view_verification(current_user.Id, submission_id):
-        return make_response("Unauthorized", HTTPStatus.FORBIDDEN)
-
+    if not user_repo.is_admin():
+        if not submission_repo.submission_view_verification(current_user.Id, submission_id):
+            return make_response("Unauthorized", HTTPStatus.FORBIDDEN)
+ 
     code_output = submission_repo.get_code_path_by_submission_id(submission_id)
     if not code_output:
         return make_response("Code output not found for submission", HTTPStatus.NOT_FOUND)
     
-    # JSON preview mode (used by CodePage) so the UI can render readable source
     if want_json:
         files_payload = []
         if not os.path.isdir(code_output):
@@ -789,6 +785,70 @@ def export_project_grades(submission_repo: SubmissionRepository = Provide[Contai
     resp.headers["Access-Control-Expose-Headers"] = "Content-Disposition, Project-Name"
     return resp
 
+@submission_api.route('/problem-review', methods=['GET'])
+@jwt_required()
+@inject
+def problem_review(
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo],
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+    school_repo: SchoolRepository = Provide[Container.school_repo],
+    team_repo: TeamRepository = Provide[Container.team_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
+    if getattr(current_user, "Role", None) != ADMIN_ROLE:
+        return make_response("Not Authorized", HTTPStatus.UNAUTHORIZED)
+
+    project_id_raw = (request.args.get("project_id") or "").strip()
+    if not project_id_raw.isdigit():
+        return make_response(jsonify({"message": "Invalid project_id"}), HTTPStatus.BAD_REQUEST)
+
+    project_id = int(project_id_raw)
+    project = project_repo.get_selected_project(project_id)
+    if project is None:
+        return make_response(jsonify({"message": "Project not found"}), HTTPStatus.NOT_FOUND)
+
+    submissions = submission_repo.get_all_submissions_for_project(project_id) or []
+    ordered_submissions = sorted(
+        submissions,
+        key=lambda sub: getattr(sub, "Time", None) or datetime.min,
+        reverse=True,
+    )
+
+    latest_by_team = {}
+    for submission in ordered_submissions:
+        team_id = int(getattr(submission, "Team", 0) or 0)
+        if team_id <= 0 or team_id in latest_by_team:
+            continue
+        latest_by_team[team_id] = submission
+
+    rows = []
+    for team_id, submission in latest_by_team.items():
+        student = user_repo.get_student_by_id(int(getattr(submission, "User", 0) or 0))
+        school_id = int(getattr(student, "SchoolId", 0) or 0) if student else 0
+
+        school = school_repo.get_school_by_id(school_id) if school_id > 0 else None
+        team = team_repo.get_team_by_id(team_id)
+        submitted_at = getattr(submission, "Time", None)
+
+        rows.append({
+            "teamId": team_id,
+            "schoolId": school_id,
+            "submissionId": int(getattr(submission, "Id", 0) or 0),
+            "schoolName": str(getattr(school, "Name", "") or "Unknown School").strip(),
+            "teamName": str(getattr(team, "Name", "") or f"Team {team_id}").strip(),
+            "status": "passed" if bool(getattr(submission, "IsPassing", False)) else "failed",
+            "submittedAt": submitted_at.isoformat() if submitted_at else "",
+            "submittedAtLabel": submitted_at.strftime("%x %X") if submitted_at else "N/A",
+        })
+
+    rows.sort(key=lambda row: (row["schoolName"].lower(), row["teamName"].lower()))
+
+    return make_response(jsonify({
+        "projectId": project_id,
+        "projectName": str(getattr(project, "Name", "") or "").strip(),
+        "rows": rows,
+    }), HTTPStatus.OK)
+
 @submission_api.route('/data', methods=['GET'])
 @jwt_required()
 @inject
@@ -808,14 +868,14 @@ def get_submission_data(
     if not submission:
         return make_response("Submission not found", HTTPStatus.NOT_FOUND)
 
-    # Handles which role accesses the data
+    is_admin_request = getattr(current_user, "Role", None) == ADMIN_ROLE
     user_status = user_repo.get_user_status()
-    role = user_status
-    if user_status == "admin" and not user_repo.is_admin():
-        role = "teacher"
+    role = "admin" if is_admin_request else (user_status or "student")
 
-    # Verifies if user is an admin or if the user is apart of the team that submitted
-    if user_status and not submission_repo.submission_view_verification(current_user.Id, submission_id):
+    if not is_admin_request and not submission_repo.submission_view_verification(current_user.Id, submission_id):
+        return make_response("Unauthorized", HTTPStatus.FORBIDDEN)
+
+    if getattr(current_user, "Role", None) != ADMIN_ROLE and not submission_repo.submission_view_verification(current_user.Id, submission_id):
         return make_response("Unauthorized", HTTPStatus.FORBIDDEN)
 
     user_id = int(getattr(submission, "User", 0) or 0)
