@@ -150,6 +150,42 @@ class SubmissionRepository():
             thisdic[proj[0]]=count
         return thisdic
 
+    def get_latest_submission_by_team(self, team_id: int) -> Dict[int, Submissions]:
+        """
+        Returns the most recent submission for each project for a given team.
+        Key = project id, value = latest Submissions row for that project/team.
+        """
+        rows = (
+            Submissions.query
+            .filter(Submissions.Team == team_id)
+            .order_by(desc(Submissions.Time))
+            .all()
+        )
+
+        latest_by_project: Dict[int, Submissions] = {}
+        for row in rows:
+            if row.Project not in latest_by_project:
+                latest_by_project[row.Project] = row
+
+        return latest_by_project
+
+    def get_submission_counts_by_team(self, team_id: int) -> Dict[int, int]:
+        """
+        Returns total submission count per project for a given team.
+        Key = project id, value = submission count.
+        """
+        rows = (
+            Submissions.query
+            .filter(Submissions.Team == team_id)
+            .all()
+        )
+
+        counts: Dict[int, int] = defaultdict(int)
+        for row in rows:
+            counts[int(row.Project)] += 1
+
+        return dict(counts) 
+
     def get_most_recent_submission_by_project(self, project_id: int, user_ids: List[int]) -> Dict[int, Submissions]:
         """
         Returns a dictionary containing the most recent submission for each user in a given project.
@@ -187,7 +223,15 @@ class SubmissionRepository():
 
     def submission_view_verification(self, user_id, submission_id) -> bool:
         student = StudentUsers.query.filter(StudentUsers.Id == user_id).first()
-        submission = Submissions.query.filter(and_(Submissions.Id==submission_id,Submissions.Team==student.TeamId)).first()
+        if student is None or getattr(student, "TeamId", None) is None:
+            return False
+
+        submission = Submissions.query.filter(
+            and_(
+                Submissions.Id == submission_id,
+                Submissions.Team == student.TeamId,
+            )
+        ).first()
         return submission is not None
         
     def unlock_check(self, user_id,project_id) -> bool:

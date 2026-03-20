@@ -32,8 +32,10 @@ import AdminProjectManage from './pages/abacus/AdminProjectManage';
 import StudentSubmit from './pages/abacus/StudentSubmit';
 import StudentSubmissions from './pages/abacus/AdminStudentSubmissions';
 import AdminTeamManage from './pages/abacus/AdminTeamManage';
+import AdminTeamSubmissions from './pages/abacus/AdminTeamSubmissions';
 import AdminUpload from './pages/abacus/AdminUpload';
 import StudentProjectSelection from './pages/abacus/StudentProjectSelection';
+import AdminProblemReview from './pages/abacus/AdminProblemSubmissions';
 
 import SubmissionView from './pages/abacus/SubmissionView';
 
@@ -67,6 +69,26 @@ class App extends Component {
 
                     <Route path="/" element={<LandingPage />} />
 
+                    <Route path="/admin/upload/submission/:id" element={
+                        <ProtectedRoute>
+                            <SubmissionView />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/problem/:problemId/review/submission/:id" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <SubmissionView />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/:school_id/team-manage/:teamId/submissions/:id" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <SubmissionView />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/teacher/team-manage/:teamId/submissions/:id" element={
+                        <ProtectedRoute requiredAdminRole={0}>
+                            <SubmissionView />
+                        </ProtectedRoute>
+                    } />
                     <Route path="/submission/:id" element={
                         <ProtectedRoute>
                             <SubmissionView />
@@ -81,6 +103,12 @@ class App extends Component {
                     <Route path="/admin/:school_id/team-manage" element={
                         <ProtectedRoute requiredAdminRole={1}>
                             <AdminTeamManage />
+                        </ProtectedRoute>
+                    }
+                    />
+                    <Route path="/admin/:school_id/team-manage/:teamId/submissions" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminTeamSubmissions />
                         </ProtectedRoute>
                     }
                     />
@@ -99,6 +127,11 @@ class App extends Component {
                             <AdminProjectManage />
                         </ProtectedRoute>
                     } />
+                    <Route path="/admin/problem/:id/review" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminProblemReview />
+                        </ProtectedRoute>
+                    } />
                     <Route path="/admin/upload" element={
                         <ProtectedRoute requiredAdminRole={1}>
                             <AdminUpload />
@@ -108,6 +141,11 @@ class App extends Component {
                     <Route path="/teacher/team-manage" element={
                         <ProtectedRoute requiredAdminRole={0}>
                             <AdminTeamManage />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/teacher/team-manage/:teamId/submissions" element={
+                        <ProtectedRoute requiredAdminRole={0}>
+                            <AdminTeamSubmissions />
                         </ProtectedRoute>
                     } />
 

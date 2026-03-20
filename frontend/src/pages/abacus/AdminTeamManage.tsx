@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import MenuComponent from "../components/MenuComponent";
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
@@ -60,7 +60,7 @@ type TeamVm = {
 
 const INVITE_META_KEY = "AUTOTA_TEAM_INVITES_V1";
 const DIVISIONS = ["Blue", "Gold", "Eagle"];
-const ATTENDANCE = [{label: "In-person", value: false }, {label: "Virtual", value: true}];
+const ATTENDANCE = [{ label: "In-person", value: false }, { label: "Virtual", value: true }];
 const DIVISION_SIZES: Record<Division, { min: number; max: number }> = {
     Blue: { min: 3, max: 4 },
     Gold: { min: 2, max: 3 },
@@ -127,7 +127,8 @@ function addTeamVm(prev: TeamVm[], apiTeam: ApiTeam): TeamVm[] {
 
 export default function AdminTeamManage() {
     const apiBase = (import.meta.env.VITE_API_URL as string) || "";
-    
+    const navigate = useNavigate();
+
     const { school_id } = useParams();
     const schoolIdParam = Number(school_id);
     const isAdminMode = Number.isFinite(schoolIdParam) && schoolIdParam > 0;
@@ -270,7 +271,7 @@ export default function AdminTeamManage() {
                 .map((apiTeam) => buildTeamVm(apiTeam));
 
             setTeams(mapped);
-            
+
             setTeamVisibleCounts((prev) => {
                 const next = { ...prev };
 
@@ -282,7 +283,7 @@ export default function AdminTeamManage() {
                 }
                 return next;
             });
-            
+
         } catch (err: any) {
             const msg = err?.response?.data?.message || "Failed to load teams.";
             setPageError(msg);
@@ -338,7 +339,7 @@ export default function AdminTeamManage() {
             const msg = err?.response?.data?.message || err?.message || "Team deletion failed.";
             setPageError(msg);
         }
-        setIsLoading(false);       
+        setIsLoading(false);
     }
 
     function updateMember(teamId: number, memberId: number, patch: Partial<MemberSlot>) {
@@ -652,7 +653,7 @@ export default function AdminTeamManage() {
 
     function validateTeamName(name: string, teamId: number): string | null {
         const trimmed = name.trim();
-    
+
         if (trimmed.length < 3) {
             return "Team name must be at least 3 characters long.";
         }
@@ -673,7 +674,7 @@ export default function AdminTeamManage() {
 
         return null;
     }
-    
+
     async function updateTeam(teamId: number, updates: Partial<TeamVm>) {
         const original = teams.find(t => t.id === teamId);
         if (!original) return;
@@ -681,12 +682,12 @@ export default function AdminTeamManage() {
         if (updates.name !== undefined) {
             const error = validateTeamName(updates.name, teamId);
             setTeams(prev =>
-                    prev.map(team =>
-                        team.id === teamId
-                            ? { ...team, nameError: error || undefined }
-                            : team
-                    )
-                );
+                prev.map(team =>
+                    team.id === teamId
+                        ? { ...team, nameError: error || undefined }
+                        : team
+                )
+            );
             if (error) return;
         }
         if (updates.division !== undefined) {
@@ -700,15 +701,15 @@ export default function AdminTeamManage() {
         }
 
         if (updates.isOnline !== undefined && original.isOnline === updates.isOnline) return;
-    
+
         const previousState = { ...original };
-    
+
         setTeams(prev =>
             prev.map(team =>
                 team.id === teamId ? { ...team, ...updates } : team
             )
         );
-    
+
         try {
             await axios.put(
                 `${apiBase}/teams/update`,
@@ -728,17 +729,25 @@ export default function AdminTeamManage() {
                 )
             );
             const msg = err?.response?.data?.message || "Update division failed.";
-            if(err?.response?.data?.message){
+            if (err?.response?.data?.message) {
                 alert(msg);
             }
             throw new Error(msg);
         }
     }
-        
 
-    function updateTeamName(teamId: number, name: string) {updateTeam(teamId, { name })}
-    function updateTeamDivision(teamId: number, division: Division) {updateTeam(teamId, { division })}
-    function updateTeamAttendance(teamId: number, isOnline: boolean) {updateTeam(teamId, { isOnline })}
+
+    function updateTeamName(teamId: number, name: string) { updateTeam(teamId, { name }) }
+    function updateTeamDivision(teamId: number, division: Division) { updateTeam(teamId, { division }) }
+    function updateTeamAttendance(teamId: number, isOnline: boolean) { updateTeam(teamId, { isOnline }) }
+
+    function goToTeamSubmissions(teamId: number) {
+        const path = isAdminMode
+            ? `/admin/${managedSchoolId}/team-manage/${teamId}/submissions`
+            : `/teacher/team-manage/${teamId}/submissions`;
+
+        navigate(path);
+    }
 
     return (
         <>
@@ -798,7 +807,7 @@ export default function AdminTeamManage() {
                         <div className="team-size__label">Team Size Requirements</div>
                         <div className="team-size__pills">
                             <span className="pill pill--blue">Blue Division: 3–4 Members</span>
-                            <span className ="pill pill--gold">Gold Division: 2–3 Members</span>
+                            <span className="pill pill--gold">Gold Division: 2–3 Members</span>
                             <span className="pill pill--eagle">Eagle Division: 2–4 Members</span>
                         </div>
                     </div>
@@ -862,7 +871,7 @@ export default function AdminTeamManage() {
                                                     getOptionClassName={(v) => v.toLowerCase()}
                                                 />
                                             </div>
-                                            
+
                                             <div className="panel__header-update">
                                                 <label className="panel__label">Attendance</label>
                                                 <SegmentedControl
@@ -885,8 +894,14 @@ export default function AdminTeamManage() {
                                                 </button>
                                             </div>
                                         ) : (
-                                            <div className="field__help right-aligned">
-                                                Delete all members before deleting the team.
+                                            <div className="panel__header-actions">
+                                                <button
+                                                    className="btn btn--secondary btn--view-submissions"
+                                                    type="button"
+                                                    onClick={() => goToTeamSubmissions(team.id)}
+                                                >
+                                                    View Team Submissions
+                                                </button>
                                             </div>
                                         )}
                                     </div>
