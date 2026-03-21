@@ -3,8 +3,6 @@ import json
 import os
 import subprocess
 import os.path
-from typing import List
-from subprocess import Popen
 
 from flask_jwt_extended import jwt_required
 from flask_jwt_extended import current_user
@@ -14,20 +12,17 @@ from flask import make_response
 from flask import current_app
 from http import HTTPStatus
 from datetime import datetime
-from flask_cors import cross_origin
+
 from src.repositories.submission_repository import SubmissionRepository
 from src.repositories.project_repository import ProjectRepository
 from src.repositories.user_repository import UserRepository
-from src.repositories.school_repository import SchoolRepository
-from src.services.timeout_service import on_timeout
-from tap.parser import Parser
 from dependency_injector.wiring import inject, Provide
 from container import Container
-from src.constants import ADMIN_ROLE
 
 upload_api = Blueprint('upload_api', __name__)
 
-ALLOWED_EXTENSIONS = {'.py' : 'python', '.java': 'java'}
+ALLOWED_EXTENSIONS = {'.py': 'python', '.java': 'java'}
+
 
 def validate_files(files):
     """
@@ -65,13 +60,14 @@ def validate_files(files):
 
     return True, language
 
+
 @upload_api.route('/all_students', methods=['GET'])
 @jwt_required()
 @inject
 def all_students(user_repo: UserRepository = Provide[Container.user_repo]):
     if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
-    
+
     users = user_repo.get_all_students()
     new_users = [
         {
@@ -82,6 +78,7 @@ def all_students(user_repo: UserRepository = Provide[Container.user_repo]):
     ]
     return jsonify(new_users)
 
+
 @upload_api.route('/', methods=['POST'])
 @jwt_required()
 @inject
@@ -90,16 +87,6 @@ def file_upload(
     submission_repo: SubmissionRepository = Provide[Container.submission_repo],
     project_repo: ProjectRepository = Provide[Container.project_repo],
 ):
-    """[summary]
-
-    Args:
-        submission_repository (ASubmissionRepository): [the existing submissions directory and all the functions in it]
-        project_repository (AProjectRepository): [the existing projects directory and all the functions in it]
-
-    Returns:
-        [HTTP]: [a pass or fail HTTP message]
-    """
-
     user_id = request.form.get("student_id", current_user.Id, type=int)
     user_id_str = str(user_id)
 
@@ -112,9 +99,17 @@ def file_upload(
     if team_id is None:
         return make_response({'message': 'Student is not assigned to a team.'}, HTTPStatus.NOT_ACCEPTABLE)
 
-    # Check to see if team is able to upload or still on timeout
+    if not user_repo.is_admin():
+        remaining_seconds = submission_repo.get_team_cooldown_remaining_seconds(
+            int(team_id),
+            120,
+        )
+        if remaining_seconds > 0:
+            return make_response({
+                'message': 'Please wait 2 minutes between submissions.',
+                'remainingSeconds': remaining_seconds,
+            }, HTTPStatus.TOO_MANY_REQUESTS)
 
-    # Accept multi-file field ("files")
     upload_files = request.files.getlist('files')
     upload_files = [f for f in upload_files if f and f.filename]
     if not upload_files:
@@ -136,18 +131,15 @@ def file_upload(
     user_bucket = os.path.join(project_bucket, user_id_str)
     os.makedirs(user_bucket, exist_ok=True)
 
-    # Per-submission timestamp for filenames
     ts_now = datetime.now()
     ts_stamp = ts_now.strftime("%Y%m%d_%H%M%S")
     dt_string = ts_now.strftime("%Y/%m/%d %H:%M:%S")
 
-    # Step 1: Save student upload(s) into a submission directory (language-independent layout)
     outputpath = project_bucket
     submission_dir = os.path.join(user_bucket, ts_stamp)
     os.makedirs(submission_dir, exist_ok=True)
 
     for f in upload_files:
-        # Inline replacement for _safe_upload_filename(f.filename)
         base = os.path.basename(f.filename or "")
         stem, extn = os.path.splitext(base)
 
@@ -160,17 +152,13 @@ def file_upload(
         dst = os.path.join(submission_dir, safe_filename)
         f.save(dst)
 
-    # Always pass the submission directory to the grader (single or multi-file)
     path = submission_dir
 
-    # Step 2: Run grade.py
     testcase_info_json = project_repo.testcases_to_json(project.Id)
 
     grading_script = "/tabot-files/grading-scripts/grade.py"
     project_id_arg = str(project.Id)
 
-    # Include teacher-provided "additional files" in the Judge0 sandbox for student runs.
-    # DB stores basenames (or JSON list). Resolve them to absolute paths under the teacher solution folder.
     add_payload = ""
     try:
         sol_root = getattr(project, "solutionpath", "") or ""
@@ -191,7 +179,6 @@ def file_upload(
             else:
                 abs_list.append(os.path.join(teacher_base_dir, os.path.basename(p)))
 
-        # Pass both base_dir (for resolving testcase-level basenames) and project files list
         add_payload = json.dumps({"base_dir": teacher_base_dir, "files": abs_list})
     except Exception:
         add_payload = ""
@@ -213,11 +200,8 @@ def file_upload(
         }
         return make_response(message, HTTPStatus.INTERNAL_SERVER_ERROR)
 
-    # Step 3: Read grader JSON output from:
-    # student-files/<project>/<userId>/<submissiontimestamp>/testcases.json
     json_out = os.path.join(submission_dir, "testcases.json")
     if not os.path.exists(json_out):
-        # Back-compat with older output naming
         alt = os.path.join(submission_dir, f"{user_id_str}.json")
         if os.path.exists(alt):
             json_out = alt
@@ -225,7 +209,6 @@ def file_upload(
     status = False
     TestCaseResults = {"Passed": [], "Failed": []}
     try:
-        # Inline replacement for _load_grader_json and _status_and_buckets
         with open(json_out, "r", encoding="utf-8", errors="replace") as f:
             payload = json.load(f) or {}
 
@@ -255,7 +238,8 @@ def file_upload(
 
     message = {
         'message': 'Success',
-        'remainder': 10,
+        'remainder': 120,
+        'cooldownRemainingSeconds': 120,
         "sid": submissionId,
     }
 

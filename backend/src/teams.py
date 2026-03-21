@@ -406,6 +406,8 @@ def get_my_team(
         "id": team.Id,
         "name": team.Name,
         "division": team.Division,
+        "teamNumber": team.TeamNumber,
+        "isOnline": team.IsOnline,
     })
 
 @team_api.route("/submissions/summary", methods=["GET"])
@@ -432,31 +434,49 @@ def get_team_submission_summary(
     ]
     """
 
-    if not isinstance(current_user, AdminUsers):
+    is_admin = isinstance(current_user, AdminUsers)
+    is_student = isinstance(current_user, StudentUsers)
+
+    if not (is_admin or is_student):
         return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
 
-    team_id = request.args.get("team_id", type=int)
-    if not team_id or team_id <= 0:
-        return make_response({'message': 'team_id is required'}, HTTPStatus.BAD_REQUEST)
+    requested_team_id = request.args.get("team_id", type=int)
 
-    school_id = int(getattr(current_user, "SchoolId", 0))
-    requested_school_id = request.args.get("school_id", type=int)
+    if is_student:
+        own_team_id = int(getattr(current_user, "TeamId", 0) or 0)
+        if own_team_id <= 0:
+            return make_response({'message': 'No team is associated with this account'}, HTTPStatus.BAD_REQUEST)
 
-    if requested_school_id:
-        if user_repo.is_admin():
-            school_id = requested_school_id
-        elif requested_school_id != school_id:
+        if requested_team_id and requested_team_id != own_team_id:
             return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
 
-    if school_id <= 0:
-        return make_response({'message': 'Invalid school ID'}, HTTPStatus.BAD_REQUEST)
+        team_id = own_team_id
+        team = team_repo.get_team_by_id(team_id)
+        if not team:
+            return make_response({'message': 'Team not found'}, HTTPStatus.NOT_FOUND)
+    else:
+        team_id = requested_team_id
+        if not team_id or team_id <= 0:
+            return make_response({'message': 'team_id is required'}, HTTPStatus.BAD_REQUEST)
 
-    team = team_repo.get_team_by_id(team_id)
-    if not team:
-        return make_response({'message': 'Team not found'}, HTTPStatus.NOT_FOUND)
+        school_id = int(getattr(current_user, "SchoolId", 0))
+        requested_school_id = request.args.get("school_id", type=int)
 
-    if int(team.SchoolId) != int(school_id):
-        return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+        if requested_school_id:
+            if user_repo.is_admin():
+                school_id = requested_school_id
+            elif requested_school_id != school_id:
+                return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
+        if school_id <= 0:
+            return make_response({'message': 'Invalid school ID'}, HTTPStatus.BAD_REQUEST)
+
+        team = team_repo.get_team_by_id(team_id)
+        if not team:
+            return make_response({'message': 'Team not found'}, HTTPStatus.NOT_FOUND)
+
+        if int(team.SchoolId) != int(school_id):
+            return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
 
     latest_by_project = submission_repo.get_latest_submission_by_team(team_id)
     counts_by_project = submission_repo.get_submission_counts_by_team(team_id)

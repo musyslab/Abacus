@@ -1,65 +1,238 @@
-
-import React, { useEffect, useState } from "react";
-import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs"
-import MenuComponent from "../components/MenuComponent"
-import { Helmet } from "react-helmet"
+import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import { FaDownload, FaFileAlt, FaUpload } from "react-icons/fa";
 
-type Division = "Blue" | "Gold" | "Eagle";
+import ProblemSubmissionsDashboard, {
+    buildSummaryMap,
+    buildTeamSubmissionViewModels,
+    Division,
+    normalizeSummaryRows,
+    ProjectObject,
+    sortProjectsByOrderIndex,
+    TeamDashboardTeam,
+    TeamProblemSummary,
+} from "../components/ProblemSubmissionsDashboard";
 
-type TeamInfo = {
+type TeamMeResponse = {
     id: number;
     name: string;
-    division: Division;
-}
+    division?: Division;
+    teamNumber?: number;
+    team_number?: number;
+    number?: number;
+    isOnline?: boolean;
+    is_online?: boolean;
+};
 
 export default function StudentProjectSelection() {
     const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+    const navigate = useNavigate();
+
+    const [team, setTeam] = useState<TeamDashboardTeam | null>(null);
+    const [projects, setProjects] = useState<ProjectObject[]>([]);
+    const [summaryByProject, setSummaryByProject] = useState<Record<number, TeamProblemSummary>>(
+        {}
+    );
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [pageError, setPageError] = useState<string>("");
+    const [pageNotice, setPageNotice] = useState<string>("");
+
     function authConfig() {
         const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
         return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
     }
 
-    const [team, setTeam] = useState<TeamInfo | null>(null);
+    function downloadAssignment(projectId: number) {
+        if (!projectId || projectId <= 0) return;
 
-    async function fetchTeamInfo() {
-        try {
-            const res = await axios.get(`${apiBase}/teams/me`, authConfig());
-            const data = res.data;
-            setTeam({
-                id: data.id,
-                name: data.name,
-                division: data.division
+        axios
+            .get(`${apiBase}/projects/getAssignmentDescription?project_id=${projectId}`, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("AUTOTA_AUTH_TOKEN")}`,
+                },
+                responseType: "blob",
+            })
+            .then((res) => {
+                const type =
+                    (res.headers as any)["content-type"] || "application/octet-stream";
+                const blob = new Blob([res.data], { type });
+                const name =
+                    (res.headers as any)["x-filename"] || "assignment_description";
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            })
+            .catch(() => {
+                setPageNotice("Failed to download assignment instructions.");
             });
-        } catch (err) {
-            setTeam(null);
-        }
     }
 
     useEffect(() => {
-        fetchTeamInfo();
+        fetchPage();
     }, [apiBase]);
 
+    async function fetchPage() {
+        setIsLoading(true);
+        setPageError("");
+        setPageNotice("");
+
+        try {
+            const teamRes = await axios.get<TeamMeResponse>(`${apiBase}/teams/me`, authConfig());
+            const teamData = teamRes.data;
+
+            const resolvedTeam: TeamDashboardTeam = {
+                id: Number(teamData?.id ?? 0),
+                name: String(teamData?.name || "My Team"),
+                division: teamData?.division ?? null,
+                teamNumber:
+                    teamData?.teamNumber ??
+                    teamData?.team_number ??
+                    teamData?.number ??
+                    teamData?.id ??
+                    null,
+                isOnline:
+                    typeof teamData?.isOnline === "boolean"
+                        ? teamData.isOnline
+                        : typeof teamData?.is_online === "boolean"
+                            ? teamData.is_online
+                            : null,
+            };
+
+            if (!Number.isFinite(resolvedTeam.id) || resolvedTeam.id <= 0) {
+                setTeam(null);
+                setProjects([]);
+                setSummaryByProject({});
+                setPageError("Unable to determine the current team.");
+                setIsLoading(false);
+                return;
+            }
+
+            setTeam(resolvedTeam);
+
+            const [projectsResult, summaryResult] = await Promise.allSettled([
+                axios.get<ProjectObject[]>(`${apiBase}/projects/all_projects`, authConfig()),
+                axios.get(`${apiBase}/teams/submissions/summary`, {
+                    ...authConfig(),
+                    params: {
+                        team_id: resolvedTeam.id,
+                    },
+                }),
+            ]);
+
+            if (projectsResult.status === "fulfilled") {
+                const data = Array.isArray(projectsResult.value.data)
+                    ? projectsResult.value.data
+                    : [];
+                setProjects(sortProjectsByOrderIndex(data.slice()));
+            } else {
+                const msg =
+                    (projectsResult.reason as any)?.response?.data?.message ||
+                    (projectsResult.reason as any)?.message ||
+                    "Failed to load problems.";
+                setProjects([]);
+                setPageError(msg);
+            }
+
+            if (summaryResult.status === "fulfilled") {
+                const rows = normalizeSummaryRows(summaryResult.value.data);
+                setSummaryByProject(buildSummaryMap(rows));
+            } else {
+                setSummaryByProject({});
+                setPageNotice(
+                    "Problem list loaded, but the team submission summary endpoint is not returning data yet. Add GET /teams/submissions/summary to populate testcase totals and latest submission details."
+                );
+            }
+        } catch (err: any) {
+            const msg =
+                err?.response?.data?.message ||
+                err?.message ||
+                "Failed to load your team information.";
+            setTeam(null);
+            setProjects([]);
+            setSummaryByProject({});
+            setPageError(msg);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    const submissions = useMemo(() => {
+        return buildTeamSubmissionViewModels(projects, summaryByProject);
+    }, [projects, summaryByProject]);
+
+    const breadcrumbs = [{ label: "Problem Select" }];
+
+    const submissionViewBreadcrumbs = [
+        { label: "Problem Select", to: "/student/problems" },
+    ];
+
     return (
-        <>
-            <Helmet>
-                <title>Abacus</title>
-            </Helmet>
+        <ProblemSubmissionsDashboard
+            helmetTitle="Abacus"
+            breadcrumbs={breadcrumbs}
+            breadcrumbTrailingSeparator={true}
+            dashboardTitle={team?.name || "Problem Select"}
+            team={team}
+            fallbackTeamName="Problem Select"
+            fallbackTeamNumber={team?.teamNumber ?? null}
+            pageError={pageError}
+            pageNotice={pageNotice}
+            isLoading={isLoading}
+            submissions={submissions}
+            getTopActions={(vm) => [
+                {
+                    key: "instructions",
+                    label: "Download Instructions",
+                    icon: <FaDownload aria-hidden="true" />,
+                    variant: "highlight",
+                    title: "Download assignment instructions",
+                    onClick: () => {
+                        downloadAssignment(vm.project.Id);
+                    },
+                },
+            ]}
+            getActions={(vm) => {
+                const canViewOutput = vm.summary.latestSubmissionId !== null;
 
-            <MenuComponent/>
+                return [
+                    {
+                        key: "upload",
+                        label: "Upload program",
+                        icon: <FaUpload aria-hidden="true" />,
+                        variant: "primary",
+                        title: "Upload a submission for this problem",
+                        onClick: () => {
+                            navigate(`/student/${vm.project.Id}/submit`);
+                        },
+                    },
+                    {
+                        key: "output",
+                        label: "See output",
+                        icon: <FaFileAlt aria-hidden="true" />,
+                        variant: "secondary",
+                        disabled: !canViewOutput,
+                        title: canViewOutput
+                            ? "View your latest submission output"
+                            : "A submission is required to view output.",
+                        onClick: () => {
+                            if (!canViewOutput || vm.summary.latestSubmissionId === null) return;
 
-            <div className="student-project-selection-root">
-                <DirectoryBreadcrumbs items={[{ label: 'Problem Select' }]} trailingSeparator={true} />
-
-                <div className="pageTitle">{team ? team.name : "Problem Select"}</div>
-
-                <div className="student-project-selection-content">
-                    <section className="sec">
-                        <h2 className="sec-subtitle">Problem portal coming soon...</h2>
-                        <p className="sec-text close">Problems will appear here once they are available.</p>
-                    </section>
-                </div>
-            </div>
-        </>
-    )
+                            navigate(`/submission/${vm.summary.latestSubmissionId}`, {
+                                state: {
+                                    breadcrumbItems: submissionViewBreadcrumbs,
+                                },
+                            });
+                        },
+                    },
+                ];
+            }}
+            emptyStateMessage="Problems will appear here once they are available."
+        />
+    );
 }
