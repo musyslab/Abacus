@@ -154,7 +154,7 @@ class App extends Component {
                             <StudentProjectSelection />
                         </ProtectedRoute>
                     } />
-                    <Route path="/student/:problem_id/submit" element={
+                    <Route path="/student/:projectId/submit" element={
                         <ProtectedRoute>
                             <StudentSubmit />
                         </ProtectedRoute>

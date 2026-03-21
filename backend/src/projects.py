@@ -24,7 +24,7 @@ from injector import inject
 from flask_jwt_extended import jwt_required
 from flask_jwt_extended import current_user
 from src.repositories.project_repository import ProjectRepository
-from src.repositories.models import AdminUsers
+from src.repositories.models import AdminUsers, StudentUsers
 from src.services.dataService import all_submissions 
 from src.models.ProjectJson import ProjectJson
 from src.constants import ADMIN_ROLE
@@ -107,7 +107,7 @@ def safe_name(s: str) -> str:
 @jwt_required()
 @inject
 def all_projects(project_repo: ProjectRepository = Provide[Container.project_repo], submission_repo: SubmissionRepository = Provide[Container.submission_repo], user_repo: UserRepository = Provide[Container.user_repo]):
-    if not isinstance(current_user, AdminUsers):
+    if not isinstance(current_user, (AdminUsers, StudentUsers)):
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
     data = project_repo.get_all_projects()

@@ -4,13 +4,19 @@ import { Helmet } from "react-helmet";
 import { Link, useParams } from "react-router-dom";
 import axios from "axios";
 import Select from "react-select";
-import { FaDownload, FaEye } from "react-icons/fa";
+import {
+    FaBan,
+    FaCheckCircle,
+    FaCloudUploadAlt,
+    FaDownload,
+    FaEye,
+} from "react-icons/fa";
 
 import "../../styling/AdminProblemSubmissions.scss";
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
 import MenuComponent from "../components/MenuComponent";
 
-type ReviewStatus = "passed" | "failed";
+type ReviewStatus = "passed" | "failed" | "notsubmitted";
 type SortMode = "alphabetical" | "lastsubmitted";
 
 type ReviewRow = {
@@ -157,6 +163,25 @@ export default function AdminProblemSubmissions() {
         return [...next].sort((a, b) => buildCombinedName(a).localeCompare(buildCombinedName(b)));
     }, [rows, selectedSchoolId, sortBy]);
 
+    const submittedRows = useMemo(
+        () => filteredRows.filter((row) => row.status !== "notsubmitted"),
+        [filteredRows]
+    );
+
+    const notSubmittedRows = useMemo(
+        () => filteredRows.filter((row) => row.status === "notsubmitted"),
+        [filteredRows]
+    );
+
+    const summaryCounts = useMemo(
+        () => ({
+            notSubmitted: notSubmittedRows.length,
+            submitted: submittedRows.length,
+            passing: submittedRows.filter((row) => row.status === "passed").length,
+        }),
+        [notSubmittedRows, submittedRows]
+    );
+
     async function downloadSubmission(row: ReviewRow) {
         try {
             const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
@@ -183,6 +208,81 @@ export default function AdminProblemSubmissions() {
             console.error(err);
             window.alert("Failed to download submission.");
         }
+    }
+
+    function renderSubmittedRow(row: ReviewRow) {
+        const canView = row.schoolId > 0 && row.teamId > 0 && row.submissionId > 0;
+        const canDownload = row.submissionId > 0;
+
+        return (
+            <tr key={`${row.teamId}-${row.submissionId}`}>
+                <td className="problem-review-name-cell">
+                    <div className="problem-review-name">{buildCombinedName(row)}</div>
+                </td>
+
+                <td className="problem-review-submitted-cell">
+                    {formatSubmittedAt(row.submittedAt, row.submittedAtLabel)}
+                </td>
+
+                <td
+                    className={
+                        row.status === "passed"
+                            ? "problem-review-status-cell problem-review-status-cell--passed"
+                            : "problem-review-status-cell problem-review-status-cell--failed"
+                    }
+                >
+                    {row.status === "passed" ? "PASSED" : "FAILED"}
+                </td>
+
+                <td className="problem-review-action-cell">
+                    {canView ? (
+                        <Link
+                            className="problem-review-action problem-review-action--view"
+                            to={`/admin/problem/${projectId}/review/submission/${row.submissionId}`}
+                        >
+                            <FaEye aria-hidden="true" />
+                            <span>View</span>
+                        </Link>
+                    ) : (
+                        <span className="problem-review-unavailable">N/A</span>
+                    )}
+                </td>
+
+                <td className="problem-review-action-cell">
+                    <button
+                        type="button"
+                        className="problem-review-action problem-review-action--download"
+                        onClick={() => downloadSubmission(row)}
+                        disabled={!canDownload}
+                    >
+                        <FaDownload aria-hidden="true" />
+                        <span>Download</span>
+                    </button>
+                </td>
+            </tr>
+        );
+    }
+
+    function renderNotSubmittedRow(row: ReviewRow) {
+        return (
+            <tr key={`${row.teamId}-notsubmitted`}>
+                <td className="problem-review-name-cell">
+                    <div className="problem-review-name">{buildCombinedName(row)}</div>
+                </td>
+
+                <td className="problem-review-submitted-cell">N/A</td>
+
+                <td className="problem-review-status-cell problem-review-status-cell--notsubmitted">N/A</td>
+
+                <td className="problem-review-action-cell">
+                    <span className="problem-review-unavailable">N/A</span>
+                </td>
+
+                <td className="problem-review-action-cell">
+                    <span className="problem-review-unavailable">N/A</span>
+                </td>
+            </tr>
+        );
     }
 
     const selectedSchoolOption =
@@ -213,6 +313,46 @@ export default function AdminProblemSubmissions() {
                 <div className="pageTitle">{pageTitle}</div>
 
                 <div className="problem-review-content">
+                    {!isLoading && !error && (
+                        <div className="problem-review-summary">
+                            <div className="problem-review-summary-card problem-review-summary-card--notsubmitted">
+                                <div className="problem-review-summary-card__icon-wrap">
+                                    <div className="problem-review-summary-card__icon">
+                                        <FaBan aria-hidden="true" />
+                                    </div>
+                                </div>
+                                <div className="problem-review-summary-card__text">
+                                    <div className="problem-review-summary-card__value">{summaryCounts.notSubmitted}</div>
+                                    <div className="problem-review-summary-card__label">Not Submitted</div>
+                                </div>
+                            </div>
+
+                            <div className="problem-review-summary-card problem-review-summary-card--submitted">
+                                <div className="problem-review-summary-card__icon-wrap">
+                                    <div className="problem-review-summary-card__icon">
+                                        <FaCloudUploadAlt aria-hidden="true" />
+                                    </div>
+                                </div>
+                                <div className="problem-review-summary-card__text">
+                                    <div className="problem-review-summary-card__value">{summaryCounts.submitted}</div>
+                                    <div className="problem-review-summary-card__label">Submitted At Least Once</div>
+                                </div>
+                            </div>
+
+                            <div className="problem-review-summary-card problem-review-summary-card--passing">
+                                <div className="problem-review-summary-card__icon-wrap">
+                                    <div className="problem-review-summary-card__icon">
+                                        <FaCheckCircle aria-hidden="true" />
+                                    </div>
+                                </div>
+                                <div className="problem-review-summary-card__text">
+                                    <div className="problem-review-summary-card__value">{summaryCounts.passing}</div>
+                                    <div className="problem-review-summary-card__label">Passing All Testcases</div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="problem-review-panel">
                         <div className="problem-review-toolbar">
                             <div className="problem-review-toolbar__group">
@@ -251,87 +391,93 @@ export default function AdminProblemSubmissions() {
                         )}
 
                         {!isLoading && !error && (
-                            <div
-                                className="problem-review-table-wrap"
-                                role="region"
-                                aria-label="Problem submissions table"
-                                tabIndex={0}
-                            >
-                                <table className="problem-review-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Last Submitted</th>
-                                            <th>Status</th>
-                                            <th>View</th>
-                                            <th>Download</th>
-                                        </tr>
-                                    </thead>
+                            <>
+                                <div className="problem-review-section">
+                                    <div className="problem-review-section__title">Teams That Have Submitted</div>
 
-                                    <tbody>
-                                        {filteredRows.length === 0 && (
-                                            <tr>
-                                                <td colSpan={5} className="problem-review-empty">
-                                                    No submissions found for this problem.
-                                                </td>
-                                            </tr>
-                                        )}
+                                    <div
+                                        className="problem-review-table-wrap"
+                                        role="region"
+                                        aria-label="Submitted teams table"
+                                        tabIndex={0}
+                                    >
+                                        <table className="problem-review-table">
+                                            <colgroup>
+                                                <col className="problem-review-table__col problem-review-table__col--name" />
+                                                <col className="problem-review-table__col problem-review-table__col--submitted" />
+                                                <col className="problem-review-table__col problem-review-table__col--status" />
+                                                <col className="problem-review-table__col problem-review-table__col--view" />
+                                                <col className="problem-review-table__col problem-review-table__col--download" />
+                                            </colgroup>
 
-                                        {filteredRows.map((row) => {
-                                            const canView = row.schoolId > 0 && row.teamId > 0 && row.submissionId > 0;
-                                            const canDownload = row.submissionId > 0;
-
-                                            return (
-                                                <tr key={`${row.teamId}-${row.submissionId}`}>
-                                                    <td className="problem-review-name-cell">
-                                                        <div className="problem-review-name">{buildCombinedName(row)}</div>
-                                                    </td>
-
-                                                    <td className="problem-review-submitted-cell">
-                                                        {formatSubmittedAt(row.submittedAt, row.submittedAtLabel)}
-                                                    </td>
-
-                                                    <td
-                                                        className={
-                                                            row.status === "passed"
-                                                                ? "problem-review-status-cell problem-review-status-cell--passed"
-                                                                : "problem-review-status-cell problem-review-status-cell--failed"
-                                                        }
-                                                    >
-                                                        {row.status === "passed" ? "PASSED" : "FAILED"}
-                                                    </td>
-
-                                                    <td className="problem-review-action-cell">
-                                                        {canView ? (
-                                                            <Link
-                                                                className="problem-review-action problem-review-action--view"
-                                                                to={`/admin/problem/${projectId}/review/submission/${row.submissionId}`}
-                                                            >
-                                                                <FaEye aria-hidden="true" />
-                                                                <span>View</span>
-                                                            </Link>
-                                                        ) : (
-                                                            <span className="problem-review-unavailable">N/A</span>
-                                                        )}
-                                                    </td>
-
-                                                    <td className="problem-review-action-cell">
-                                                        <button
-                                                            type="button"
-                                                            className="problem-review-action problem-review-action--download"
-                                                            onClick={() => downloadSubmission(row)}
-                                                            disabled={!canDownload}
-                                                        >
-                                                            <FaDownload aria-hidden="true" />
-                                                            <span>Download</span>
-                                                        </button>
-                                                    </td>
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>Last Submitted</th>
+                                                    <th>Status</th>
+                                                    <th>View</th>
+                                                    <th>Download</th>
                                                 </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            </div>
+                                            </thead>
+
+                                            <tbody>
+                                                {submittedRows.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan={5} className="problem-review-empty">
+                                                            No teams with submissions found for this problem.
+                                                        </td>
+                                                    </tr>
+                                                )}
+
+                                                {submittedRows.map(renderSubmittedRow)}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div className="problem-review-section">
+                                    <div className="problem-review-section__title">Teams That Have Not Submitted</div>
+
+                                    <div
+                                        className="problem-review-table-wrap"
+                                        role="region"
+                                        aria-label="Teams without submissions table"
+                                        tabIndex={0}
+                                    >
+                                        <table className="problem-review-table">
+                                            <colgroup>
+                                                <col className="problem-review-table__col problem-review-table__col--name" />
+                                                <col className="problem-review-table__col problem-review-table__col--submitted" />
+                                                <col className="problem-review-table__col problem-review-table__col--status" />
+                                                <col className="problem-review-table__col problem-review-table__col--view" />
+                                                <col className="problem-review-table__col problem-review-table__col--download" />
+                                            </colgroup>
+
+                                            <thead>
+                                                <tr>
+                                                    <th>Name</th>
+                                                    <th>Last Submitted</th>
+                                                    <th>Status</th>
+                                                    <th>View</th>
+                                                    <th>Download</th>
+                                                </tr>
+                                            </thead>
+
+                                            <tbody>
+                                                {notSubmittedRows.length === 0 && (
+                                                    <tr>
+                                                        <td colSpan={5} className="problem-review-empty">
+                                                            Every visible team has submitted at least once.
+                                                        </td>
+                                                    </tr>
+                                                )}
+
+                                                {notSubmittedRows.map(renderNotSubmittedRow)}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </>
                         )}
                     </div>
                 </div>

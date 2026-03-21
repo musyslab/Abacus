@@ -6,7 +6,7 @@ from container import Container
 
 from src.repositories.school_repository import SchoolRepository
 from src.repositories.user_repository import UserRepository
-from src.repositories.models import AdminUsers
+from src.repositories.models import AdminUsers, Teams
 
 school_api = Blueprint("school_api", __name__)
 
@@ -116,9 +116,10 @@ def admin_school_summary(
 ):
     """
     Admin-only (Role 1) endpoint: returns summary rows for all schools:
-      - teacher name/email (from Schools.TeacherID)
-      - teamCount (distinct TeamId values among students)
-      - studentCount (total students in the school)
+      - teachers assigned to the school
+      - total team count
+      - total student count
+      - team and student counts for each division
     """
     if (not school_repo.is_admin_user(current_user)) or int(getattr(current_user, "Role", 0) or 0) != 1:
         return jsonify({"message": "Unauthorized"}), 403
@@ -138,8 +139,19 @@ def admin_school_summary(
             email = (getattr(t, "Email", None) or "").strip() or None
             teacher_data.append({"id": teacher_id, "name": name, "email": email})
 
+        teams = Teams.query.filter_by(SchoolId=int(s.Id)).all()
+        division_team_counts = {"Blue": 0, "Gold": 0, "Eagle": 0}
+        team_division_by_id = {}
+
+        for team in teams:
+            division = (getattr(team, "Division", "") or "").strip()
+            team_division_by_id[int(team.Id)] = division
+            if division in division_team_counts:
+                division_team_counts[division] += 1
+
         students = user_repo.get_students_for_school(int(s.Id))
-        team_ids = set()
+        division_student_counts = {"Blue": 0, "Gold": 0, "Eagle": 0}
+
         for st in students:
             tid = getattr(st, "TeamId", None)
             if tid is None:
@@ -148,16 +160,34 @@ def admin_school_summary(
                 tid_int = int(tid)
             except Exception:
                 continue
-            if tid_int > 0:
-                team_ids.add(tid_int)
+            if tid_int <= 0:
+                continue
+
+            division = team_division_by_id.get(tid_int)
+            if division in division_student_counts:
+                division_student_counts[division] += 1
 
         payload.append(
             {
                 "id": int(s.Id),
                 "name": getattr(s, "Name", "") or "",
                 "teachers": teacher_data,
-                "teamCount": len(team_ids),
+                "teamCount": sum(division_team_counts.values()),
                 "studentCount": len(students),
+                "divisions": {
+                    "Blue": {
+                        "teamCount": division_team_counts["Blue"],
+                        "studentCount": division_student_counts["Blue"],
+                    },
+                    "Gold": {
+                        "teamCount": division_team_counts["Gold"],
+                        "studentCount": division_student_counts["Gold"],
+                    },
+                    "Eagle": {
+                        "teamCount": division_team_counts["Eagle"],
+                        "studentCount": division_student_counts["Eagle"],
+                    },
+                },
             }
         )
 

@@ -221,6 +221,42 @@
     margin-top: 0.65rem;
 }
 
+.submission-card__title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.submission-card__top-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-top: 0;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.submission-card__top-actions .submission-output-link {
+    width: auto;
+    flex: 0 0 auto;
+    min-height: 42px;
+    padding: 0.62rem 0.95rem;
+    font-size: 0.9rem;
+    border: 1px solid #dbe4f0;
+    background: #ffffff;
+    color: #334155;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.submission-card__top-actions .submission-output-link:hover:not(:disabled) {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
 .submission-badge,
 .submission-status {
     display: inline-flex;
@@ -249,24 +285,6 @@
     background: #eef2f7;
     color: #475569;
     border: 1px solid #d8e0ea;
-}
-
-.submission-badge--difficulty.submission-badge--easy {
-    background: #dcfce7;
-    color: #15803d;
-    border: 1px solid #bbf7d0;
-}
-
-.submission-badge--difficulty.submission-badge--medium {
-    background: #ffedd5;
-    color: #c2410c;
-    border: 1px solid #fed7aa;
-}
-
-.submission-badge--difficulty.submission-badge--hard {
-    background: #fee2e2;
-    color: #b91c1c;
-    border: 1px solid #fecaca;
 }
 
 .submission-status {
@@ -417,6 +435,17 @@
     padding: 0 1.15rem 1.15rem;
 }
 
+.submission-card__actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.submission-card__actions .submission-output-link {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
 .submission-output-link {
     width: 100%;
     display: inline-flex;
@@ -429,7 +458,8 @@
     background: #eff6ff;
     color: #1d4ed8;
     font-size: 0.98rem;
-    font-weight: 800;
+    font-weight: 700;
+    white-space: nowrap;
     cursor: pointer;
     opacity: 1;
     transition:
@@ -457,6 +487,33 @@
     color: #64748b;
     cursor: not-allowed;
     opacity: 0.8;
+}
+
+.submission-output-link--secondary {
+    border: 1px solid #dbe4f0;
+    background: #ffffff;
+    color: #334155;
+}
+
+.submission-output-link--secondary:hover:not(:disabled) {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.submission-output-link--highlight {
+    border: 1px solid #fcd34d;
+    background: #fef3c7;
+    color: #92400e;
+    box-shadow: 0 6px 14px rgba(245, 158, 11, 0.12);
+}
+
+.submission-output-link--highlight:hover:not(:disabled) {
+    background: #fde68a;
+    border-color: #f59e0b;
+    color: #78350f;
+    box-shadow: 0 8px 18px rgba(245, 158, 11, 0.18);
 }
 
 @media (max-width: 860px) {
@@ -489,5 +546,22 @@
 
     .submissions-hero__title-row {
         align-items: flex-start;
+    }
+
+    .submission-card__actions {
+        flex-direction: column;
+    }
+
+    .submission-card__title-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .submission-card__top-actions {
+        flex-direction: column;
+    }
+
+    .submission-card__top-actions .submission-output-link {
+        width: 100%;
     }
 }

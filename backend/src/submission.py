@@ -1,33 +1,24 @@
-from datetime import timedelta
-import os
-import threading
-import requests
-import urllib3
-from src.repositories.school_repository import SchoolRepository
-from src.repositories.team_repository import TeamRepository
-from src.repositories.user_repository import UserRepository
-from flask import Blueprint
-from flask import make_response, request, current_app, send_file
-from flask import request
-from http import HTTPStatus
-from injector import inject
-from flask_jwt_extended import jwt_required
-from flask_jwt_extended import current_user
-from src.repositories.submission_repository import SubmissionRepository
-from src.repositories.project_repository import ProjectRepository
-from src.constants import EMPTY, ADMIN_ROLE
+from datetime import datetime
 import json
+import os
 import zipfile
 from io import BytesIO
+
+from flask import Blueprint, jsonify, make_response, request, send_file
+from http import HTTPStatus
 from tap.parser import Parser
-from flask import jsonify
-from datetime import datetime
+from flask_jwt_extended import current_user, jwt_required
 from dependency_injector.wiring import inject, Provide
-from container import Container
-from urllib.parse import unquote
 from openpyxl import Workbook
-from src.ai_suggestions import ERROR_DEFS
-from src.repositories.models import Testcases
+
+from container import Container
+from src.constants import ADMIN_ROLE
+from src.repositories.models import Testcases, StudentUsers, Teams
+from src.repositories.project_repository import ProjectRepository
+from src.repositories.school_repository import SchoolRepository
+from src.repositories.submission_repository import SubmissionRepository
+from src.repositories.team_repository import TeamRepository
+from src.repositories.user_repository import UserRepository
 
 ADMIN_GRADING_ERROR_DEFS = [
     {"id": "MISSPELL", "label": "Spelling or word substitution error", "description": "A word or short phrase is wrong compared to expected output (including valid English words used incorrectly, missing/extra letters, or wrong small words) when the rest of the line is otherwise correct.", "points": 10},
@@ -57,6 +48,7 @@ ADMIN_GRADING_DEFAULT_DEFS_MAP = {
 ui_clicks_log = "/tabot-files/project-files/code_view_clicks.log"
 
 submission_api = Blueprint('submission_api', __name__)
+
 
 def convert_tap_to_json(file_path, role, current_level, hasLVLSYSEnabled):
     # New grader writes JSON directly (testcases.json). If so, pass it through.
@@ -124,6 +116,40 @@ def convert_tap_to_json(file_path, role, current_level, hasLVLSYSEnabled):
     final["results"] = test
     return json.dumps(final, sort_keys=True, indent=4)
 
+
+@submission_api.route('/student_submit_status', methods=['GET'])
+@jwt_required()
+@inject
+def get_student_submit_status(
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo],
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+):
+    if not isinstance(current_user, StudentUsers):
+        return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
+    project_id = request.args.get("project_id", type=int)
+    if project_id is None or project_id <= 0:
+        return make_response({'message': 'project_id is required'}, HTTPStatus.BAD_REQUEST)
+
+    project = project_repo.get_selected_project(project_id)
+    if not project:
+        return make_response({'message': 'Project not found'}, HTTPStatus.NOT_FOUND)
+
+    team_id = int(getattr(current_user, "TeamId", 0) or 0)
+    if team_id <= 0:
+        return make_response({'message': 'No team is associated with this account'}, HTTPStatus.BAD_REQUEST)
+
+    remaining_seconds = submission_repo.get_team_cooldown_remaining_seconds(
+        team_id,
+        120,
+    )
+
+    return make_response(jsonify({
+        "canSubmit": remaining_seconds <= 0,
+        "cooldownRemainingSeconds": remaining_seconds,
+    }), HTTPStatus.OK)
+
+
 @submission_api.route('/testcaseerrors', methods=['GET'])
 @jwt_required()
 @inject
@@ -136,12 +162,12 @@ def get_testcase_errors(submission_repo: SubmissionRepository = Provide[Containe
     submission = submission_repo.get_submission_by_submission_id(submission_id)
     if not submission:
         return make_response("Submission not found", HTTPStatus.NOT_FOUND)
-    
+
     project_id = getattr(submission, "Project", None)
     if project_id is None:
         return make_response("Submission missing project association", HTTPStatus.INTERNAL_SERVER_ERROR)
 
-    output = convert_tap_to_json(submission.OutputFilepath, current_user.Role, 0, False)
+    output = convert_tap_to_json(submission.OutputFilepath, getattr(current_user, "Role", 0), 0, False)
     # Attach hidden flags from DB Testcases table (source of truth)
     try:
         obj = json.loads(output) if isinstance(output, str) else (output or {})
@@ -176,6 +202,7 @@ def get_testcase_errors(submission_repo: SubmissionRepository = Provide[Containe
 
     return make_response(output, HTTPStatus.OK)
 
+
 @submission_api.route('/codefinder', methods=['GET'])
 @jwt_required()
 @inject
@@ -194,11 +221,11 @@ def codefinder(
     if not user_repo.is_admin():
         if not submission_repo.submission_view_verification(current_user.Id, submission_id):
             return make_response("Unauthorized", HTTPStatus.FORBIDDEN)
- 
+
     code_output = submission_repo.get_code_path_by_submission_id(submission_id)
     if not code_output:
         return make_response("Code output not found for submission", HTTPStatus.NOT_FOUND)
-    
+
     if want_json:
         files_payload = []
         if not os.path.isdir(code_output):
@@ -221,7 +248,7 @@ def codefinder(
         resp.headers["Cache-Control"] = "no-store"
         return resp
 
-    # Download mode (used by StudentList download) stays as attachments/zip
+    # Download mode
     if not os.path.isdir(code_output):
         resp = send_file(
             code_output,
@@ -236,7 +263,6 @@ def codefinder(
     allowed_exts = {".py", ".java"}
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as z:
-        # add files with stable ordering
         names = sorted(os.listdir(code_output), key=lambda n: (n != "Main.java", n.lower()))
         for name in names:
             full = os.path.join(code_output, name)
@@ -259,31 +285,39 @@ def codefinder(
     resp.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
     return resp
 
+
 @submission_api.route('/recentsubproject', methods=['POST'])
 @jwt_required()
 @inject
-def recentsubproject(submission_repo: SubmissionRepository = Provide[Container.submission_repo], user_repo: UserRepository = Provide[Container.user_repo],project_repo: ProjectRepository = Provide[Container.project_repo] ):
-    if(current_user.Role != ADMIN_ROLE):
+def recentsubproject(
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+):
+    if current_user.Role != ADMIN_ROLE:
         return make_response("Not Authorized", HTTPStatus.UNAUTHORIZED)
+
     input_json = request.get_json()
     projectid = input_json['project_id']
     class_name = project_repo.get_className_by_projectId(projectid)
     class_id = project_repo.get_class_id_by_name(class_name)
     users = user_repo.get_all_users_by_cid(class_id)
-    studentattempts={}
-    userids=[]
+    studentattempts = {}
+    userids = []
     for user in users:
         userids.append(user.Id)
+
     bucket = submission_repo.get_most_recent_submission_by_project(projectid, userids)
     submission_counter_dict = submission_repo.submission_counter(projectid, userids)
     user_lectures_dict = user_repo.get_user_lectures(userids, class_id)
     user_labs_dict = user_repo.get_user_labs(userids, class_id)
+
     for user in users:
         if int(user.Role) == 0:
             if user.Id in bucket:
                 student_grade = project_repo.get_student_grade(projectid, user.Id)
                 student_id = user_repo.get_StudentNumber(user.Id)
-                studentattempts[user.Id]=[
+                studentattempts[user.Id] = [
                     user.Lastname,
                     user.Firstname,
                     user_lectures_dict[user.Id],
@@ -316,6 +350,7 @@ def recentsubproject(submission_repo: SubmissionRepository = Provide[Container.s
                 ]
     return make_response(json.dumps(studentattempts), HTTPStatus.OK)
 
+
 @submission_api.route('/submitOHquestion', methods=['GET'])
 @jwt_required()
 @inject
@@ -330,10 +365,15 @@ def Submit_OH_Question(submission_repo: SubmissionRepository = Provide[Container
         HTTPStatus.OK
     )
 
+
 @submission_api.route('/getOHquestions', methods=['GET'])
 @jwt_required()
 @inject
-def Get_OH_Questions(submission_repo: SubmissionRepository = Provide[Container.submission_repo], user_repo: UserRepository = Provide[Container.user_repo], project_repo: ProjectRepository = Provide[Container.project_repo]):
+def Get_OH_Questions(
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+):
     if current_user.Role != ADMIN_ROLE:
         return make_response("Not Authorized", HTTPStatus.UNAUTHORIZED)
 
@@ -345,23 +385,22 @@ def Get_OH_Questions(submission_repo: SubmissionRepository = Provide[Container.s
         except Exception:
             return str(dt_val)
 
-    # Admin view needs ALL OHVisits entries (active + dismissed) so the UI can split
-    # into Current Queue vs History.
     questions = submission_repo.Get_all_OH_questions(include_dismissed=True)
     question_list = []
-    #Need class ID and submission ID
+
     for question in questions:
-        # If the project was deleted / missing, skip this OH entry so the admin page doesn't 500.
         try:
             proj = project_repo.get_selected_project(int(getattr(question, "projectId", 0) or 0))
         except Exception:
             proj = None
         if not proj:
             continue
+
         user = user_repo.get_user(question.StudentId)
         Student_name = user.Firstname + " " + user.Lastname
         class_id = int(getattr(proj, "ClassId", 0) or 0)
         subs = submission_repo.get_most_recent_submission_by_project(question.projectId, [question.StudentId])
+
         try:
             question_list.append([
                 question.Sqid,
@@ -376,7 +415,7 @@ def Get_OH_Questions(submission_repo: SubmissionRepository = Provide[Container.s
                 class_id,
                 subs[question.StudentId].Id
             ])
-        except:
+        except Exception:
             question_list.append([
                 question.Sqid,
                 question.StudentQuestionscol,
@@ -392,10 +431,15 @@ def Get_OH_Questions(submission_repo: SubmissionRepository = Provide[Container.s
             ])
     return make_response(json.dumps(question_list), HTTPStatus.OK)
 
+
 @submission_api.route('/getOHqueue', methods=['GET'])
 @jwt_required()
 @inject
-def Get_OH_Queue(submission_repo: SubmissionRepository = Provide[Container.submission_repo], user_repo: UserRepository = Provide[Container.user_repo], project_repo: ProjectRepository = Provide[Container.project_repo]):
+def Get_OH_Queue(
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+):
     """
     Student-safe queue endpoint.
     Returns only ACTIVE (dismissed == 0) OHVisits for a single project.
@@ -444,24 +488,24 @@ def Get_OH_Queue(submission_repo: SubmissionRepository = Provide[Container.submi
 
     return make_response(json.dumps(out), HTTPStatus.OK)
 
+
 @submission_api.route('/submitOHQuestionRuling', methods=['GET'])
 @jwt_required()
 @inject
 def Submit_OH_Question_Ruling(submission_repo: SubmissionRepository = Provide[Container.submission_repo]):
     question_id = str(request.args.get("question_id"))
     ruling = str(request.args.get("ruling"))
-    return make_response(submission_repo.Submit_OH_ruling(question_id,ruling), HTTPStatus.OK)
+    return make_response(submission_repo.Submit_OH_ruling(question_id, ruling), HTTPStatus.OK)
 
-#dismiss question
+
 @submission_api.route('/dismissOHQuestion', methods=['GET'])
 @jwt_required()
 @inject
 def Dismiss_OH_Question(submission_repo: SubmissionRepository = Provide[Container.submission_repo]):
     question_id = str(request.args.get("question_id"))
-    user_id, class_id = submission_repo.Submit_OH_dismiss(question_id)
-    reward_amount = 2
-    submission_repo.add_reward_charge(user_id, class_id, reward_amount)
+    submission_repo.Submit_OH_dismiss(question_id)
     return make_response("ok", HTTPStatus.OK)
+
 
 @submission_api.route('/getactivequestion', methods=['GET'])
 @jwt_required()
@@ -470,6 +514,7 @@ def get_active_Question(submission_repo: SubmissionRepository = Provide[Containe
     accepted_only_raw = request.args.get("acceptedOnly", "")
     accepted_only = str(accepted_only_raw).lower() in ("1", "true", "yes", "y")
     return make_response(str(submission_repo.get_active_question(current_user.Id, accepted_only)), HTTPStatus.OK)
+
 
 @submission_api.route('/getAcceptedOHForClass', methods=['GET'])
 @jwt_required()
@@ -488,15 +533,18 @@ def get_accepted_oh_for_class(submission_repo: SubmissionRepository = Provide[Co
     qid = submission_repo.get_accepted_oh_for_class(current_user.Id, class_id)
     return make_response(str(qid if qid is not None else -1), HTTPStatus.OK)
 
+
 @submission_api.route('/GetSubmissionDetails', methods=['GET'])
 @jwt_required()
 @inject
-def get_remaining_OH_Time(submission_repo: SubmissionRepository = Provide[Container.submission_repo], project_repo: ProjectRepository = Provide[Container.project_repo]):
+def get_remaining_OH_Time(
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo],
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+):
     class_id = int(request.args.get("class_id"))
     submission_details = []
     project = project_repo.get_current_project_by_class(class_id)
     if project is None:
-        # no active project → return all "None"/zero defaults
         return make_response(
             ["None", "0", "None", "", ""],
             HTTPStatus.OK
@@ -507,7 +555,6 @@ def get_remaining_OH_Time(submission_repo: SubmissionRepository = Provide[Contai
     start_time = project.get(projectId)[1]
     start_date = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
     current_time = datetime.now()
-    #get days passed
     days_passed = (current_time - start_date).days
     submission_details.append(str(days_passed))
     time_until_next_submission = submission_repo.check_timeout(current_user.Id, projectId)[1]
@@ -525,29 +572,28 @@ def get_remaining_OH_Time(submission_repo: SubmissionRepository = Provide[Contai
     submission_details.append(str(projectId))
     return make_response(submission_details, HTTPStatus.OK)
 
+
 @submission_api.route('/get_oh_visits_by_projectId', methods=['POST'])
 @jwt_required()
 @inject
 def get_oh_visits_by_projectId(submission_repo: SubmissionRepository = Provide[Container.submission_repo]):
     """
     Helper to get all OHVisits entries for a given project_id.
-    Returns list of OHVisits objects.
+    Returns list of student IDs with accepted visits.
     """
     input_json = request.get_json()
-    
-    project_id = input_json['project_id'] 
-    
+    project_id = input_json['project_id']
     visits = submission_repo.get_oh_visits_by_projectId(project_id)
-
     return make_response(jsonify(visits), HTTPStatus.OK)
+
 
 @submission_api.route('/submitgrades', methods=['POST'])
 @jwt_required()
 @inject
 def submit_grades(project_repo: ProjectRepository = Provide[Container.project_repo]):
-    if(current_user.Role != ADMIN_ROLE):
+    if current_user.Role != ADMIN_ROLE:
         return make_response("Not Authorized", HTTPStatus.UNAUTHORIZED)
-    #spacing issue
+
     data = request.get_json()
     project_id = data['projectID']
     userId = data['userId']
@@ -555,10 +601,15 @@ def submit_grades(project_repo: ProjectRepository = Provide[Container.project_re
     project_repo.set_student_grade(int(project_id), int(userId), int(grade))
     return make_response("StudentGrades Submitted", HTTPStatus.OK)
 
+
 @submission_api.route('/getprojectscores', methods=['GET'])
 @jwt_required()
 @inject
-def getprojectscores(project_repo: ProjectRepository = Provide[Container.project_repo], submission_repo: SubmissionRepository = Provide[Container.submission_repo], user_repo: UserRepository = Provide[Container.user_repo]):
+def getprojectscores(
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
     project_id = str(request.args.get("projectID"))
     data = []
     student_scores = submission_repo.get_project_scores(project_id)
@@ -568,57 +619,16 @@ def getprojectscores(project_repo: ProjectRepository = Provide[Container.project
         data.append([user_info.StudentNumber, score[1], user_info.Id])
     return make_response(json.dumps({"studentData": data, "projectName": projectname}), HTTPStatus.OK)
 
+
 @submission_api.route('/submit_suggestion', methods=['POST'])
 @jwt_required()
 @inject
 def submit_Suggestion(submission_repo: SubmissionRepository = Provide[Container.submission_repo]):
     data = request.get_json()
     suggestion = data['suggestion']
-    submission_repo.submitSuggestion(current_user.Id ,suggestion)
+    submission_repo.submitSuggestion(current_user.Id, suggestion)
     return make_response("Suggestion Submitted", HTTPStatus.OK)
 
-@submission_api.route('/GetCharges', methods=['GET'])
-@jwt_required()
-@inject
-def GetCharges(submission_repo: SubmissionRepository = Provide[Container.submission_repo], project_repo: ProjectRepository = Provide[Container.project_repo]):
-    class_id = int(request.args.get("class_id"))
-    project = project_repo.get_current_project_by_class(class_id)
-    if project is None:
-        return make_response(json.dumps({
-            "error": f"No current project found for class_id {class_id}"
-        }), HTTPStatus.NOT_FOUND)
-    projectId = project.Id
-    base_charge, reward_charge = submission_repo.get_charges(current_user.Id, class_id, projectId)
-
-    hours_until_recharge = 0
-    minutes_until_recharge = 0
-    seconds_until_recharge = 0
-    if base_charge != 3:
-        time_until_recharge = submission_repo.get_time_until_recharge(current_user.Id, class_id, projectId)
-        # Convert time_until_recharge to hours, minutes, and seconds
-        hours_until_recharge, remainder = divmod(time_until_recharge.total_seconds(), 3600)
-        minutes_until_recharge, seconds_until_recharge = divmod(remainder, 60)
-
-    return make_response(json.dumps({
-        "baseCharge": base_charge,
-        "rewardCharge": reward_charge,
-        "HoursUntilRecharge": str(hours_until_recharge),
-        "MinutesUntilRecharge": str(minutes_until_recharge),
-        "SecondsUntilRecharge": str(seconds_until_recharge)
-    }), HTTPStatus.OK)
-
-@submission_api.route('/ConsumeCharge', methods=['GET'])
-@jwt_required()
-@inject
-def ConsumeCharge(submission_repo: SubmissionRepository = Provide[Container.submission_repo], project_repo: ProjectRepository = Provide[Container.project_repo]):
-    try:
-        class_id = int(request.args.get("class_id"))
-        projectId = project_repo.get_current_project_by_class(class_id).Id
-        submission_repo.consume_reward_charge(current_user.Id, class_id, projectId)
-    except Exception as e:
-        print("Error: ", e, flush=True)
-        return make_response("Error: " + str(e), HTTPStatus.INTERNAL_SERVER_ERROR)
-    return make_response("Charge Consumed", HTTPStatus.OK)
 
 @submission_api.route('/log_ui', methods=['POST'])
 @jwt_required()
@@ -646,35 +656,31 @@ def log_ui_click():
         f.write(line)
     return make_response({'status': 'logged'}, HTTPStatus.CREATED)
 
+
 @submission_api.route('/save-grading', methods=['POST'])
 @jwt_required()
 @inject
 def save_grading(submission_repo: SubmissionRepository = Provide[Container.submission_repo]):
-    
-    # get the data from frontend
     input_json = request.get_json()
     submission_id = input_json.get('submissionId')
     grade = input_json.get('grade')
     scoring_mode = input_json.get('scoringMode')
     error_points = input_json.get('errorPoints')
     error_defs = input_json.get('errorDefs')
-    errors = input_json.get('errors')  # Expecting list: [{startLine,endLine,errorId,count}, ...]
+    errors = input_json.get('errors')
     success = submission_repo.save_manual_grading(submission_id, grade, scoring_mode, error_points, errors, error_defs)
 
-    # 3. Respond to the frontend
     if success:
         return make_response(json.dumps({'success': True, 'msg': 'Grading saved'}), HTTPStatus.OK)
     else:
         return make_response("Failed to save grading", HTTPStatus.INTERNAL_SERVER_ERROR)
 
+
 @submission_api.route('/get-grading/<int:submission_id>', methods=['GET'])
 @jwt_required()
 @inject
 def get_grading(submission_id, submission_repo: SubmissionRepository = Provide[Container.submission_repo]):
-    
-    # get errors from db
     error_list = submission_repo.get_manual_errors(submission_id)
-    
     cfg = submission_repo.get_manual_grade_config(submission_id)
     return jsonify({
         'success': True,
@@ -685,11 +691,15 @@ def get_grading(submission_id, submission_repo: SubmissionRepository = Provide[C
         'errorDefs': cfg.get('errorDefs'),
     })
 
+
 @submission_api.route('/exportprojectgrades', methods=['GET'])
 @jwt_required()
 @inject
-def export_project_grades(submission_repo: SubmissionRepository = Provide[Container.submission_repo], project_repo: ProjectRepository = Provide[Container.project_repo]):
-    if(current_user.Role != ADMIN_ROLE):
+def export_project_grades(
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo],
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+):
+    if current_user.Role != ADMIN_ROLE:
         return make_response("Not Authorized", HTTPStatus.UNAUTHORIZED)
 
     project_id = int(request.args.get("project_id"))
@@ -704,7 +714,6 @@ def export_project_grades(submission_repo: SubmissionRepository = Provide[Contai
     headers = ['OrgDefinedId', f'{project_name} Points Grade', f'{project_name} Text Grade', 'End-of-Line Indicator']
     ws.append(headers)
 
-    # Create excel rows
     base_defs_map = dict(ADMIN_GRADING_DEFAULT_DEFS_MAP)
 
     for row in grade_list:
@@ -721,7 +730,6 @@ def export_project_grades(submission_repo: SubmissionRepository = Provide[Contai
                     'points': int(v.get('points', 0) or 0),
                 }
         desc_lines = []
-        description = ''
 
         for error in error_data:
             start = error['startLine']
@@ -733,7 +741,6 @@ def export_project_grades(submission_repo: SubmissionRepository = Provide[Contai
             line_str = ''
 
             base_pts = int(error_def.get('points', 0) or 0)
-            # ErrorPointsJson now stores overrides only. If there is no override, use base_pts.
             override_raw = pts_dict.get(errorId) if isinstance(pts_dict, dict) else None
             if override_raw is None:
                 eff_pts = base_pts
@@ -785,6 +792,7 @@ def export_project_grades(submission_repo: SubmissionRepository = Provide[Contai
     resp.headers["Access-Control-Expose-Headers"] = "Content-Disposition, Project-Name"
     return resp
 
+
 @submission_api.route('/problem-review', methods=['GET'])
 @jwt_required()
 @inject
@@ -821,22 +829,31 @@ def problem_review(
             continue
         latest_by_team[team_id] = submission
 
-    rows = []
-    for team_id, submission in latest_by_team.items():
-        student = user_repo.get_student_by_id(int(getattr(submission, "User", 0) or 0))
-        school_id = int(getattr(student, "SchoolId", 0) or 0) if student else 0
+    teams_in_class = (
+        Teams.query
+        .order_by(Teams.SchoolId.asc(), Teams.TeamNumber.asc(), Teams.Id.asc())
+        .all()
+    )
 
+    rows = []
+    for team in teams_in_class:
+        team_id = int(getattr(team, "Id", 0) or 0)
+        school_id = int(getattr(team, "SchoolId", 0) or 0)
+        submission = latest_by_team.get(team_id)
+        submitted_at = getattr(submission, "Time", None) if submission else None
         school = school_repo.get_school_by_id(school_id) if school_id > 0 else None
-        team = team_repo.get_team_by_id(team_id)
-        submitted_at = getattr(submission, "Time", None)
 
         rows.append({
             "teamId": team_id,
             "schoolId": school_id,
-            "submissionId": int(getattr(submission, "Id", 0) or 0),
+            "submissionId": int(getattr(submission, "Id", 0) or 0) if submission else 0,
             "schoolName": str(getattr(school, "Name", "") or "Unknown School").strip(),
             "teamName": str(getattr(team, "Name", "") or f"Team {team_id}").strip(),
-            "status": "passed" if bool(getattr(submission, "IsPassing", False)) else "failed",
+            "status": (
+                "notsubmitted"
+                if submission is None
+                else ("passed" if bool(getattr(submission, "IsPassing", False)) else "failed")
+            ),
             "submittedAt": submitted_at.isoformat() if submitted_at else "",
             "submittedAtLabel": submitted_at.strftime("%x %X") if submitted_at else "N/A",
         })
@@ -848,6 +865,7 @@ def problem_review(
         "projectName": str(getattr(project, "Name", "") or "").strip(),
         "rows": rows,
     }), HTTPStatus.OK)
+
 
 @submission_api.route('/data', methods=['GET'])
 @jwt_required()

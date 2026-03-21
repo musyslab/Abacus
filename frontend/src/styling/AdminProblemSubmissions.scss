@@ -8,6 +8,59 @@
     margin: 0 auto;
 }
 
+.problem-review-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin-top: 15px;
+}
+
+.problem-review-summary-card {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+    padding: 0.95rem 1rem;
+}
+
+.problem-review-summary-card__icon-wrap {
+    flex: 0 0 auto;
+}
+
+.problem-review-summary-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.9rem;
+    height: 2.9rem;
+    border-radius: 999px;
+    font-size: 1.15rem;
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.problem-review-summary-card__text {
+    min-width: 0;
+}
+
+.problem-review-summary-card__value {
+    color: #0f172a;
+    font-size: 1.55rem;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.problem-review-summary-card__label {
+    margin-top: 0.25rem;
+    color: #475569;
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
 .problem-review-panel {
     margin-top: 15px;
     background: #ffffff;
@@ -76,6 +129,17 @@
     z-index: 20 !important;
 }
 
+.problem-review-section+.problem-review-section {
+    margin-top: 1.25rem;
+}
+
+.problem-review-section__title {
+    margin: 0 0 0.75rem;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
 .problem-review-table-wrap {
     width: 100%;
     overflow-x: auto;
@@ -85,6 +149,7 @@
 .problem-review-table {
     width: 100%;
     min-width: 900px;
+    table-layout: fixed;
     border-collapse: collapse;
     background: #f8fafc;
     border: 1px solid #d1d5db;
@@ -126,25 +191,44 @@
     }
 }
 
+.problem-review-table__col--name {
+    width: 40%;
+}
+
+.problem-review-table__col--submitted {
+    width: 18%;
+}
+
+.problem-review-table__col--status {
+    width: 13%;
+}
+
+.problem-review-table__col--view,
+.problem-review-table__col--download {
+    width: 14.5%;
+}
+
 .problem-review-name-cell {
-    min-width: 320px;
+    min-width: 0;
 }
 
 .problem-review-name {
     font-weight: 700;
     color: #0f172a;
+    overflow-wrap: anywhere;
 }
 
 .problem-review-submitted-cell {
-    min-width: 150px;
+    min-width: 0;
     white-space: nowrap;
     color: #374151;
     font-weight: 600;
 }
 
 .problem-review-status-cell {
-    min-width: 120px;
+    min-width: 0;
     font-weight: 700;
+    text-align: center;
 }
 
 .problem-review-status-cell--passed {
@@ -159,8 +243,15 @@
     border-left: 3px solid #ef4444;
 }
 
+.problem-review-status-cell--notsubmitted {
+    color: #6b7280;
+    background: #f8fafc;
+    border-left: 3px solid #cbd5e1;
+}
+
 .problem-review-action-cell {
     text-align: center;
+    min-width: 0;
 }
 
 .problem-review-action {
@@ -170,7 +261,10 @@
     gap: 0.4rem;
     padding: 0.62rem 0.9rem;
     min-height: 38px;
-    min-width: 118px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
     font-size: 0.92rem;
     line-height: 1;
     font-weight: 700;
@@ -253,6 +347,10 @@
 }
 
 @media (max-width: 900px) {
+    .problem-review-summary {
+        grid-template-columns: 1fr;
+    }
+
     .problem-review-toolbar {
         align-items: stretch;
     }
