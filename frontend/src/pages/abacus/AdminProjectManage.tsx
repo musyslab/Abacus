@@ -328,7 +328,7 @@ export default function AdminProjectManage() {
         async function loadData() {
             try {
                 const res = await axios.get(`${API}/projects/get_testcases?id=${project_id}`, authConfig())
-                const data = res.data 
+                const data = res.data
                 const rows: Array<Testcase> = []
 
                 data.map((t: any) => {
@@ -800,7 +800,7 @@ export default function AdminProjectManage() {
             const data = res.data
             const rows: Array<Testcase> = []
 
-           data.map((t: any) => {
+            data.map((t: any) => {
                 const testcase = new Testcase()
                 testcase.id = t.id
                 testcase.name = t.name
@@ -965,19 +965,19 @@ export default function AdminProjectManage() {
                                     </div>
                                     <div className="project-type-difficulty">
                                         <div className="form-field input-field">
-                                                <label>Problem Type</label>
-                                                <SegmentedControl
-                                                    className="segment-project-type"
-                                                    options={[
-                                                        { label: "None", value: "none" },
-                                                        { label: "Competition", value: "competition" },
-                                                        { label: "Practice", value: "practice" },
-                                                    ]}
-                                                    value={projectType}
-                                                    onChange={(v) => setProjectType(v as ProjectType)}
-                                                    getOptionClassName={(v) => v.toLowerCase()}
-                                                />
-                                            </div>
+                                            <label>Problem Type</label>
+                                            <SegmentedControl
+                                                className="segment-project-type"
+                                                options={[
+                                                    { label: "None", value: "none" },
+                                                    { label: "Competition", value: "competition" },
+                                                    { label: "Practice", value: "practice" },
+                                                ]}
+                                                value={projectType}
+                                                onChange={(v) => setProjectType(v as ProjectType)}
+                                                getOptionClassName={(v) => v.toLowerCase()}
+                                            />
+                                        </div>
                                         <div className="form-field input-field">
                                             <label>Problem Difficulty</label>
                                             <SegmentedControl
@@ -1138,7 +1138,7 @@ export default function AdminProjectManage() {
                                         <div className="info-segment">
                                             <h1 className="info-title">
                                                 {edit
-                                                    ? 'Download or Change Problem Description File: ' + serverDescFileName
+                                                    ? 'Download or Change Problem Description File'
                                                     : 'Upload problem description'}
                                             </h1>
                                             <div

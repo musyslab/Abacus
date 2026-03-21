@@ -156,7 +156,7 @@ export default function SubmissionView() {
                             )}
                         </div>
                     </div>
-                    <CodeDiffView submissionId={submissionId} revealHiddenOutput />
+                    <CodeDiffView submissionId={submissionId} revealHiddenOutput={isAdminMode} />
                 </div>
             </div>
         </>

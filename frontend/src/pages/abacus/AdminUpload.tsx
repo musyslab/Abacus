@@ -201,7 +201,6 @@ const AdminUpload = () => {
                     `${API}/teams/byschool?school_id=${schoolId}`,
                     authConfig()
                 )
-                console.log(res.data)
                 const data = Array.isArray(res.data) ? res.data : [];
                 setTeams(data)
             } catch (err: any) {

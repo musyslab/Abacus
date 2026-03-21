@@ -840,9 +840,6 @@ export default function DiffView(props: DiffViewProps) {
 
     const renderStackedDiff = () => {
         const txt = selectedDiffText || ''
-        if (!txt.trim()) {
-            return <div className="muted">No diff text was provided for this test in {diffMode}.</div>
-        }
 
         const lines = txt.split('\n')
         const out: JSX.Element[] = []
@@ -927,10 +924,6 @@ export default function DiffView(props: DiffViewProps) {
     }
 
     const renderSideBySideDiff = () => {
-        if (sideBySideRows.length === 0) {
-            return <div className="muted">No diff text was provided for this test in {diffMode}.</div>
-        }
-
         return (
             <div className="diff-content side-by-side">
                 <div className="diff-side-by-side-shell" role="region" aria-label="Side-by-side testcase diff">

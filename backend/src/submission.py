@@ -196,6 +196,22 @@ def get_testcase_errors(submission_repo: SubmissionRepository = Provide[Containe
                 if isinstance(r.get("test"), dict):
                     r["test"]["hidden"] = is_hidden
 
+            is_admin_user = getattr(current_user, "Role", None) == ADMIN_ROLE
+            if not is_admin_user:
+                for r in results:
+                    if not isinstance(r, dict) or not bool(r.get("hidden", False)):
+                        continue
+
+                    if "shortDiff" in r:
+                        r["shortDiff"] = ""
+                    if "longDiff" in r:
+                        r["longDiff"] = ""
+                    if "shortDiffSameAsLong" in r:
+                        r["shortDiffSameAsLong"] = True
+
+                    if isinstance(r.get("test"), dict) and "output" in r["test"]:
+                        r["test"]["output"] = []                    
+
             output = json.dumps(obj, sort_keys=True, indent=4)
     except Exception:
         pass
