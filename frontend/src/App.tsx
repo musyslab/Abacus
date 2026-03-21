@@ -12,20 +12,6 @@ import SetPasswordPage from './pages/public/SetPassword';
 import LandingPage from './pages/public/Landing';
 import NotFound from './pages/public/NotFound';
 
-import StudentUpload from './pages/student/StudentUpload';
-import StudentOutputDiff from './pages/student/StudentOutputDiff';
-import StudentClassSelection from './pages/student/StudentClassSelection';
-import StudentOfficeHours from './pages/student/StudentOfficeHours';
-import StudentPastSubmissions from "./pages/student/StudentPastSubmissions";
-
-import AdminGrading from './pages/admin/AdminGrading';
-import AdminOfficeHours from './pages/admin/AdminOfficeHours';
-import AdminPlagiarism from "./pages/admin/AdminPlagiarism";
-import AdminProjectList2 from './pages/admin/AdminProjectList';
-import AdminProjectManage2 from './pages/admin/AdminProjectManage';
-import AdminStudentRoster from './pages/admin/AdminStudentRoster';
-import AdminViewStudentCode from './pages/admin/AdminViewStudentCode';
-
 import AdminMenu from './pages/abacus/AdminMenu';
 import AdminSchoolRoster from './pages/abacus/AdminSchoolRoster';
 import AdminProjectList from './pages/abacus/AdminProjectList';
@@ -164,69 +150,6 @@ class App extends Component {
                     <Route path="/student/:projectId/submit" element={
                         <ProtectedRoute>
                             <StudentSubmit />
-                        </ProtectedRoute>
-                    } />
-
-
-                    <Route path="/admin/:id/projects/*" element={
-                        <ProtectedRoute>
-                            <AdminProjectList2 />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/:class_id/project/:id" element={
-                        <ProtectedRoute>
-                            <AdminStudentRoster />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/:class_id/project/manage/:id" element={
-                        <ProtectedRoute>
-                            <AdminProjectManage2 />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/:class_id/project/:project_id/grade/:id" element={
-                        <ProtectedRoute>
-                            <AdminGrading />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/:class_id/project/:project_id/codeview/:id" element={
-                        <ProtectedRoute>
-                            <AdminViewStudentCode />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/plagiarism" element={
-                        <ProtectedRoute>
-                            <AdminPlagiarism />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/OfficeHours" element={
-                        <ProtectedRoute>
-                            <AdminOfficeHours />
-                        </ProtectedRoute>
-                    } />
-
-                    <Route path="/student/classes" element={
-                        <ProtectedRoute>
-                            <StudentClassSelection />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/student/:class_id/upload" element={
-                        <ProtectedRoute>
-                            <StudentUpload />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/student/:class_id/code/:id?" element={
-                        <ProtectedRoute>
-                            <StudentOutputDiff />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/student/PastSubmissions" element={
-                        <ProtectedRoute>
-                            <StudentPastSubmissions />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/student/:id/OfficeHours" element={
-                        <ProtectedRoute>
-                            <StudentOfficeHours />
                         </ProtectedRoute>
                     } />
                     {/* Catch-all for 404 */}

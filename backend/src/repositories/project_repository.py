@@ -4,9 +4,7 @@ import random
 import shutil
 import subprocess
 from typing import Optional, Dict
-
 from flask import send_file
-
 from sqlalchemy.sql.expression import asc
 from .models import Projects, StudentGrades, Submissions, Testcases
 from src.repositories.database import db
@@ -19,15 +17,6 @@ import json
 from src.constants import COMPETITION_PROBLEM_MAX
 
 class ProjectRepository():
-
-    def get_current_project(self) -> Optional[Projects]:
-        """[Identifies the current project based on the start and end date]
-        Returns:
-            Project: [this should be the currently assigned project object]
-        """
-        now = datetime.now()
-        project = Projects.query.filter(Projects.End >= now, Projects.Start < now).first()
-        return project
 
     def get_all_projects(self) -> Projects:
         """Get all projects from the mySQL database and return a project object sorted by end date.
@@ -289,26 +278,6 @@ class ProjectRepository():
         for submission in submissions:
             db.session.delete(submission)
         db.session.commit()
-    
-    def get_className_by_projectId(self, project_id):
-        try:
-            pid = int(project_id)
-        except (TypeError, ValueError):
-            return ""
-
-        project = Projects.query.filter(Projects.Id == pid).first()
-        if project is None:
-            return ""
-
-        class_obj = Classes.query.filter(Classes.Id == project.ClassId).first()
-        if class_obj is None:
-            return ""
-
-        return class_obj.Name
-
-    def get_class_id_by_name(self, class_name):
-        class_id = Classes.query.filter(Classes.Name==class_name).first().Id
-        return class_id
 
     def get_project_path(self, project_id):
         project = Projects.query.filter(Projects.Id==project_id).first()
@@ -324,20 +293,3 @@ class ProjectRepository():
         with open(filepath, 'rb') as file:
             file_contents = file.read()
         return file_contents  # Return the contents of the PDF file
-
-    def get_student_grade(self, project_id, user_id):
-        student_progress = StudentGrades.query.filter(and_(StudentGrades.Sid==user_id, StudentGrades.Pid==project_id)).first()
-        if student_progress is None:
-            return 0
-        return student_progress.Grade
-        
-    def set_student_grade(self, project_id, user_id, grade):
-        student_grade = StudentGrades.query.filter(and_(StudentGrades.Sid==user_id, StudentGrades.Pid==project_id)).first()
-        if student_grade is not None:
-            student_grade.Grade = grade
-            db.session.commit()
-            return
-        studentGrade = StudentGrades(Sid=user_id, Pid=project_id, Grade=grade)
-        db.session.add(studentGrade)
-        db.session.commit()
-        return
