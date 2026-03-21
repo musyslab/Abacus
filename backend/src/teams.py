@@ -15,11 +15,20 @@ from src.repositories.user_repository import UserRepository
 from src.repositories.school_repository import SchoolRepository
 from src.repositories.submission_repository import SubmissionRepository
 from src.repositories.project_repository import ProjectRepository
-from src.constants import BLUE_TEAM_MAX
+from src.constants import BLUE_TEAM_MAX, GOLD_TEAM_MAX, EAGLE_TEAM_MAX
 
 import re
 
 team_api = Blueprint("team_api", __name__)
+
+DIVISION_TEAM_CAPS = {
+    "Blue": BLUE_TEAM_MAX,
+    "Gold": GOLD_TEAM_MAX,
+    "Eagle": EAGLE_TEAM_MAX,
+}
+
+def total_teams_in_division(division: str) -> int:
+    return Teams.query.filter_by(Division=division).count()
 
 def parse_result_payload(raw):
     if raw is None:
@@ -121,10 +130,24 @@ def create_team(
     # Default name (Team + Team Number)
     name = f"Team {team_number}"
 
-    if team_repo.total_blue_teams() >= BLUE_TEAM_MAX:
-        team = team_repo.create_team(school_id, team_number, name, "Gold", False)
-    else:
-        team = team_repo.create_team(school_id, team_number, name, "Blue", False)
+    default_division = next(
+        (
+            division
+            for division in ["Blue", "Gold", "Eagle"]
+            if total_teams_in_division(division) < DIVISION_TEAM_CAPS[division]
+        ),
+        None,
+    )
+
+    if not default_division:
+        return make_response(
+            {
+                'message': 'All division team caps have been reached. Contact support if you believe this is a mistake.'
+            },
+            HTTPStatus.CONFLICT
+        )
+
+    team = team_repo.create_team(school_id, team_number, name, default_division, False)
 
     return make_response({
             'id': team.Id,
@@ -205,14 +228,18 @@ def update_team(
             
     is_online = data.get("is_online")
 
-    #check if limit is above 85
-    curr_division = division if division else team_repo.get_team_by_id(team_id).Division
-    total_teams = team_repo.total_blue_teams()
-    if total_teams >= BLUE_TEAM_MAX and curr_division=='Blue':
-        return make_response({'message': 'The maximum amount of teams among all schools has been reached for this division. Contact support if you believe this is a mistake.'}, HTTPStatus.CONFLICT)
+    if division and division != team.Division:
+        division_cap = DIVISION_TEAM_CAPS.get(division)
+        if division_cap is not None and total_teams_in_division(division) >= division_cap:
+            return make_response(
+                {
+                    'message': f'The maximum amount of teams among all schools has been reached for the {division} division ({division_cap}). Contact support if you believe this is a mistake.'
+                },
+                HTTPStatus.CONFLICT
+            )
 
     team_repo.update_team(team.Id, name=name, division=division, is_online=is_online)
-
+    
     return make_response({'message': 'Success'}, HTTPStatus.OK)
 
 @team_api.route('/delete', methods=['DELETE'])

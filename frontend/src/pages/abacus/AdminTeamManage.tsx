@@ -860,26 +860,28 @@ export default function AdminTeamManage() {
                                                     Members saved: <strong>{savedCount}</strong> (minimum {DIVISION_SIZES[team.division].min}, maximum {DIVISION_SIZES[team.division].max})
                                                 </div>
                                             </div>
-                                            <div className="panel__header-update">
-                                                <label className="panel__label">Division</label>
-                                                <SegmentedControl
-                                                    className="segment-division"
-                                                    options={DIVISIONS.map((d) => ({ label: d, value: d }))}
-                                                    value={team.division}
-                                                    disabled={isLoading}
-                                                    onChange={(v) => updateTeamDivision(team.id, v)}
-                                                    getOptionClassName={(v) => v.toLowerCase()}
-                                                />
-                                            </div>
+                                            <div className="panel__header-controls">
+                                                <div className="panel__header-update">
+                                                    <label className="panel__label">Division</label>
+                                                    <SegmentedControl
+                                                        className="segment-division"
+                                                        options={DIVISIONS.map((d) => ({ label: d, value: d }))}
+                                                        value={team.division}
+                                                        disabled={isLoading}
+                                                        onChange={(v) => updateTeamDivision(team.id, v)}
+                                                        getOptionClassName={(v) => v.toLowerCase()}
+                                                    />
+                                                </div>
 
-                                            <div className="panel__header-update">
-                                                <label className="panel__label">Attendance</label>
-                                                <SegmentedControl
-                                                    options={ATTENDANCE.map((o) => ({ label: o.label, value: o.value }))}
-                                                    value={team.isOnline}
-                                                    disabled={isLoading}
-                                                    onChange={(v) => updateTeamAttendance(team.id, v)}
-                                                />
+                                                <div className="panel__header-update">
+                                                    <label className="panel__label">Attendance</label>
+                                                    <SegmentedControl
+                                                        options={ATTENDANCE.map((o) => ({ label: o.label, value: o.value }))}
+                                                        value={team.isOnline}
+                                                        disabled={isLoading}
+                                                        onChange={(v) => updateTeamAttendance(team.id, v)}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                         {canDeleteTeam ? (

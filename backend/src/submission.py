@@ -13,7 +13,7 @@ from openpyxl import Workbook
 
 from container import Container
 from src.constants import ADMIN_ROLE
-from src.repositories.models import Testcases, StudentUsers
+from src.repositories.models import Testcases, StudentUsers, Teams
 from src.repositories.project_repository import ProjectRepository
 from src.repositories.school_repository import SchoolRepository
 from src.repositories.submission_repository import SubmissionRepository
@@ -829,22 +829,31 @@ def problem_review(
             continue
         latest_by_team[team_id] = submission
 
-    rows = []
-    for team_id, submission in latest_by_team.items():
-        student = user_repo.get_student_by_id(int(getattr(submission, "User", 0) or 0))
-        school_id = int(getattr(student, "SchoolId", 0) or 0) if student else 0
+    teams_in_class = (
+        Teams.query
+        .order_by(Teams.SchoolId.asc(), Teams.TeamNumber.asc(), Teams.Id.asc())
+        .all()
+    )
 
+    rows = []
+    for team in teams_in_class:
+        team_id = int(getattr(team, "Id", 0) or 0)
+        school_id = int(getattr(team, "SchoolId", 0) or 0)
+        submission = latest_by_team.get(team_id)
+        submitted_at = getattr(submission, "Time", None) if submission else None
         school = school_repo.get_school_by_id(school_id) if school_id > 0 else None
-        team = team_repo.get_team_by_id(team_id)
-        submitted_at = getattr(submission, "Time", None)
 
         rows.append({
             "teamId": team_id,
             "schoolId": school_id,
-            "submissionId": int(getattr(submission, "Id", 0) or 0),
+            "submissionId": int(getattr(submission, "Id", 0) or 0) if submission else 0,
             "schoolName": str(getattr(school, "Name", "") or "Unknown School").strip(),
             "teamName": str(getattr(team, "Name", "") or f"Team {team_id}").strip(),
-            "status": "passed" if bool(getattr(submission, "IsPassing", False)) else "failed",
+            "status": (
+                "notsubmitted"
+                if submission is None
+                else ("passed" if bool(getattr(submission, "IsPassing", False)) else "failed")
+            ),
             "submittedAt": submitted_at.isoformat() if submitted_at else "",
             "submittedAtLabel": submitted_at.strftime("%x %X") if submitted_at else "N/A",
         })
