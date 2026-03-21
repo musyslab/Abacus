@@ -192,6 +192,7 @@ export default function AdminTeamSubmissions() {
 
     const breadcrumbs = isAdminMode
         ? [
+            { label: "Admin Menu", to: "/admin" },
             { label: "School List", to: "/admin/schools" },
             { label: "Team Manage", to: teamManagePath },
             { label: "Team Submissions" },
@@ -203,6 +204,7 @@ export default function AdminTeamSubmissions() {
 
     const submissionViewBreadcrumbs = isAdminMode
         ? [
+            { label: "Admin Menu", to: "/admin" },
             { label: "School List", to: "/admin/schools" },
             { label: "Team Manage", to: teamManagePath },
             { label: "Team Submissions", to: teamSubmissionsPath },
@@ -217,10 +219,7 @@ export default function AdminTeamSubmissions() {
     return (
         <ProblemSubmissionsDashboard
             helmetTitle={isAdminMode ? "[Admin] Abacus" : "Abacus"}
-            menuProps={{
-                showProblemList: isAdminMode,
-                showAdminUpload: isAdminMode,
-            }}
+            menuProps={{}}
             breadcrumbs={breadcrumbs}
             breadcrumbTrailingSeparator={!managedSchoolId}
             dashboardTitle={dashboardTitle}

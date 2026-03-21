@@ -26,6 +26,7 @@ import AdminProjectManage2 from './pages/admin/AdminProjectManage';
 import AdminStudentRoster from './pages/admin/AdminStudentRoster';
 import AdminViewStudentCode from './pages/admin/AdminViewStudentCode';
 
+import AdminMenu from './pages/abacus/AdminMenu';
 import AdminSchoolRoster from './pages/abacus/AdminSchoolRoster';
 import AdminProjectList from './pages/abacus/AdminProjectList';
 import AdminProjectManage from './pages/abacus/AdminProjectManage';
@@ -68,6 +69,12 @@ class App extends Component {
                     <Route path="/set-password" element={<SetPasswordPage />} />
 
                     <Route path="/" element={<LandingPage />} />
+
+                    <Route path="/admin" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminMenu />
+                        </ProtectedRoute>
+                    } />
 
                     <Route path="/admin/upload/submission/:id" element={
                         <ProtectedRoute>

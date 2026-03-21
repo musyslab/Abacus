@@ -915,15 +915,12 @@ export default function AdminProjectManage() {
                 <title>[Admin] Abacus</title>
             </Helmet>
 
-            <MenuComponent
-                showProblemList={true}
-                showAdminUpload={true}
-            />
+            <MenuComponent />
 
             <DirectoryBreadcrumbs
                 items={[
-                    { label: 'School List', to: '/admin/schools' },
-                    { label: 'Problem List', to: `/admin/problems/` },
+                    { label: 'Admin Menu', to: '/admin' },
+                    { label: 'Problem List', to: '/admin/problems' },
                     { label: 'Problem Manage' },
                 ]}
             />

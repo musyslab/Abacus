@@ -128,15 +128,12 @@ export default function AdminProjectList() {
                 <title>[Admin] Abacus</title>
             </Helmet>
 
-            <MenuComponent
-                showProblemList={true}
-                showAdminUpload={true}
-            />
+            <MenuComponent />
 
             <div className="admin-project-list-root">
                 <DirectoryBreadcrumbs
                     items={[
-                        { label: 'School List', to: '/admin/schools' },
+                        { label: 'Admin Menu', to: '/admin' },
                         { label: 'Problem List' },
                     ]}
                 />

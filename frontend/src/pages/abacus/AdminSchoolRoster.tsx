@@ -255,11 +255,14 @@ const AdminSchoolRoster = () => {
         <title>Abacus</title>
       </Helmet>
 
-      <MenuComponent showProblemList={true} showAdminUpload={true} />
+      <MenuComponent />
 
       <div className="admin-school-roster-root">
         <DirectoryBreadcrumbs
-          items={[{ label: "School List" }]}
+          items={[
+            { label: "Admin Menu", to: "/admin" },
+            { label: "School List" },
+          ]}
           trailingSeparator={true}
         />
 

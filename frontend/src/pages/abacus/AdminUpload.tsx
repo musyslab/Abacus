@@ -265,7 +265,7 @@ const AdminUpload = () => {
             navigate(`/admin/upload/submission/${res.data.sid}`, {
                 state: {
                     breadcrumbItems: [
-                        { label: "School List", to: "/admin/schools" },
+                        { label: "Admin Menu", to: "/admin" },
                         { label: "Admin Upload", to: "/admin/upload" },
                     ],
                 },
@@ -296,15 +296,12 @@ const AdminUpload = () => {
                 <title>[Admin] Abacus</title>
             </Helmet>
 
-            <MenuComponent
-                showAdminUpload={true}
-                showProblemList={true}
-            />
+            <MenuComponent />
 
             <div className="admin-upload-root">
                 <DirectoryBreadcrumbs
                     items={[
-                        { label: "School List", to: "/admin/schools" },
+                        { label: "Admin Menu", to: "/admin" },
                         { label: "Admin Upload" },
                     ]}
                 />
