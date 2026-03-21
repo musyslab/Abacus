@@ -9,11 +9,15 @@ import {
     FaSignOutAlt,
     FaChalkboardTeacher,
     FaUserCircle,
+    FaList,
+    FaUpload,
+    FaQuestionCircle,
 } from "react-icons/fa";
 
 interface MenuComponentProps {
     variant?: "app" | "home" | "public";
     onScrollToSection?: (key: "about" | "event" | "rules") => void;
+    onRequestHelp?: () => void;
 }
 
 type DashboardInfo = {
@@ -25,6 +29,7 @@ interface MenuComponentState {
     dashboardLabel: string;
     dashboardPath: string;
     isRoleLoaded: boolean;
+    isStudent: boolean;
 }
 
 class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
@@ -34,6 +39,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
             dashboardLabel: "Dashboard",
             dashboardPath: "/home",
             isRoleLoaded: false,
+            isStudent: false,
         };
     }
 
@@ -70,7 +76,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
             // Students
             if (status === "student") {
                 const info = { label: "Problem Select", path: "/student/problems" };
-                this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
+                this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true, isStudent: true });
                 return info;
             }
 
@@ -247,6 +253,17 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                             </button>
 
                             <div className="menu__right">
+                                {this.state.isStudent && (
+                                    <button
+                                        type="button"
+                                        className="menu__item menu__item--link"
+                                        onClick={this.props.onRequestHelp}
+                                        title="Request Help"
+                                    >
+                                        <FaQuestionCircle className="menu__icon" aria-hidden="true" />
+                                        <span className="menu__text">Request Help</span>
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     className="menu__item menu__item--link"
