@@ -7,6 +7,7 @@ from container import Container
 from src.repositories.school_repository import SchoolRepository
 from src.repositories.user_repository import UserRepository
 from src.repositories.models import AdminUsers, Teams
+from src.constants import get_division_team_caps, get_division_member_limits
 
 school_api = Blueprint("school_api", __name__)
 
@@ -18,6 +19,19 @@ def teacher_id_for_school(school_id: int) -> int | None:
         .first()
     )
     return int(teacher.Id) if teacher else None
+    
+@school_api.route("/config/divisions", methods=["GET"])
+@jwt_required()
+def get_division_config():
+    if not isinstance(current_user, AdminUsers):
+        return jsonify({"message": "Unauthorized"}), 403
+
+    return jsonify(
+        {
+            "teamCaps": get_division_team_caps(),
+            "memberLimits": get_division_member_limits(),
+        }
+    )
 
 @school_api.route("/public/all", methods=["GET"])
 @inject

@@ -13,6 +13,13 @@ import ProblemSubmissionsDashboard, {
     TeamDashboardTeam,
     TeamProblemSummary,
 } from "../components/ProblemSubmissionsDashboard";
+import {
+    CompetitionSchedule,
+    fetchCompetitionSchedule,
+    filterProjectsForCurrentStage,
+    getCompetitionStage,
+    CompetitionStage,
+} from "../components/CompetitionStageStatus";
 
 type ApiTeam = {
     id: number;
@@ -31,9 +38,13 @@ export default function AdminTeamSubmissions() {
     const schoolIdNum = Number(school_id);
     const isAdminMode = Number.isFinite(schoolIdNum) && schoolIdNum > 0;
     const managedSchoolId = isAdminMode ? schoolIdNum : null;
+    const viewerAudience = isAdminMode ? "admin" : "teacher";
 
     const [team, setTeam] = useState<TeamDashboardTeam | null>(null);
     const [projects, setProjects] = useState<ProjectObject[]>([]);
+    const [competitionSchedule, setCompetitionSchedule] =
+        useState<CompetitionSchedule | null>(null);
+    const [stageCheckTime] = useState<Date>(() => new Date());
     const [summaryByProject, setSummaryByProject] = useState<Record<number, TeamProblemSummary>>(
         {}
     );
@@ -110,23 +121,25 @@ export default function AdminTeamSubmissions() {
         setPageError("");
         setPageNotice("");
 
-        const [teamResult, projectsResult, summaryResult] = await Promise.allSettled([
-            axios.get<ApiTeam[]>(
-                `${API}/teams/byschool/details`,
-                {
+        const [teamResult, projectsResult, summaryResult, scheduleResult] =
+            await Promise.allSettled([
+                axios.get<ApiTeam[]>(
+                    `${API}/teams/byschool/details`,
+                    {
+                        ...authConfig(),
+                        params: managedSchoolId ? { school_id: managedSchoolId } : undefined,
+                    }
+                ),
+                axios.get<ProjectObject[]>(`${API}/projects/all_projects`, authConfig()),
+                axios.get(`${API}/teams/submissions/summary`, {
                     ...authConfig(),
-                    params: managedSchoolId ? { school_id: managedSchoolId } : undefined,
-                }
-            ),
-            axios.get<ProjectObject[]>(`${API}/projects/all_projects`, authConfig()),
-            axios.get(`${API}/teams/submissions/summary`, {
-                ...authConfig(),
-                params: {
-                    team_id: teamIdNum,
-                    ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
-                },
-            }),
-        ]);
+                    params: {
+                        team_id: teamIdNum,
+                        ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
+                    },
+                }),
+                fetchCompetitionSchedule(API),
+            ]);
 
         if (teamResult.status === "fulfilled") {
             const allTeams = Array.isArray(teamResult.value.data) ? teamResult.value.data : [];
@@ -170,17 +183,56 @@ export default function AdminTeamSubmissions() {
             setSummaryByProject(buildSummaryMap(rows));
         } else {
             setSummaryByProject({});
-            setPageNotice(
-                "Problem list loaded, but the team submission summary endpoint is not returning data yet. Add GET /teams/submissions/summary to populate testcase totals and latest submission details."
-            );
+            const msg =
+                (summaryResult.reason as any)?.response?.data?.message ||
+                (summaryResult.reason as any)?.message ||
+                "Problem list loaded, but the team submission summary endpoint is not returning data yet. Add GET /teams/submissions/summary to populate testcase totals and latest submission details.";
+            setPageNotice(msg);
+        }
+
+        if (scheduleResult.status === "fulfilled") {
+            setCompetitionSchedule(scheduleResult.value);
+        } else {
+            setCompetitionSchedule(null);
+            setPageError((prev) => prev || "Failed to load competition schedule.");
         }
 
         setIsLoading(false);
     }
 
+    const viewerStage = useMemo<CompetitionStage | null>(() => {
+        if (!competitionSchedule) return null;
+        return getCompetitionStage(competitionSchedule, stageCheckTime, viewerAudience);
+    }, [competitionSchedule, stageCheckTime, viewerAudience]);
+
     const submissions = useMemo(() => {
-        return buildTeamSubmissionViewModels(projects, summaryByProject);
-    }, [projects, summaryByProject]);
+        const visibleProjects = filterProjectsForCurrentStage(
+            projects,
+            competitionSchedule,
+            stageCheckTime,
+            viewerAudience
+        );
+        return buildTeamSubmissionViewModels(visibleProjects, summaryByProject);
+    }, [projects, summaryByProject, competitionSchedule, stageCheckTime, viewerAudience]);
+
+    const stageNotice =
+        !isAdminMode
+            ? viewerStage === "competition"
+                ? "Teacher access to submissions is locked during the competition."
+                : viewerStage === "post-competition-locked"
+                    ? "Teacher access to submissions remains locked until student submissions unlock 24 hours after the competition ends."
+                    : ""
+            : viewerStage === "post-competition-locked"
+                ? "Student and teacher submissions stay locked until 24 hours after the competition ends. Admin access remains available."
+                : "";
+
+    const resolvedPageNotice = pageNotice || stageNotice;
+
+    const emptyStateMessage =
+        !isAdminMode &&
+            (viewerStage === "competition" || viewerStage === "post-competition-locked")
+            ? "Teacher access to submissions is currently locked."
+            : "No problems available.";
 
     const teamManagePath = isAdminMode
         ? `/admin/${managedSchoolId}/team-manage`
@@ -222,15 +274,15 @@ export default function AdminTeamSubmissions() {
             menuProps={{}}
             breadcrumbs={breadcrumbs}
             breadcrumbTrailingSeparator={!managedSchoolId}
+            stageStatusAudience={viewerAudience}
             dashboardTitle={dashboardTitle}
             team={team}
             fallbackTeamName={`Team ${teamIdNum}`}
             fallbackTeamNumber={teamIdNum}
             pageError={pageError}
-            pageNotice={pageNotice}
+            pageNotice={resolvedPageNotice}
             isLoading={isLoading}
             submissions={submissions}
-
             getTopActions={(vm) => [
                 {
                     key: "instructions",
@@ -243,7 +295,6 @@ export default function AdminTeamSubmissions() {
                     },
                 },
             ]}
-
             getActions={(vm) => {
                 const canViewOutput = vm.summary.latestSubmissionId !== null;
 
@@ -268,7 +319,7 @@ export default function AdminTeamSubmissions() {
                     },
                 ];
             }}
-            emptyStateMessage="No problems are available for this team yet."
+            emptyStateMessage={emptyStateMessage}
         />
     );
 }

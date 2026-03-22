@@ -9,6 +9,7 @@ import {
 
 import MenuComponent from "./MenuComponent";
 import DirectoryBreadcrumbs, { DirectoryCrumb } from "./DirectoryBreadcrumbs";
+import CompetitionStageStatus from "./CompetitionStageStatus";
 import "../../styling/ProblemSubmissionsDashboard.scss";
 
 export type ProjectType = "competition" | "practice" | "none";
@@ -289,6 +290,8 @@ export default function ProblemSubmissionsDashboard({
                             </div>
                         </div>
                     </section>
+
+                    <CompetitionStageStatus />
 
                     {pageError ? <div className="callout callout--error">{pageError}</div> : null}
                     {pageNotice ? <div className="callout callout--info">{pageNotice}</div> : null}

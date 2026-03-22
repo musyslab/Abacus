@@ -12,6 +12,12 @@ import "../../styling/AdminTeamManage.scss";
 
 import { FaPen } from "react-icons/fa";
 
+import {
+    CompetitionSchedule,
+    fetchCompetitionSchedule,
+    isRegistrationOpen,
+} from "../components/CompetitionStageStatus";
+
 type Division = "Blue" | "Gold" | "Eagle";
 
 type ApiTeamMember = {
@@ -58,14 +64,14 @@ type TeamVm = {
     nameError?: string;
 };
 
-const INVITE_META_KEY = "AUTOTA_TEAM_INVITES_V1";
-const DIVISIONS = ["Blue", "Gold", "Eagle"];
-const ATTENDANCE = [{ label: "In-person", value: false }, { label: "Virtual", value: true }];
-const DIVISION_SIZES: Record<Division, { min: number; max: number }> = {
-    Blue: { min: 3, max: 4 },
-    Gold: { min: 2, max: 3 },
-    Eagle: { min: 2, max: 4 },
+type DivisionConfigResponse = {
+    teamCaps: Record<Division, number>;
+    memberLimits: Record<Division, { min: number; max: number }>;
 };
+
+const INVITE_META_KEY = "AUTOTA_TEAM_INVITES_V1";
+const DIVISIONS: Division[] = ["Blue", "Gold", "Eagle"];
+const ATTENDANCE = [{ label: "In-person", value: false }, { label: "Virtual", value: true }];
 
 function safeJsonParse<T>(raw: string | null, fallback: T): T {
     if (!raw) return fallback;
@@ -140,9 +146,21 @@ export default function AdminTeamManage() {
         return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
     }
 
+    function getDivisionSize(division: Division) {
+        return divisionMemberLimits?.[division] ?? { min: 0, max: 0 };
+    }
+
     const [teams, setTeams] = useState<TeamVm[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [pageError, setPageError] = useState<string>("");
+
+    const [competitionSchedule, setCompetitionSchedule] =
+        useState<CompetitionSchedule | null>(null);
+    const [registrationCheckTime, setRegistrationCheckTime] = useState<Date>(() => new Date());
+
+    const [divisionMemberLimits, setDivisionMemberLimits] = useState<
+        Record<Division, { min: number; max: number }> | null
+    >(null);
 
     // Controls how many member rows are visible per team.
     // Required behavior: if a team has 0 saved members, show only 1 member row.
@@ -206,7 +224,7 @@ export default function AdminTeamManage() {
         const empty = team.members.filter((m) => !m.studentId).sort((a, b) => a.memberId - b.memberId);
 
         const savedCount = saved.length;
-        const maxSize = DIVISION_SIZES[team.division].max;
+        const maxSize = getDivisionSize(team.division).max;
         // show 1 row for brand-new team, otherwise show saved + next empty.
         const defaultVisible = Math.min(maxSize, Math.max(1, savedCount + 1));
         const totalVisible = Math.max(teamVisibleCounts[team.id] ?? 0, defaultVisible);
@@ -217,7 +235,7 @@ export default function AdminTeamManage() {
 
     function canAddMoreMembers(team: TeamVm) {
         const savedCount = getTeamSavedCount(team);
-        const maxSize = DIVISION_SIZES[team.division].max;
+        const maxSize = getDivisionSize(team.division).max;
         const defaultVisible = Math.min(maxSize, Math.max(1, savedCount + 1));
         const totalVisible = Math.max(teamVisibleCounts[team.id] ?? 0, defaultVisible);
         return totalVisible < maxSize;
@@ -230,11 +248,27 @@ export default function AdminTeamManage() {
     function addMemberRow(teamId: number) {
         const team = teams.find((t) => t.id === teamId);
         if (!team) return;
-        const maxSize = DIVISION_SIZES[team.division].max;
+        const maxSize = getDivisionSize(team.division).max;
         setTeamVisibleCounts((prev) => ({
             ...prev,
             [teamId]: Math.min(maxSize, (prev[teamId] ?? 1) + 1),
         }));
+    }
+
+    async function fetchDivisionConfig() {
+        try {
+            const res = await axios.get<DivisionConfigResponse>(
+                `${apiBase}/schools/config/divisions`,
+                authConfig()
+            );
+            setDivisionMemberLimits(res.data?.memberLimits || null);
+        } catch (err: any) {
+            const msg =
+                err?.response?.data?.message ||
+                "Failed to load division configuration.";
+            setPageError((prev) => prev || msg);
+            setDivisionMemberLimits(null);
+        }
     }
 
     async function fetchSchoolName() {
@@ -250,6 +284,15 @@ export default function AdminTeamManage() {
             setSchoolName(String(res.data?.name || ""));
         } catch {
             setSchoolName("");
+        }
+    }
+
+    async function fetchCompetitionWindow() {
+        try {
+            const schedule = await fetchCompetitionSchedule(apiBase);
+            setCompetitionSchedule(schedule);
+        } catch {
+            setCompetitionSchedule(null);
         }
     }
 
@@ -272,18 +315,6 @@ export default function AdminTeamManage() {
 
             setTeams(mapped);
 
-            setTeamVisibleCounts((prev) => {
-                const next = { ...prev };
-
-                for (const t of mapped) {
-                    const savedCount = t.members.filter((m) => !!m.studentId).length;
-                    const maxSize = DIVISION_SIZES[t.division].max;
-                    const defaultVisible = Math.min(maxSize, Math.max(1, savedCount + 1));
-                    next[t.id] = Math.max(next[t.id] ?? 0, defaultVisible);
-                }
-                return next;
-            });
-
         } catch (err: any) {
             const msg = err?.response?.data?.message || "Failed to load teams.";
             setPageError(msg);
@@ -293,14 +324,56 @@ export default function AdminTeamManage() {
     }
 
     useEffect(() => {
+        if (!divisionMemberLimits) return;
+
+        setTeamVisibleCounts((prev) => {
+            const next = { ...prev };
+
+            for (const team of teams) {
+                const savedCount = team.members.filter((m) => !!m.studentId).length;
+                const maxSize = divisionMemberLimits[team.division].max;
+                const defaultVisible = Math.min(maxSize, Math.max(1, savedCount + 1));
+                next[team.id] = Math.max(next[team.id] ?? 0, defaultVisible);
+            }
+
+            return next;
+        });
+    }, [teams, divisionMemberLimits]);
+
+    useEffect(() => {
         fetchSchoolName();
         fetchTeams();
+        fetchDivisionConfig();
+        fetchCompetitionWindow();
     }, [apiBase, managedSchoolId]);
+
+    const registrationOpen = useMemo(() => {
+        if (!competitionSchedule) return true;
+        return isRegistrationOpen(competitionSchedule, registrationCheckTime);
+    }, [competitionSchedule, registrationCheckTime]);
 
     async function handleNewTeam() {
         setIsLoading(true);
         setPageError("");
+
         try {
+            const attemptedAt = new Date();
+            setRegistrationCheckTime(attemptedAt);
+
+            try {
+                const freshSchedule = await fetchCompetitionSchedule(apiBase);
+                setCompetitionSchedule(freshSchedule);
+
+                if (!isRegistrationOpen(freshSchedule, attemptedAt)) {
+                    setPageError("Registration is closed. The team was not created.");
+                    setIsLoading(false);
+                    return;
+                }
+            } catch {
+                // If the schedule refresh fails, continue and let the backend
+                // remain the source of truth for whether registration is open.
+            }
+
             const res = await axios.post(`${apiBase}/teams/create`, {
                 ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
             }, authConfig());
@@ -310,10 +383,19 @@ export default function AdminTeamManage() {
             setTeamVisibleCounts((prev) => ({ ...prev, [newTeam.id]: 1 }));
 
         } catch (err: any) {
-            const msg = err?.response?.data?.message || err?.message || "Team creation failed.";
+            const rawMsg =
+                err?.response?.data?.message ||
+                err?.message ||
+                "Team creation failed.";
+            const msg =
+                rawMsg === "Registration is closed."
+                    ? "Registration is closed. The team was not created."
+                    : rawMsg;
             setPageError(msg);
+            setRegistrationCheckTime(new Date());
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     }
 
     async function handleDeleteTeam(teamId: number) {
@@ -497,7 +579,7 @@ export default function AdminTeamManage() {
                 const t = teams.find((x) => x.id === teamId);
                 if (!t) return prev;
                 const savedCount = t.members.filter((m) => !!m.studentId).length + 1; // include newly saved
-                const maxSize = DIVISION_SIZES[t.division].max;
+                const maxSize = getDivisionSize(t.division).max;
                 next[teamId] = Math.max(next[teamId] ?? 0, Math.min(maxSize, savedCount + 1));
                 return next;
             });
@@ -532,7 +614,7 @@ export default function AdminTeamManage() {
                 const t = teams.find((x) => x.id === teamId);
                 if (!t) return prev;
                 const savedCount = t.members.filter((m) => !!m.studentId).length;
-                const maxSize = DIVISION_SIZES[t.division].max;
+                const maxSize = getDivisionSize(t.division).max;
                 const defaultVisible = Math.min(maxSize, Math.max(1, savedCount + 1));
                 const currentVisible = Math.max(prev[teamId] ?? 0, defaultVisible);
                 next[teamId] = Math.max(defaultVisible, currentVisible - 1);
@@ -573,7 +655,7 @@ export default function AdminTeamManage() {
                 const t = teams.find((x) => x.id === teamId);
                 if (!t) return prev;
                 const savedCount = t.members.filter((m) => !!m.studentId).length - 1; // include deletion
-                const maxSize = DIVISION_SIZES[t.division].max;
+                const maxSize = getDivisionSize(t.division).max;
                 const defaultVisible = Math.min(maxSize, Math.max(1, Math.max(0, savedCount) + 1));
                 next[teamId] = Math.max(1, defaultVisible);
                 return next;
@@ -692,7 +774,7 @@ export default function AdminTeamManage() {
         }
         if (updates.division !== undefined) {
             const savedCount = getTeamSavedCount(original);
-            const newDivisionMax = DIVISION_SIZES[updates.division].max;
+            const newDivisionMax = getDivisionSize(updates.division).max;
             if (savedCount > newDivisionMax) {
                 alert(`Cannot change division. This team has ${savedCount} saved members, but the ${updates.division} division has a max of ${newDivisionMax} members. Please remove some members before changing the division.`);
                 return;
@@ -749,6 +831,8 @@ export default function AdminTeamManage() {
         navigate(path);
     }
 
+    const isDivisionConfigReady = divisionMemberLimits !== null;
+
     return (
         <>
             <Helmet>
@@ -798,6 +882,12 @@ export default function AdminTeamManage() {
 
                     {pageError ? <div className="callout callout--error">{pageError}</div> : null}
 
+                    {!registrationOpen ? (
+                        <div className="callout callout--info">
+                            Registration is closed. New teams can no longer be created.
+                        </div>
+                    ) : null}
+
                     <div className="toolbar">
                         <div>
                             <div className="toolbar__title">Teams</div>
@@ -807,11 +897,20 @@ export default function AdminTeamManage() {
 
                     <div className="callout callout--info close">
                         <div className="team-size__label">Team Size Requirements</div>
-                        <div className="team-size__pills">
-                            <span className="pill pill--blue">Blue Division: 3–4 Members</span>
-                            <span className="pill pill--gold">Gold Division: 2–3 Members</span>
-                            <span className="pill pill--eagle">Eagle Division: 2–4 Members</span>
-                        </div>
+                        {isDivisionConfigReady ? (
+                            <div className="team-size__pills">
+                                {DIVISIONS.map((division) => (
+                                    <span
+                                        key={division}
+                                        className={`pill pill--${division.toLowerCase()}`}
+                                    >
+                                        {division} Division: {getDivisionSize(division).min}–{getDivisionSize(division).max} Members
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="muted small">Loading team size requirements...</div>
+                        )}
                     </div>
 
                     {teams.length === 0 ? (
@@ -819,11 +918,12 @@ export default function AdminTeamManage() {
                     ) : null}
 
                     <div className="team-panels">
-                        {teams.map((team) => {
+                        {isDivisionConfigReady ? teams.map((team) => {
                             const savedCount = getTeamSavedCount(team);
                             const membersToShow = getTeamMembersToShow(team);
                             const showAddMember = canAddMoreMembers(team);
                             const canDeleteTeam = savedCount === 0;
+                            const divisionSize = getDivisionSize(team.division);
 
                             return (
                                 <div key={team.id} className="panel">
@@ -859,7 +959,7 @@ export default function AdminTeamManage() {
                                                     <div className="callout callout--error small">{team.nameError}</div>
                                                 )}
                                                 <div className="panel__subtitle">
-                                                    Members saved: <strong>{savedCount}</strong> (minimum {DIVISION_SIZES[team.division].min}, maximum {DIVISION_SIZES[team.division].max})
+                                                    Members saved: <strong>{savedCount}</strong> (minimum {divisionSize.min}, maximum {divisionSize.max})
                                                 </div>
                                             </div>
                                             <div className="panel__header-controls">
@@ -910,9 +1010,9 @@ export default function AdminTeamManage() {
                                         )}
                                     </div>
 
-                                    {savedCount < DIVISION_SIZES[team.division].min ? (
+                                    {savedCount < divisionSize.min ? (
                                         <div className="callout callout--info">
-                                            This team is not complete yet. Save at least <strong>{DIVISION_SIZES[team.division].min}</strong> members before distributing
+                                            This team is not complete yet. Save at least <strong>{divisionSize.min}</strong> members before distributing
                                             team information.
                                         </div>
                                     ) : null}
@@ -1071,20 +1171,22 @@ export default function AdminTeamManage() {
                                     </div>
                                 </div>
                             );
-                        })}
+                        }) : null}
                     </div>
 
-                    <div className="new-team-footer">
-                        <button
-                            className="btn btn--primary new-team-btn"
-                            type="button"
-                            title={emptyTeamExists ? "Please save or delete the existing empty team before creating a new one." : ""}
-                            disabled={isLoading || emptyTeamExists}
-                            onClick={() => handleNewTeam()}
-                        >
-                            New team
-                        </button>
-                    </div>
+                    {registrationOpen ? (
+                        <div className="new-team-footer">
+                            <button
+                                className="btn btn--primary new-team-btn"
+                                type="button"
+                                title={emptyTeamExists ? "Please save or delete the existing empty team before creating a new one." : ""}
+                                disabled={isLoading || emptyTeamExists}
+                                onClick={() => handleNewTeam()}
+                            >
+                                New team
+                            </button>
+                        </div>
+                    ) : null}
                 </div>
             </div>
 

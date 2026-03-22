@@ -28,6 +28,7 @@ from src.repositories.models import AdminUsers, StudentUsers
 from src.services.dataService import all_submissions 
 from src.models.ProjectJson import ProjectJson
 from src.constants import ADMIN_ROLE
+from src.constants import ADMIN_ROLE, get_competition_schedule
 from flask import jsonify
 from flask import request
 from dependency_injector.wiring import inject, Provide
@@ -103,6 +104,18 @@ def ts_str() -> str:
 def safe_name(s: str) -> str:
     return secure_filename(s or "").replace(" ", "_")
 
+def can_access_assignment_descriptions() -> bool:
+    if isinstance(current_user, AdminUsers):
+        return (
+            int(getattr(current_user, "Role", 0) or 0) == ADMIN_ROLE
+            or not is_teacher_submission_locked()
+        )
+
+    if isinstance(current_user, StudentUsers):
+        return not is_student_submission_locked()
+
+    return False
+
 @projects_api.route('/all_projects', methods=['GET'])
 @jwt_required()
 @inject
@@ -124,6 +137,9 @@ def all_projects(project_repo: ProjectRepository = Provide[Container.project_rep
     ]
     return jsonify(new_projects)
 
+@projects_api.route('/competition_schedule', methods=['GET'])
+def competition_schedule():
+    return jsonify(get_competition_schedule())
 
 @projects_api.route('/list_solution_files', methods=['GET'])
 @jwt_required()
@@ -759,7 +775,11 @@ def remove_testcase(project_repo: ProjectRepository = Provide[Container.project_
 @jwt_required()
 @inject
 def getAssignmentDescription(project_repo: ProjectRepository = Provide[Container.project_repo]):
-    
+    if not can_access_assignment_descriptions():
+        return make_response(
+            {'message': 'Assignment descriptions are currently locked.'},
+            HTTPStatus.FORBIDDEN,
+        )
     project_id = request.args.get('project_id')
     assignmentdesc_contents = project_repo.get_project_desc_file(project_id)
     assignmentdesc_path = project_repo.get_project_desc_path(project_id)

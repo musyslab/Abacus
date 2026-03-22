@@ -35,12 +35,12 @@ type SchoolSummary = {
   virtualDivisions: Record<Division, DivisionSummary> | null;
 };
 
-const DIVISIONS: Division[] = ["Blue", "Gold", "Eagle"];
-const DIVISION_CAPS: Record<Division, number> = {
-  Blue: 80,
-  Gold: 80,
-  Eagle: 20,
+type DivisionConfigResponse = {
+  teamCaps: Record<Division, number>;
+  memberLimits: Record<Division, { min: number; max: number }>;
 };
+
+const DIVISIONS: Division[] = ["Blue", "Gold", "Eagle"];
 
 const VIEW_OPTIONS: { label: string; value: FilterMode }[] = [
   { label: "All", value: "all" },
@@ -128,6 +128,8 @@ const AdminSchoolRoster = () => {
   const [selectedView, setSelectedView] = useState<FilterMode>("all");
   const [selectedAttendance, setSelectedAttendance] =
     useState<AttendanceMode>("all");
+  const [divisionCaps, setDivisionCaps] =
+    useState<Record<Division, number> | null>(null);
 
   function authConfig() {
     const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
@@ -156,8 +158,25 @@ const AdminSchoolRoster = () => {
     }
   }
 
+  async function fetchDivisionConfig() {
+    try {
+      const res = await axios.get<DivisionConfigResponse>(
+        `${apiBase}/schools/config/divisions`,
+        authConfig()
+      );
+      setDivisionCaps(res.data?.teamCaps || null);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        "Failed to load division configuration.";
+      setPageError((prev) => prev || msg);
+      setDivisionCaps(null);
+    }
+  }
+
   useEffect(() => {
     fetchSchoolSummary();
+    fetchDivisionConfig();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiBase]);
 
@@ -296,11 +315,13 @@ const AdminSchoolRoster = () => {
                 overallSummary.divisions[division].studentCount;
               const virtualStudentsInDivision =
                 overallSummary.virtualDivisions[division].studentCount;
-              const cap = DIVISION_CAPS[division];
-              const remaining = Math.max(cap - teamsUsed, 0);
+              const cap = divisionCaps?.[division];
+              const remaining =
+                typeof cap === "number" ? Math.max(cap - teamsUsed, 0) : null;
               const percent =
-                cap > 0 ? Math.min((teamsUsed / cap) * 100, 100) : 0;
-
+                typeof cap === "number" && cap > 0
+                  ? Math.min((teamsUsed / cap) * 100, 100)
+                  : 0;
               return (
                 <div
                   key={division}
@@ -339,12 +360,16 @@ const AdminSchoolRoster = () => {
 
                     <div className="cap-progress__meta">
                       <span>
-                        {teamsUsed} / {cap} Teams Used
+                        {cap == null
+                          ? "Loading cap..."
+                          : `${teamsUsed} / ${cap} Teams Used`}
                       </span>
                       <span>
-                        {remaining === 0
-                          ? "At cap"
-                          : `${remaining} Team${remaining === 1 ? "" : "s"} Left`}
+                        {remaining == null
+                          ? "Loading..."
+                          : remaining === 0
+                            ? "At cap"
+                            : `${remaining} Team${remaining === 1 ? "" : "s"} Left`}
                       </span>
                     </div>
                   </div>
