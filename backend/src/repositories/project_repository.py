@@ -6,7 +6,7 @@ import subprocess
 from typing import Optional, Dict
 from flask import send_file
 from sqlalchemy.sql.expression import asc
-from .models import Projects, StudentGrades, Submissions, Testcases
+from .models import Projects, Submissions, Testcases
 from src.repositories.database import db
 from sqlalchemy import desc, and_
 from datetime import datetime

@@ -74,34 +74,6 @@ CREATE TABLE `Teams` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
--- Table structure for table `StudentGrades`
--- ============================================
-CREATE TABLE `StudentGrades` (
-  `Sid` int NOT NULL,
-  `Pid` int NOT NULL,
-  `Grade` int NOT NULL,
-  `SubmissionId` int DEFAULT NULL,
-  `ScoringMode` varchar(20) DEFAULT NULL,
-  `ErrorPointsJson` text,
-  `ErrorDefsJson` text,
-  `UpdatedAt` datetime DEFAULT NULL,
-  PRIMARY KEY (`Sid`,`Pid`),
-  KEY `fk_studentgrades_pid_idx` (`Pid`),
-  KEY `fk_studentgrades_submission_idx` (`SubmissionId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- ============================================
--- Table structure for table `StudentSuggestions`
--- ============================================
-CREATE TABLE `StudentSuggestions` (
-  `idStudentSuggestions` int NOT NULL AUTO_INCREMENT,
-  `UserId` int DEFAULT NULL,
-  `StudentSuggestionscol` text,
-  `TimeSubmitted` varchar(45) DEFAULT NULL,
-  PRIMARY KEY (`idStudentSuggestions`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- ============================================
 -- Table structure for table `StudentUsers`
 -- ============================================
 CREATE TABLE `StudentUsers` (
@@ -191,18 +163,6 @@ ALTER TABLE `Submissions`
 ALTER TABLE `Submissions`
   ADD CONSTRAINT `fk_submissions_project`
   FOREIGN KEY (`Project`) REFERENCES `Projects` (`Id`);
-
-ALTER TABLE `StudentGrades`
-  ADD CONSTRAINT `fk_studentgrades_student`
-  FOREIGN KEY (`Sid`) REFERENCES `StudentUsers` (`Id`);
-
-ALTER TABLE `StudentGrades`
-  ADD CONSTRAINT `fk_studentgrades_project`
-  FOREIGN KEY (`Pid`) REFERENCES `Projects` (`Id`);
-
-ALTER TABLE `StudentGrades`
-  ADD CONSTRAINT `fk_studentgrades_submission`
-  FOREIGN KEY (`SubmissionId`) REFERENCES `Submissions` (`Id`) ON DELETE SET NULL;
 
 ALTER TABLE `Testcases`
   ADD CONSTRAINT `tc_fk`

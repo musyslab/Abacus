@@ -7,8 +7,6 @@ from datetime import datetime, timedelta
 
 from src.repositories.database import db
 from .models import (
-    StudentGrades,
-    StudentSuggestions,
     Submissions,
     Projects,
     StudentUsers,
