@@ -13,6 +13,11 @@ import ProblemSubmissionsDashboard, {
     TeamDashboardTeam,
     TeamProblemSummary,
 } from "../components/ProblemSubmissionsDashboard";
+import {
+    CompetitionSchedule,
+    fetchCompetitionSchedule,
+    filterProjectsForCurrentStage,
+} from "../components/CompetitionStageStatus";
 
 type ApiTeam = {
     id: number;
@@ -34,6 +39,9 @@ export default function AdminTeamSubmissions() {
 
     const [team, setTeam] = useState<TeamDashboardTeam | null>(null);
     const [projects, setProjects] = useState<ProjectObject[]>([]);
+    const [competitionSchedule, setCompetitionSchedule] =
+        useState<CompetitionSchedule | null>(null);
+    const [now, setNow] = useState<Date>(() => new Date());
     const [summaryByProject, setSummaryByProject] = useState<Record<number, TeamProblemSummary>>(
         {}
     );
@@ -96,6 +104,16 @@ export default function AdminTeamSubmissions() {
     }
 
     useEffect(() => {
+        const intervalId = window.setInterval(() => {
+            setNow(new Date());
+        }, 10000);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
+    }, []);
+
+    useEffect(() => {
         if (!Number.isFinite(teamIdNum) || teamIdNum <= 0) {
             setPageError("Invalid team id.");
             return;
@@ -110,23 +128,25 @@ export default function AdminTeamSubmissions() {
         setPageError("");
         setPageNotice("");
 
-        const [teamResult, projectsResult, summaryResult] = await Promise.allSettled([
-            axios.get<ApiTeam[]>(
-                `${API}/teams/byschool/details`,
-                {
+        const [teamResult, projectsResult, summaryResult, scheduleResult] =
+            await Promise.allSettled([
+                axios.get<ApiTeam[]>(
+                    `${API}/teams/byschool/details`,
+                    {
+                        ...authConfig(),
+                        params: managedSchoolId ? { school_id: managedSchoolId } : undefined,
+                    }
+                ),
+                axios.get<ProjectObject[]>(`${API}/projects/all_projects`, authConfig()),
+                axios.get(`${API}/teams/submissions/summary`, {
                     ...authConfig(),
-                    params: managedSchoolId ? { school_id: managedSchoolId } : undefined,
-                }
-            ),
-            axios.get<ProjectObject[]>(`${API}/projects/all_projects`, authConfig()),
-            axios.get(`${API}/teams/submissions/summary`, {
-                ...authConfig(),
-                params: {
-                    team_id: teamIdNum,
-                    ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
-                },
-            }),
-        ]);
+                    params: {
+                        team_id: teamIdNum,
+                        ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
+                    },
+                }),
+                fetchCompetitionSchedule(API),
+            ]);
 
         if (teamResult.status === "fulfilled") {
             const allTeams = Array.isArray(teamResult.value.data) ? teamResult.value.data : [];
@@ -175,12 +195,24 @@ export default function AdminTeamSubmissions() {
             );
         }
 
+        if (scheduleResult.status === "fulfilled") {
+            setCompetitionSchedule(scheduleResult.value);
+        } else {
+            setCompetitionSchedule(null);
+            setPageError((prev) => prev || "Failed to load competition schedule.");
+        }
+
         setIsLoading(false);
     }
 
     const submissions = useMemo(() => {
-        return buildTeamSubmissionViewModels(projects, summaryByProject);
-    }, [projects, summaryByProject]);
+        const visibleProjects = filterProjectsForCurrentStage(
+            projects,
+            competitionSchedule,
+            now
+        );
+        return buildTeamSubmissionViewModels(visibleProjects, summaryByProject);
+    }, [projects, summaryByProject, competitionSchedule, now]);
 
     const teamManagePath = isAdminMode
         ? `/admin/${managedSchoolId}/team-manage`
@@ -230,7 +262,6 @@ export default function AdminTeamSubmissions() {
             pageNotice={pageNotice}
             isLoading={isLoading}
             submissions={submissions}
-
             getTopActions={(vm) => [
                 {
                     key: "instructions",
@@ -243,7 +274,6 @@ export default function AdminTeamSubmissions() {
                     },
                 },
             ]}
-
             getActions={(vm) => {
                 const canViewOutput = vm.summary.latestSubmissionId !== null;
 
@@ -268,7 +298,7 @@ export default function AdminTeamSubmissions() {
                     },
                 ];
             }}
-            emptyStateMessage="No problems are available for this team yet."
+            emptyStateMessage="No problems are available yet. Check back soon!"
         />
     );
 }

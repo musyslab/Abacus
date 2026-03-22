@@ -15,17 +15,11 @@ from src.repositories.user_repository import UserRepository
 from src.repositories.school_repository import SchoolRepository
 from src.repositories.submission_repository import SubmissionRepository
 from src.repositories.project_repository import ProjectRepository
-from src.constants import BLUE_TEAM_MAX, GOLD_TEAM_MAX, EAGLE_TEAM_MAX
+from src.constants import DIVISION_TEAM_CAPS
 
 import re
 
 team_api = Blueprint("team_api", __name__)
-
-DIVISION_TEAM_CAPS = {
-    "Blue": BLUE_TEAM_MAX,
-    "Gold": GOLD_TEAM_MAX,
-    "Eagle": EAGLE_TEAM_MAX,
-}
 
 def total_teams_in_division(division: str) -> int:
     return Teams.query.filter_by(Division=division).count()

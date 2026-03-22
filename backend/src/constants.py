@@ -2,16 +2,64 @@ from datetime import datetime
 
 TEACHER_ROLE = 0
 ADMIN_ROLE = 1
-EMPTY=-1
+EMPTY = -1
 
+# Team Max
 BLUE_TEAM_MAX = 80
 GOLD_TEAM_MAX = 80
 EAGLE_TEAM_MAX = 20
 
+# Team Member Min and Max
+BLUE_MEMBER_MIN = 3
+BLUE_MEMBER_MAX = 4
+
+GOLD_MEMBER_MIN = 2
+GOLD_MEMBER_MAX = 3
+
+EAGLE_MEMBER_MIN = 2
+EAGLE_MEMBER_MAX = 4
+
+# Problem Max
 COMPETITION_PROBLEM_MAX = 10
 
-COMPETITION_START = datetime(2026, 4, 15, 9)
-COMPETITION_END = datetime(2026, 4, 15, 12)
+# Competition Date Info
+COMPETITION_DATE = (2026, 4, 15)
 
-PRACTICE_START = datetime(2026, 4, 15, 8, 30)
-PRACTICE_END = datetime(2026, 4, 15, 9)
+PRACTICE_START = datetime(2026, 3, 25, 6, 0)
+PRACTICE_END = datetime(*COMPETITION_DATE, 9, 0)
+
+COMPETITION_START = datetime(*COMPETITION_DATE, 9, 0)
+COMPETITION_END = datetime(*COMPETITION_DATE, 12, 0)
+
+DIVISION_TEAM_CAPS = {
+    "Blue": BLUE_TEAM_MAX,
+    "Gold": GOLD_TEAM_MAX,
+    "Eagle": EAGLE_TEAM_MAX,
+}
+
+DIVISION_MEMBER_LIMITS = {
+    "Blue": {"min": BLUE_MEMBER_MIN, "max": BLUE_MEMBER_MAX},
+    "Gold": {"min": GOLD_MEMBER_MIN, "max": GOLD_MEMBER_MAX},
+    "Eagle": {"min": EAGLE_MEMBER_MIN, "max": EAGLE_MEMBER_MAX},
+}
+
+def get_division_team_caps() -> dict[str, int]:
+    return {division: int(cap) for division, cap in DIVISION_TEAM_CAPS.items()}
+
+
+def get_division_member_limits() -> dict[str, dict[str, int]]:
+    return {
+        division: {"min": int(limits["min"]), "max": int(limits["max"])}
+        for division, limits in DIVISION_MEMBER_LIMITS.items()
+    }
+
+def serialize_datetime(value: datetime) -> str:
+    return value.strftime("%Y-%m-%dT%H:%M:%S")
+
+def get_competition_schedule() -> dict[str, str]:
+    return {
+        "practiceStart": serialize_datetime(PRACTICE_START),
+        "practiceEnd": serialize_datetime(PRACTICE_END),
+        "competitionStart": serialize_datetime(COMPETITION_START),
+        "competitionEnd": serialize_datetime(COMPETITION_END),
+    }

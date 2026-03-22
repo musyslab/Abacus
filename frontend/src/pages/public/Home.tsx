@@ -6,25 +6,25 @@ import "../../styling/Home.scss";
 
 import { FaGithub, FaInstagram } from "react-icons/fa";
 import MenuComponent from "../components/MenuComponent";
+import CompetitionStageStatus from "../components/CompetitionStageStatus";
 
 class Home extends Component {
-
     render() {
-        const YEAR = new Date().getFullYear()
-        const DATE = "Wednesday, April 15th, " + YEAR
-        const EMAIL = "marquetteacm@gmail.com"
-        const loggedIn = localStorage.getItem("AUTOTA_AUTH_TOKEN") !== null
+        const YEAR = new Date().getFullYear();
+        const DATE = "Wednesday, April 15th, " + YEAR;
+        const EMAIL = "marquetteacm@gmail.com";
+        const loggedIn = localStorage.getItem("AUTOTA_AUTH_TOKEN") !== null;
 
         // References for sections
-        const aboutRef = React.createRef<HTMLElement>()
-        const eventRef = React.createRef<HTMLElement>()
-        const rulesRef = React.createRef<HTMLElement>()
+        const aboutRef = React.createRef<HTMLElement>();
+        const eventRef = React.createRef<HTMLElement>();
+        const rulesRef = React.createRef<HTMLElement>();
 
         // Scroll to section helper
         const scrollToSection = (section: HTMLElement) => {
-            if (!section) return
-            section.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        }
+            if (!section) return;
+            section.scrollIntoView({ behavior: "smooth", block: "start" });
+        };
 
         return (
             <div className="home-page">
@@ -35,9 +35,9 @@ class Home extends Component {
                 <MenuComponent
                     variant="home"
                     onScrollToSection={(key) => {
-                        if (key === "about" && aboutRef.current) scrollToSection(aboutRef.current)
-                        if (key === "event" && eventRef.current) scrollToSection(eventRef.current)
-                        if (key === "rules" && rulesRef.current) scrollToSection(rulesRef.current)
+                        if (key === "about" && aboutRef.current) scrollToSection(aboutRef.current);
+                        if (key === "event" && eventRef.current) scrollToSection(eventRef.current);
+                        if (key === "rules" && rulesRef.current) scrollToSection(rulesRef.current);
                     }}
                 />
 
@@ -45,10 +45,13 @@ class Home extends Component {
                     <h1 className="hero-title">{YEAR} Wisconsin-Dairyland Programming Competition</h1>
                     <p className="hero-subtext">
                         A team-based high school competition with multiple divisions and automatic grading through Abacus.
-                        <br/>
+                        <br />
                         Hosted by CSTA Wisconsin-Dairyland and Marquette University ACM and UPE.
                     </p>
                     <div className="hero-subtitle">{DATE}</div>
+
+                    <CompetitionStageStatus />
+
                     {!loggedIn ? (
                         <div className="action-btns">
                             <Link to="/register" className="register-btn home-btn">
@@ -63,6 +66,7 @@ class Home extends Component {
                         </div>
                     ) : null}
                 </section>
+
                 <section className="sec" ref={aboutRef}>
                     <h2 className="sec-title">About the Competition</h2>
                     <p className="sec-text">
@@ -97,12 +101,12 @@ class Home extends Component {
                     <div className="sec-subtitle"><span className="eagle-div">Eagle Division</span> &#8212; AP Computer Science Principles</div>
                     <p className="sec-text">
                         Teams of two to four students will be working together to solve a problem that is present in society and is awaiting a technological solution.
-                         The students then have three hours to develop a solution using their knowledge of computer science principles and technologies.
-                          Students are not required to write code or create a working prototype, but rather have a flushed out, technical solution.
+                        The students then have three hours to develop a solution using their knowledge of computer science principles and technologies.
+                        Students are not required to write code or create a working prototype, but rather have a flushed out, technical solution.
                     </p>
                     <p className="sec-text">
                         At the end of the three hours, each team will present (5 – 10 minutes) their solution to a small board of faculty members.
-                         The faculty will ask a few questions and ultimately vote on a winner.
+                        The faculty will ask a few questions and ultimately vote on a winner.
                     </p>
                 </section>
 
@@ -131,20 +135,20 @@ class Home extends Component {
                             <h3 className="card-title">In-Person Participation</h3>
                             <table className="pricing-table">
                                 <thead>
-                                <tr>
-                                    <th>Division</th>
-                                    <th>Price</th>
-                                </tr>
+                                    <tr>
+                                        <th>Division</th>
+                                        <th>Price</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
-                                <tr>
-                                    <td>Gold & Eagle</td>
-                                    <td>$60</td>
-                                </tr>
-                                <tr>
-                                    <td>Blue</td>
-                                    <td>$80</td>
-                                </tr>
+                                    <tr>
+                                        <td>Gold & Eagle</td>
+                                        <td>$60</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Blue</td>
+                                        <td>$80</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -152,20 +156,20 @@ class Home extends Component {
                             <h3 className="card-title">Virtual Participation</h3>
                             <table className="pricing-table">
                                 <thead>
-                                <tr>
-                                    <th>Division</th>
-                                    <th>Price</th>
-                                </tr>
+                                    <tr>
+                                        <th>Division</th>
+                                        <th>Price</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
-                                <tr>
-                                    <td>Gold & Eagle</td>
-                                    <td>$50</td>
-                                </tr>
-                                <tr>
-                                    <td>Blue</td>
-                                    <td>$60</td>
-                                </tr>
+                                    <tr>
+                                        <td>Gold & Eagle</td>
+                                        <td>$50</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Blue</td>
+                                        <td>$60</td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -174,7 +178,7 @@ class Home extends Component {
                     <div className="sec-subtitle">Artifical Intelligence Policy</div>
                     <p className="sec-text">
                         The use of AI tools during the competition is <strong>strictly prohibited</strong>. Violation of this policy may result in immediate
-                         disqualification of the team. All teams are expected to compete independently and uphold academic integrity.
+                        disqualification of the team. All teams are expected to compete independently and uphold academic integrity.
                     </p>
                     <div className="sec-subtitle">Approved Development Environments</div>
                     <p className="sec-text close">
@@ -186,13 +190,13 @@ class Home extends Component {
                     </ul>
                     <p className="sec-text">
                         No additional development tools are permitted. Specific device instructions (school-provided or personal laptops) will be
-                         communicated based on division.
+                        communicated based on division.
                     </p>
                     <div className="sec-subtitle">Submissions</div>
                     <p className="sec-text">
-                        All solutions for the Blue division must be submitted through the Abacus competition platform. Teams will upload their 
-                         solution files directly within the system. Only the latest submission file prior to the deadline with the most testcases
-                         passed will be evaluated. Submissions outside of the official competition window will not be accepted.
+                        All solutions for the Blue division must be submitted through the Abacus competition platform. Teams will upload their
+                        solution files directly within the system. Only the latest submission file prior to the deadline with the most testcases
+                        passed will be evaluated. Submissions outside of the official competition window will not be accepted.
                     </p>
                 </section>
 
@@ -221,7 +225,7 @@ class Home extends Component {
                     </div>
                 </footer>
             </div>
-        )
+        );
     }
 }
 

@@ -1,0 +1,128 @@
+.competition-stage-status {
+    padding: 1.1rem 1.25rem;
+    border-radius: 18px;
+    border: 1px solid #d6d6d6;
+    background: #e9e9e9;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+}
+
+.competition-stage-status__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.competition-stage-status__text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.competition-stage-status__eyebrow {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.7;
+    color: #4a4a4a;
+}
+
+.competition-stage-status__title {
+    font-size: 1.2rem;
+    font-weight: 800;
+    line-height: 1.2;
+    color: #1f1f1f;
+}
+
+.competition-stage-status__subtitle {
+    font-size: 0.95rem;
+    line-height: 1.4;
+    opacity: 0.85;
+    color: #444444;
+}
+
+.competition-stage-status__pill {
+    flex-shrink: 0;
+    padding: 0.45rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #1f1f1f;
+    background: #dcdcdc;
+}
+
+.competition-stage-status__pill--before-practice {
+    background: #dcdcdc;
+}
+
+.competition-stage-status__pill--practice {
+    background: #d7e7ff;
+}
+
+.competition-stage-status__pill--competition {
+    background: #d8f1df;
+}
+
+.competition-stage-status__pill--over {
+    background: #f3d6d6;
+}
+
+.competition-stage-status__countdown {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(90px, 1fr));
+    gap: 0.85rem;
+}
+
+.competition-stage-status__unit {
+    padding: 0.85rem 0.65rem;
+    border-radius: 14px;
+    text-align: center;
+    background: #f3f3f3;
+    border: 1px solid #d8d8d8;
+}
+
+.competition-stage-status__value {
+    font-size: 1.65rem;
+    font-weight: 800;
+    line-height: 1;
+    color: #1f1f1f;
+}
+
+.competition-stage-status__label {
+    margin-top: 0.35rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.7;
+    color: #4a4a4a;
+}
+
+@media (max-width: 900px) {
+    .competition-stage-status__countdown {
+        grid-template-columns: repeat(2, minmax(100px, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .competition-stage-status {
+        padding: 1rem;
+    }
+
+    .competition-stage-status__top {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .competition-stage-status__countdown {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .competition-stage-status__value {
+        font-size: 1.4rem;
+    }
+}

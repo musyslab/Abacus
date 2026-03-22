@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
 import MenuComponent from "../components/MenuComponent";
+import CompetitionStageStatus from "../components/CompetitionStageStatus";
 
 import "../../styling/AdminMenu.scss";
 
@@ -49,6 +50,9 @@ export default function AdminMenu() {
                 <div className="pageTitle">Admin Menu</div>
 
                 <div className="admin-menu-content">
+
+                    <CompetitionStageStatus />
+
                     <div className="admin-menu-intro">
                         <div className="admin-menu-intro__title">Navigation</div>
                         <div className="admin-menu-intro__text">

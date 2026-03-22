@@ -28,6 +28,7 @@ from src.repositories.models import AdminUsers, StudentUsers
 from src.services.dataService import all_submissions 
 from src.models.ProjectJson import ProjectJson
 from src.constants import ADMIN_ROLE
+from src.constants import ADMIN_ROLE, get_competition_schedule
 from flask import jsonify
 from flask import request
 from dependency_injector.wiring import inject, Provide
@@ -124,6 +125,9 @@ def all_projects(project_repo: ProjectRepository = Provide[Container.project_rep
     ]
     return jsonify(new_projects)
 
+@projects_api.route('/competition_schedule', methods=['GET'])
+def competition_schedule():
+    return jsonify(get_competition_schedule())
 
 @projects_api.route('/list_solution_files', methods=['GET'])
 @jwt_required()

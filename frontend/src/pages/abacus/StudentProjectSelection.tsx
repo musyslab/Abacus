@@ -13,6 +13,11 @@ import ProblemSubmissionsDashboard, {
     TeamDashboardTeam,
     TeamProblemSummary,
 } from "../components/ProblemSubmissionsDashboard";
+import {
+    CompetitionSchedule,
+    fetchCompetitionSchedule,
+    filterProjectsForCurrentStage,
+} from "../components/CompetitionStageStatus";
 
 type TeamMeResponse = {
     id: number;
@@ -31,6 +36,9 @@ export default function StudentProjectSelection() {
 
     const [team, setTeam] = useState<TeamDashboardTeam | null>(null);
     const [projects, setProjects] = useState<ProjectObject[]>([]);
+    const [competitionSchedule, setCompetitionSchedule] =
+        useState<CompetitionSchedule | null>(null);
+    const [now, setNow] = useState<Date>(() => new Date());
     const [summaryByProject, setSummaryByProject] = useState<Record<number, TeamProblemSummary>>(
         {}
     );
@@ -74,6 +82,16 @@ export default function StudentProjectSelection() {
     }
 
     useEffect(() => {
+        const intervalId = window.setInterval(() => {
+            setNow(new Date());
+        }, 10000);
+
+        return () => {
+            window.clearInterval(intervalId);
+        };
+    }, []);
+
+    useEffect(() => {
         fetchPage();
     }, [apiBase]);
 
@@ -115,7 +133,7 @@ export default function StudentProjectSelection() {
 
             setTeam(resolvedTeam);
 
-            const [projectsResult, summaryResult] = await Promise.allSettled([
+            const [projectsResult, summaryResult, scheduleResult] = await Promise.allSettled([
                 axios.get<ProjectObject[]>(`${apiBase}/projects/all_projects`, authConfig()),
                 axios.get(`${apiBase}/teams/submissions/summary`, {
                     ...authConfig(),
@@ -123,6 +141,7 @@ export default function StudentProjectSelection() {
                         team_id: resolvedTeam.id,
                     },
                 }),
+                fetchCompetitionSchedule(apiBase),
             ]);
 
             if (projectsResult.status === "fulfilled") {
@@ -148,6 +167,13 @@ export default function StudentProjectSelection() {
                     "Problem list loaded, but the team submission summary endpoint is not returning data yet. Add GET /teams/submissions/summary to populate testcase totals and latest submission details."
                 );
             }
+
+            if (scheduleResult.status === "fulfilled") {
+                setCompetitionSchedule(scheduleResult.value);
+            } else {
+                setCompetitionSchedule(null);
+                setPageError((prev) => prev || "Failed to load competition schedule.");
+            }
         } catch (err: any) {
             const msg =
                 err?.response?.data?.message ||
@@ -163,8 +189,13 @@ export default function StudentProjectSelection() {
     }
 
     const submissions = useMemo(() => {
-        return buildTeamSubmissionViewModels(projects, summaryByProject);
-    }, [projects, summaryByProject]);
+        const visibleProjects = filterProjectsForCurrentStage(
+            projects,
+            competitionSchedule,
+            now
+        );
+        return buildTeamSubmissionViewModels(visibleProjects, summaryByProject);
+    }, [projects, summaryByProject, competitionSchedule, now]);
 
     const breadcrumbs = [{ label: "Student Problem Select" }];
 
