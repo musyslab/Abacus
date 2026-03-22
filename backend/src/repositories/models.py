@@ -1,7 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.schema import ForeignKey
-from sqlalchemy.sql.sqltypes import DateTime
 from sqlalchemy.types import Date
 
 from src.repositories.database import db
@@ -51,26 +50,6 @@ class Testcases(db.Model):
     input = Column(String)
     Output = Column(String)
     Hidden = Column(Boolean, default=False)
-
-
-class StudentGrades(db.Model):
-    __tablename__ = "StudentGrades"
-    Sid = Column(Integer, ForeignKey('StudentUsers.Id'), primary_key=True)
-    Pid = Column(Integer, ForeignKey('Projects.Id'), primary_key=True)
-    Grade = Column(Integer)
-    SubmissionId = Column(Integer, ForeignKey('Submissions.Id'))
-    ScoringMode = Column(String(20))
-    ErrorPointsJson = Column(String(10000))
-    ErrorDefsJson = Column(String(20000))
-    UpdatedAt = Column(DateTime)
-
-
-class StudentSuggestions(db.Model):
-    __tablename__ = "StudentSuggestions"
-    idStudentSuggestions = Column(Integer, primary_key=True, autoincrement=True)
-    UserId = Column(Integer)
-    StudentSuggestionscol = Column(String)
-    TimeSubmitted = Column(DateTime)
 
 
 class Schools(db.Model):
