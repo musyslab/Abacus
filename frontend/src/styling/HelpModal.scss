@@ -1,0 +1,134 @@
+.help-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5); /* Dim the background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999; /* Ensure it's on top of your menu */
+}
+
+.help-modal {
+    background: #ffffff;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+
+    &__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #eee;
+
+        h2 {
+            margin: 0;
+            font-size: 1.25rem;
+            color: #333;
+        }
+    }
+
+    &__close {
+        background: none;
+        border: none;
+        font-size: 1.25rem;
+        color: #666;
+        cursor: pointer;
+        
+        &:hover {
+            color: #d9534f;
+        }
+    }
+
+    &__form {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
+    &__error {
+        background-color: #fee2e2;
+        color: #b91c1c;
+        padding: 0.75rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+    }
+
+    &__field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+
+        label {
+            font-weight: 600;
+            color: #444;
+            font-size: 0.9rem;
+        }
+
+        select, textarea {
+            padding: 0.75rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+            font-family: inherit;
+
+            &:focus {
+                outline: none;
+                border-color: #0056b3; // Change to match your brand color
+                box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.2);
+            }
+        }
+
+        textarea {
+            resize: vertical;
+        }
+    }
+
+    &__footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #eee;
+
+        button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+
+            &:disabled {
+                opacity: 0.7;
+                cursor: not-allowed;
+            }
+        }
+
+        .btn-secondary {
+            background-color: #f1f1f1;
+            color: #333;
+
+            &:hover:not(:disabled) {
+                background-color: #e2e2e2;
+            }
+        }
+
+        .btn-primary {
+            background-color: #0056b3; // Change to match your brand color
+            color: #fff;
+
+            &:hover:not(:disabled) {
+                background-color: #004494;
+            }
+        }
+    }
+}
