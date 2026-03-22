@@ -15,7 +15,13 @@ from src.repositories.user_repository import UserRepository
 from src.repositories.school_repository import SchoolRepository
 from src.repositories.submission_repository import SubmissionRepository
 from src.repositories.project_repository import ProjectRepository
-from src.constants import DIVISION_TEAM_CAPS
+from src.constants import (
+    ADMIN_ROLE,
+    DIVISION_TEAM_CAPS,
+    is_registration_open,
+    is_student_submission_locked,
+    is_teacher_submission_locked,
+)
 
 import re
 
@@ -114,6 +120,9 @@ def create_team(
     if school_id <= 0:
         return make_response({'message': 'Invalid school ID'}, HTTPStatus.BAD_REQUEST)
     
+    if not is_registration_open():
+        return make_response({'message': 'Registration is closed.'}, HTTPStatus.FORBIDDEN)
+
     if team_repo.school_has_empty_team(school_id):
         return make_response({'message': 'An empty team already exists'}, HTTPStatus.BAD_REQUEST)
 
@@ -457,6 +466,9 @@ def get_team_submission_summary(
 
     is_admin = isinstance(current_user, AdminUsers)
     is_student = isinstance(current_user, StudentUsers)
+    is_global_admin = bool(
+        is_admin and int(getattr(current_user, "Role", 0) or 0) == ADMIN_ROLE
+    )
 
     if not (is_admin or is_student):
         return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
@@ -464,6 +476,13 @@ def get_team_submission_summary(
     requested_team_id = request.args.get("team_id", type=int)
 
     if is_student:
+        if is_student_submission_locked():
+            return make_response(
+                {
+                    'message': 'Student submissions are locked until 24 hours after the competition ends.'
+                },
+                HTTPStatus.FORBIDDEN,
+            )
         own_team_id = int(getattr(current_user, "TeamId", 0) or 0)
         if own_team_id <= 0:
             return make_response({'message': 'No team is associated with this account'}, HTTPStatus.BAD_REQUEST)
@@ -498,6 +517,14 @@ def get_team_submission_summary(
 
         if int(team.SchoolId) != int(school_id):
             return make_response({'message': 'Unauthorized'}, HTTPStatus.FORBIDDEN)
+
+        if not is_global_admin and is_teacher_submission_locked():
+            return make_response(
+                {
+                    'message': 'Teacher access to submissions is locked during the competition and until student submissions unlock.'
+                },
+                HTTPStatus.FORBIDDEN,
+            )
 
     latest_by_project = submission_repo.get_latest_submission_by_team(team_id)
     counts_by_project = submission_repo.get_submission_counts_by_team(team_id)

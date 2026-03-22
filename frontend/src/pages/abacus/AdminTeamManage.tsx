@@ -12,6 +12,12 @@ import "../../styling/AdminTeamManage.scss";
 
 import { FaPen } from "react-icons/fa";
 
+import {
+    CompetitionSchedule,
+    fetchCompetitionSchedule,
+    isRegistrationOpen,
+} from "../components/CompetitionStageStatus";
+
 type Division = "Blue" | "Gold" | "Eagle";
 
 type ApiTeamMember = {
@@ -148,6 +154,10 @@ export default function AdminTeamManage() {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [pageError, setPageError] = useState<string>("");
 
+    const [competitionSchedule, setCompetitionSchedule] =
+        useState<CompetitionSchedule | null>(null);
+    const [registrationCheckTime, setRegistrationCheckTime] = useState<Date>(() => new Date());
+
     const [divisionMemberLimits, setDivisionMemberLimits] = useState<
         Record<Division, { min: number; max: number }> | null
     >(null);
@@ -277,6 +287,15 @@ export default function AdminTeamManage() {
         }
     }
 
+    async function fetchCompetitionWindow() {
+        try {
+            const schedule = await fetchCompetitionSchedule(apiBase);
+            setCompetitionSchedule(schedule);
+        } catch {
+            setCompetitionSchedule(null);
+        }
+    }
+
     async function fetchTeams() {
         setIsLoading(true);
         setPageError("");
@@ -325,12 +344,36 @@ export default function AdminTeamManage() {
         fetchSchoolName();
         fetchTeams();
         fetchDivisionConfig();
+        fetchCompetitionWindow();
     }, [apiBase, managedSchoolId]);
+
+    const registrationOpen = useMemo(() => {
+        if (!competitionSchedule) return true;
+        return isRegistrationOpen(competitionSchedule, registrationCheckTime);
+    }, [competitionSchedule, registrationCheckTime]);
 
     async function handleNewTeam() {
         setIsLoading(true);
         setPageError("");
+
         try {
+            const attemptedAt = new Date();
+            setRegistrationCheckTime(attemptedAt);
+
+            try {
+                const freshSchedule = await fetchCompetitionSchedule(apiBase);
+                setCompetitionSchedule(freshSchedule);
+
+                if (!isRegistrationOpen(freshSchedule, attemptedAt)) {
+                    setPageError("Registration is closed. The team was not created.");
+                    setIsLoading(false);
+                    return;
+                }
+            } catch {
+                // If the schedule refresh fails, continue and let the backend
+                // remain the source of truth for whether registration is open.
+            }
+
             const res = await axios.post(`${apiBase}/teams/create`, {
                 ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
             }, authConfig());
@@ -340,10 +383,19 @@ export default function AdminTeamManage() {
             setTeamVisibleCounts((prev) => ({ ...prev, [newTeam.id]: 1 }));
 
         } catch (err: any) {
-            const msg = err?.response?.data?.message || err?.message || "Team creation failed.";
+            const rawMsg =
+                err?.response?.data?.message ||
+                err?.message ||
+                "Team creation failed.";
+            const msg =
+                rawMsg === "Registration is closed."
+                    ? "Registration is closed. The team was not created."
+                    : rawMsg;
             setPageError(msg);
+            setRegistrationCheckTime(new Date());
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     }
 
     async function handleDeleteTeam(teamId: number) {
@@ -830,6 +882,12 @@ export default function AdminTeamManage() {
 
                     {pageError ? <div className="callout callout--error">{pageError}</div> : null}
 
+                    {!registrationOpen ? (
+                        <div className="callout callout--info">
+                            Registration is closed. New teams can no longer be created.
+                        </div>
+                    ) : null}
+
                     <div className="toolbar">
                         <div>
                             <div className="toolbar__title">Teams</div>
@@ -1116,17 +1174,19 @@ export default function AdminTeamManage() {
                         }) : null}
                     </div>
 
-                    <div className="new-team-footer">
-                        <button
-                            className="btn btn--primary new-team-btn"
-                            type="button"
-                            title={emptyTeamExists ? "Please save or delete the existing empty team before creating a new one." : ""}
-                            disabled={isLoading || emptyTeamExists}
-                            onClick={() => handleNewTeam()}
-                        >
-                            New team
-                        </button>
-                    </div>
+                    {registrationOpen ? (
+                        <div className="new-team-footer">
+                            <button
+                                className="btn btn--primary new-team-btn"
+                                type="button"
+                                title={emptyTeamExists ? "Please save or delete the existing empty team before creating a new one." : ""}
+                                disabled={isLoading || emptyTeamExists}
+                                onClick={() => handleNewTeam()}
+                            >
+                                New team
+                            </button>
+                        </div>
+                    ) : null}
                 </div>
             </div>
 

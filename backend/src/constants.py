@@ -25,11 +25,13 @@ COMPETITION_PROBLEM_MAX = 10
 # Competition Date Info
 COMPETITION_DATE = (2026, 4, 15)
 
-PRACTICE_START = datetime(2026, 3, 25, 6, 0)
+REGISTRATION_END = datetime(2026, 3, 27, 23, 59, 59)
+PRACTICE_START = datetime(2026, 3, 30, 8, 0)
 PRACTICE_END = datetime(*COMPETITION_DATE, 9, 0)
 
 COMPETITION_START = datetime(*COMPETITION_DATE, 9, 0)
 COMPETITION_END = datetime(*COMPETITION_DATE, 12, 0)
+STUDENT_SUBMISSION_UNLOCK = datetime(2026, 4, 16, 12, 0)
 
 DIVISION_TEAM_CAPS = {
     "Blue": BLUE_TEAM_MAX,
@@ -53,13 +55,27 @@ def get_division_member_limits() -> dict[str, dict[str, int]]:
         for division, limits in DIVISION_MEMBER_LIMITS.items()
     }
 
+def is_registration_open(now: datetime | None = None) -> bool:
+    current = now or datetime.now()
+    return current <= REGISTRATION_END
+
+def is_teacher_submission_locked(now: datetime | None = None) -> bool:
+    current = now or datetime.now()
+    return COMPETITION_START <= current < STUDENT_SUBMISSION_UNLOCK
+
+def is_student_submission_locked(now: datetime | None = None) -> bool:
+    current = now or datetime.now()
+    return COMPETITION_END <= current < STUDENT_SUBMISSION_UNLOCK
+
 def serialize_datetime(value: datetime) -> str:
     return value.strftime("%Y-%m-%dT%H:%M:%S")
 
 def get_competition_schedule() -> dict[str, str]:
     return {
+        "registrationEnd": serialize_datetime(REGISTRATION_END),
         "practiceStart": serialize_datetime(PRACTICE_START),
         "practiceEnd": serialize_datetime(PRACTICE_END),
         "competitionStart": serialize_datetime(COMPETITION_START),
         "competitionEnd": serialize_datetime(COMPETITION_END),
+        "studentSubmissionUnlock": serialize_datetime(STUDENT_SUBMISSION_UNLOCK),
     }

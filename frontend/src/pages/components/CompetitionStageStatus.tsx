@@ -4,18 +4,24 @@ import axios from "axios";
 import "../../styling/CompetitionStageStatus.scss";
 
 export type CompetitionStage =
+    | "registration"
     | "before-practice"
     | "practice"
     | "competition"
+    | "post-competition-locked"
+    | "student-submission-unlocked"
     | "over";
 
 export type VisibleProjectType = "practice" | "competition";
+export type CompetitionStageAudience = "home" | "student" | "teacher" | "admin";
 
 export type CompetitionSchedule = {
+    registrationEnd: string;
     practiceStart: string;
     practiceEnd: string;
     competitionStart: string;
     competitionEnd: string;
+    studentSubmissionUnlock: string;
 };
 
 type CountdownParts = {
@@ -23,6 +29,10 @@ type CountdownParts = {
     hours: number;
     minutes: number;
     seconds: number;
+};
+
+type CompetitionStageStatusProps = {
+    audience?: CompetitionStageAudience;
 };
 
 const API_BASE = (import.meta.env.VITE_API_URL as string) || "";
@@ -50,20 +60,31 @@ function parseNaiveDateTime(value: string): Date {
 }
 
 function parseCompetitionSchedule(data: any): CompetitionSchedule {
+    const registrationEnd = String(data?.registrationEnd || "").trim();
     const practiceStart = String(data?.practiceStart || "").trim();
     const practiceEnd = String(data?.practiceEnd || "").trim();
     const competitionStart = String(data?.competitionStart || "").trim();
     const competitionEnd = String(data?.competitionEnd || "").trim();
+    const studentSubmissionUnlock = String(data?.studentSubmissionUnlock || "").trim();
 
-    if (!practiceStart || !practiceEnd || !competitionStart || !competitionEnd) {
+    if (
+        !registrationEnd ||
+        !practiceStart ||
+        !practiceEnd ||
+        !competitionStart ||
+        !competitionEnd ||
+        !studentSubmissionUnlock
+    ) {
         throw new Error("Invalid competition schedule response.");
     }
 
     return {
+        registrationEnd,
         practiceStart,
         practiceEnd,
         competitionStart,
         competitionEnd,
+        studentSubmissionUnlock,
     };
 }
 
@@ -90,15 +111,29 @@ export async function fetchCompetitionSchedule(
     return competitionSchedulePromise;
 }
 
-export function getCompetitionStage(
+export function isRegistrationOpen(
     schedule: CompetitionSchedule,
     now: Date = new Date()
+): boolean {
+    return now.getTime() <= parseNaiveDateTime(schedule.registrationEnd).getTime();
+}
+
+export function getCompetitionStage(
+    schedule: CompetitionSchedule,
+    now: Date = new Date(),
+    audience: CompetitionStageAudience = "home"
 ): CompetitionStage {
+    const registrationEnd = parseNaiveDateTime(schedule.registrationEnd);
     const practiceStart = parseNaiveDateTime(schedule.practiceStart);
     const competitionStart = parseNaiveDateTime(schedule.competitionStart);
     const competitionEnd = parseNaiveDateTime(schedule.competitionEnd);
+    const studentSubmissionUnlock = parseNaiveDateTime(schedule.studentSubmissionUnlock);
 
     const nowMs = now.getTime();
+
+    if (nowMs <= registrationEnd.getTime()) {
+        return "registration";
+    }
 
     if (nowMs < practiceStart.getTime()) {
         return "before-practice";
@@ -112,14 +147,21 @@ export function getCompetitionStage(
         return "competition";
     }
 
-    return "over";
+    if (nowMs < studentSubmissionUnlock.getTime()) {
+        return audience === "admin" || audience === "teacher"
+            ? "post-competition-locked"
+            : "over";
+    }
+
+    return "student-submission-unlocked";
 }
 
 export function getVisibleProjectType(
     schedule: CompetitionSchedule,
-    now: Date = new Date()
+    now: Date = new Date(),
+    audience: CompetitionStageAudience = "home"
 ): VisibleProjectType | null {
-    const stage = getCompetitionStage(schedule, now);
+    const stage = getCompetitionStage(schedule, now, audience);
 
     if (stage === "practice") {
         return "practice";
@@ -135,21 +177,42 @@ export function getVisibleProjectType(
 export function filterProjectsForCurrentStage<T extends { Type: string }>(
     projects: T[],
     schedule: CompetitionSchedule | null,
-    now: Date = new Date()
+    now: Date = new Date(),
+    audience: CompetitionStageAudience = "home"
 ): T[] {
     if (!schedule) {
         return [];
     }
 
-    const visibleType = getVisibleProjectType(schedule, now);
+    const stage = getCompetitionStage(schedule, now, audience);
 
-    if (!visibleType) {
+    if (stage === "competition" && audience === "teacher") {
         return [];
     }
 
-    return projects.filter(
-        (project) => String(project.Type || "").toLowerCase() === visibleType
-    );
+    if (stage === "practice" || stage === "competition") {
+        const visibleType = getVisibleProjectType(schedule, now, audience);
+
+        if (!visibleType) {
+            return [];
+        }
+
+        return projects.filter(
+            (project) => String(project.Type || "").toLowerCase() === visibleType
+        );
+    }
+
+    if (
+        stage === "student-submission-unlocked" ||
+        (stage === "post-competition-locked" && audience === "admin")
+    ) {
+        return projects.filter((project) => {
+            const type = String(project.Type || "").toLowerCase();
+            return type === "practice" || type === "competition";
+        });
+    }
+
+    return [];
 }
 
 function getCountdownParts(target: Date, now: Date): CountdownParts {
@@ -164,7 +227,9 @@ function getCountdownParts(target: Date, now: Date): CountdownParts {
     };
 }
 
-export default function CompetitionStageStatus() {
+export default function CompetitionStageStatus({
+    audience = "home",
+}: CompetitionStageStatusProps) {
     const [schedule, setSchedule] = useState<CompetitionSchedule | null>(
         competitionScheduleCache
     );
@@ -203,8 +268,8 @@ export default function CompetitionStageStatus() {
 
     const stage = useMemo<CompetitionStage | null>(() => {
         if (!schedule) return null;
-        return getCompetitionStage(schedule, now);
-    }, [schedule, now]);
+        return getCompetitionStage(schedule, now, audience);
+    }, [schedule, now, audience]);
 
     const countdown = useMemo<CountdownParts>(() => {
         if (!schedule || !stage) {
@@ -216,8 +281,12 @@ export default function CompetitionStageStatus() {
             };
         }
 
+        if (stage === "registration") {
+            return getCountdownParts(parseNaiveDateTime(schedule.registrationEnd), now);
+        }
+
         if (stage === "before-practice") {
-            return getCountdownParts(parseNaiveDateTime(schedule.practiceStart), now);
+            return getCountdownParts(parseNaiveDateTime(schedule.competitionStart), now);
         }
 
         if (stage === "practice") {
@@ -226,6 +295,13 @@ export default function CompetitionStageStatus() {
 
         if (stage === "competition") {
             return getCountdownParts(parseNaiveDateTime(schedule.competitionEnd), now);
+        }
+
+        if (stage === "post-competition-locked") {
+            return getCountdownParts(
+                parseNaiveDateTime(schedule.studentSubmissionUnlock),
+                now
+            );
         }
 
         return {
@@ -255,29 +331,62 @@ export default function CompetitionStageStatus() {
             };
         }
 
+        if (stage === "registration") {
+            return {
+                title: "Registration is open",
+                subtitle: "Time until registration closes",
+                pill: "Registration",
+                stageClass: stage,
+            };
+        }
+
         if (stage === "before-practice") {
             return {
-                title: "Practice has not started yet",
-                subtitle: "Time until practice opens",
-                pill: "Before Practice",
+                title: "No practice problems are available yet",
+                subtitle: "Time until the competition starts",
+                pill: "No Practice Problems",
                 stageClass: stage,
             };
         }
 
         if (stage === "practice") {
             return {
-                title: "Practice mode is live",
+                title: "Practice problems are live",
                 subtitle: "Time until the competition starts",
-                pill: "Practice",
+                pill: "Practice Problems",
                 stageClass: stage,
             };
         }
 
         if (stage === "competition") {
             return {
-                title: "Competition is live",
-                subtitle: "Time remaining in the competition",
+                title:
+                    audience === "teacher"
+                        ? "Teacher access is locked during the competition"
+                        : "Competition is live",
+                subtitle:
+                    audience === "teacher"
+                        ? "Student submissions remain unavailable to teachers until after the lock period ends"
+                        : "Time remaining in the competition",
                 pill: "Competition",
+                stageClass: stage,
+            };
+        }
+
+        if (stage === "post-competition-locked") {
+            return {
+                title: "Student submissions are still locked",
+                subtitle: "Time until submissions unlock for teachers and students",
+                pill: "Submission Lock",
+                stageClass: stage,
+            };
+        }
+
+        if (stage === "student-submission-unlocked") {
+            return {
+                title: "Thanks for participating",
+                subtitle: "Submissions and assignment descriptions are now available.",
+                pill: "Unlocked",
                 stageClass: stage,
             };
         }
@@ -288,7 +397,9 @@ export default function CompetitionStageStatus() {
             pill: "Finished",
             stageClass: stage,
         };
-    }, [stage, loadError]);
+    }, [stage, loadError, audience]);
+
+    const showUnlockMessage = stage === "student-submission-unlocked";
 
     return (
         <section
@@ -315,38 +426,45 @@ export default function CompetitionStageStatus() {
                 </div>
             </div>
 
-            <div
-                className="competition-stage-status__countdown"
-                aria-live="polite"
-            >
-                <div className="competition-stage-status__unit">
-                    <div className="competition-stage-status__value">
-                        {pad2(countdown.days)}
-                    </div>
-                    <div className="competition-stage-status__label">Days</div>
+            {showUnlockMessage ? (
+                <div className="competition-stage-status__message">
+                    Thank you for participating. Submissions and assignment
+                    descriptions are now available.
                 </div>
+            ) : (
+                <div
+                    className="competition-stage-status__countdown"
+                    aria-live="polite"
+                >
+                    <div className="competition-stage-status__unit">
+                        <div className="competition-stage-status__value">
+                            {pad2(countdown.days)}
+                        </div>
+                        <div className="competition-stage-status__label">Days</div>
+                    </div>
 
-                <div className="competition-stage-status__unit">
-                    <div className="competition-stage-status__value">
-                        {pad2(countdown.hours)}
+                    <div className="competition-stage-status__unit">
+                        <div className="competition-stage-status__value">
+                            {pad2(countdown.hours)}
+                        </div>
+                        <div className="competition-stage-status__label">Hours</div>
                     </div>
-                    <div className="competition-stage-status__label">Hours</div>
-                </div>
 
-                <div className="competition-stage-status__unit">
-                    <div className="competition-stage-status__value">
-                        {pad2(countdown.minutes)}
+                    <div className="competition-stage-status__unit">
+                        <div className="competition-stage-status__value">
+                            {pad2(countdown.minutes)}
+                        </div>
+                        <div className="competition-stage-status__label">Minutes</div>
                     </div>
-                    <div className="competition-stage-status__label">Minutes</div>
-                </div>
 
-                <div className="competition-stage-status__unit">
-                    <div className="competition-stage-status__value">
-                        {pad2(countdown.seconds)}
+                    <div className="competition-stage-status__unit">
+                        <div className="competition-stage-status__value">
+                            {pad2(countdown.seconds)}
+                        </div>
+                        <div className="competition-stage-status__label">Seconds</div>
                     </div>
-                    <div className="competition-stage-status__label">Seconds</div>
                 </div>
-            </div>
+            )}
         </section>
     );
 }

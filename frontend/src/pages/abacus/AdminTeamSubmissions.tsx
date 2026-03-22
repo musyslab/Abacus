@@ -17,6 +17,8 @@ import {
     CompetitionSchedule,
     fetchCompetitionSchedule,
     filterProjectsForCurrentStage,
+    getCompetitionStage,
+    CompetitionStage,
 } from "../components/CompetitionStageStatus";
 
 type ApiTeam = {
@@ -36,12 +38,13 @@ export default function AdminTeamSubmissions() {
     const schoolIdNum = Number(school_id);
     const isAdminMode = Number.isFinite(schoolIdNum) && schoolIdNum > 0;
     const managedSchoolId = isAdminMode ? schoolIdNum : null;
+    const viewerAudience = isAdminMode ? "admin" : "teacher";
 
     const [team, setTeam] = useState<TeamDashboardTeam | null>(null);
     const [projects, setProjects] = useState<ProjectObject[]>([]);
     const [competitionSchedule, setCompetitionSchedule] =
         useState<CompetitionSchedule | null>(null);
-    const [now, setNow] = useState<Date>(() => new Date());
+    const [stageCheckTime] = useState<Date>(() => new Date());
     const [summaryByProject, setSummaryByProject] = useState<Record<number, TeamProblemSummary>>(
         {}
     );
@@ -102,16 +105,6 @@ export default function AdminTeamSubmissions() {
             setSchoolName("");
         }
     }
-
-    useEffect(() => {
-        const intervalId = window.setInterval(() => {
-            setNow(new Date());
-        }, 10000);
-
-        return () => {
-            window.clearInterval(intervalId);
-        };
-    }, []);
 
     useEffect(() => {
         if (!Number.isFinite(teamIdNum) || teamIdNum <= 0) {
@@ -190,9 +183,11 @@ export default function AdminTeamSubmissions() {
             setSummaryByProject(buildSummaryMap(rows));
         } else {
             setSummaryByProject({});
-            setPageNotice(
-                "Problem list loaded, but the team submission summary endpoint is not returning data yet. Add GET /teams/submissions/summary to populate testcase totals and latest submission details."
-            );
+            const msg =
+                (summaryResult.reason as any)?.response?.data?.message ||
+                (summaryResult.reason as any)?.message ||
+                "Problem list loaded, but the team submission summary endpoint is not returning data yet. Add GET /teams/submissions/summary to populate testcase totals and latest submission details.";
+            setPageNotice(msg);
         }
 
         if (scheduleResult.status === "fulfilled") {
@@ -205,14 +200,39 @@ export default function AdminTeamSubmissions() {
         setIsLoading(false);
     }
 
+    const viewerStage = useMemo<CompetitionStage | null>(() => {
+        if (!competitionSchedule) return null;
+        return getCompetitionStage(competitionSchedule, stageCheckTime, viewerAudience);
+    }, [competitionSchedule, stageCheckTime, viewerAudience]);
+
     const submissions = useMemo(() => {
         const visibleProjects = filterProjectsForCurrentStage(
             projects,
             competitionSchedule,
-            now
+            stageCheckTime,
+            viewerAudience
         );
         return buildTeamSubmissionViewModels(visibleProjects, summaryByProject);
-    }, [projects, summaryByProject, competitionSchedule, now]);
+    }, [projects, summaryByProject, competitionSchedule, stageCheckTime, viewerAudience]);
+
+    const stageNotice =
+        !isAdminMode
+            ? viewerStage === "competition"
+                ? "Teacher access to submissions is locked during the competition."
+                : viewerStage === "post-competition-locked"
+                    ? "Teacher access to submissions remains locked until student submissions unlock 24 hours after the competition ends."
+                    : ""
+            : viewerStage === "post-competition-locked"
+                ? "Student and teacher submissions stay locked until 24 hours after the competition ends. Admin access remains available."
+                : "";
+
+    const resolvedPageNotice = pageNotice || stageNotice;
+
+    const emptyStateMessage =
+        !isAdminMode &&
+            (viewerStage === "competition" || viewerStage === "post-competition-locked")
+            ? "Teacher access to submissions is currently locked."
+            : "No problems available.";
 
     const teamManagePath = isAdminMode
         ? `/admin/${managedSchoolId}/team-manage`
@@ -254,12 +274,13 @@ export default function AdminTeamSubmissions() {
             menuProps={{}}
             breadcrumbs={breadcrumbs}
             breadcrumbTrailingSeparator={!managedSchoolId}
+            stageStatusAudience={viewerAudience}
             dashboardTitle={dashboardTitle}
             team={team}
             fallbackTeamName={`Team ${teamIdNum}`}
             fallbackTeamNumber={teamIdNum}
             pageError={pageError}
-            pageNotice={pageNotice}
+            pageNotice={resolvedPageNotice}
             isLoading={isLoading}
             submissions={submissions}
             getTopActions={(vm) => [
@@ -298,7 +319,7 @@ export default function AdminTeamSubmissions() {
                     },
                 ];
             }}
-            emptyStateMessage="No problems are available yet. Check back soon!"
+            emptyStateMessage={emptyStateMessage}
         />
     );
 }

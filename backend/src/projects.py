@@ -104,6 +104,18 @@ def ts_str() -> str:
 def safe_name(s: str) -> str:
     return secure_filename(s or "").replace(" ", "_")
 
+def can_access_assignment_descriptions() -> bool:
+    if isinstance(current_user, AdminUsers):
+        return (
+            int(getattr(current_user, "Role", 0) or 0) == ADMIN_ROLE
+            or not is_teacher_submission_locked()
+        )
+
+    if isinstance(current_user, StudentUsers):
+        return not is_student_submission_locked()
+
+    return False
+
 @projects_api.route('/all_projects', methods=['GET'])
 @jwt_required()
 @inject
@@ -763,7 +775,11 @@ def remove_testcase(project_repo: ProjectRepository = Provide[Container.project_
 @jwt_required()
 @inject
 def getAssignmentDescription(project_repo: ProjectRepository = Provide[Container.project_repo]):
-    
+    if not can_access_assignment_descriptions():
+        return make_response(
+            {'message': 'Assignment descriptions are currently locked.'},
+            HTTPStatus.FORBIDDEN,
+        )
     project_id = request.args.get('project_id')
     assignmentdesc_contents = project_repo.get_project_desc_file(project_id)
     assignmentdesc_path = project_repo.get_project_desc_path(project_id)

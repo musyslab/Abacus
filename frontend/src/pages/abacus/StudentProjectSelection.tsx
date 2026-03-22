@@ -17,6 +17,8 @@ import {
     CompetitionSchedule,
     fetchCompetitionSchedule,
     filterProjectsForCurrentStage,
+    getCompetitionStage,
+    CompetitionStage,
 } from "../components/CompetitionStageStatus";
 
 type TeamMeResponse = {
@@ -38,7 +40,7 @@ export default function StudentProjectSelection() {
     const [projects, setProjects] = useState<ProjectObject[]>([]);
     const [competitionSchedule, setCompetitionSchedule] =
         useState<CompetitionSchedule | null>(null);
-    const [now, setNow] = useState<Date>(() => new Date());
+    const [stageCheckTime] = useState<Date>(() => new Date());
     const [summaryByProject, setSummaryByProject] = useState<Record<number, TeamProblemSummary>>(
         {}
     );
@@ -80,16 +82,6 @@ export default function StudentProjectSelection() {
                 setPageNotice("Failed to download assignment instructions.");
             });
     }
-
-    useEffect(() => {
-        const intervalId = window.setInterval(() => {
-            setNow(new Date());
-        }, 10000);
-
-        return () => {
-            window.clearInterval(intervalId);
-        };
-    }, []);
 
     useEffect(() => {
         fetchPage();
@@ -163,9 +155,11 @@ export default function StudentProjectSelection() {
                 setSummaryByProject(buildSummaryMap(rows));
             } else {
                 setSummaryByProject({});
-                setPageNotice(
-                    "Problem list loaded, but the team submission summary endpoint is not returning data yet. Add GET /teams/submissions/summary to populate testcase totals and latest submission details."
-                );
+                const msg =
+                    (summaryResult.reason as any)?.response?.data?.message ||
+                    (summaryResult.reason as any)?.message ||
+                    "Problem list loaded, but the team submission summary endpoint is not returning data yet. Add GET /teams/submissions/summary to populate testcase totals and latest submission details.";
+                setPageNotice(msg);
             }
 
             if (scheduleResult.status === "fulfilled") {
@@ -188,14 +182,32 @@ export default function StudentProjectSelection() {
         }
     }
 
+    const viewerStage = useMemo<CompetitionStage | null>(() => {
+        if (!competitionSchedule) return null;
+        return getCompetitionStage(competitionSchedule, stageCheckTime, "student");
+    }, [competitionSchedule, stageCheckTime]);
+
     const submissions = useMemo(() => {
         const visibleProjects = filterProjectsForCurrentStage(
             projects,
             competitionSchedule,
-            now
+            stageCheckTime,
+            "student"
         );
         return buildTeamSubmissionViewModels(visibleProjects, summaryByProject);
-    }, [projects, summaryByProject, competitionSchedule, now]);
+    }, [projects, summaryByProject, competitionSchedule, stageCheckTime]);
+
+    const stageNotice =
+        viewerStage === "over"
+            ? "Submissions and assignment descriptions will unlock 24 hours after the competition ends."
+            : "";
+
+    const resolvedPageNotice = pageNotice || stageNotice;
+
+    const emptyStateMessage =
+        viewerStage === "over"
+            ? "Submissions will unlock 24 hours after the competition ends."
+            : "Problems will appear here once they are available.";
 
     const breadcrumbs = [{ label: "Student Problem Select" }];
 
@@ -208,6 +220,7 @@ export default function StudentProjectSelection() {
             helmetTitle="Abacus"
             breadcrumbs={breadcrumbs}
             breadcrumbTrailingSeparator={true}
+            stageStatusAudience="student"
             dashboardTitle={
                 team?.name
                     ? `Student Problem Select: ${team.name}`
@@ -217,7 +230,7 @@ export default function StudentProjectSelection() {
             fallbackTeamName="Problem Select"
             fallbackTeamNumber={team?.teamNumber ?? null}
             pageError={pageError}
-            pageNotice={pageNotice}
+            pageNotice={resolvedPageNotice}
             isLoading={isLoading}
             submissions={submissions}
             getTopActions={(vm) => [
@@ -267,7 +280,7 @@ export default function StudentProjectSelection() {
                     },
                 ];
             }}
-            emptyStateMessage="Problems will appear here once they are available."
+            emptyStateMessage={emptyStateMessage}
         />
     );
 }
