@@ -398,7 +398,7 @@ export default function DiffView(props: DiffViewProps) {
 
         axios
             .get(
-                `${import.meta.env.VITE_API_URL}/submissions/testcaseerrors?id=${submissionId}&class_id=${classId}` +
+                `${import.meta.env.VITE_API_URL}/submissions/testcaseerrors?id=${submissionId}` +
                 `&practice=${isPractice ? 1 : 0}` +
                 (practiceProblemId != null ? `&practice_problem_id=${practiceProblemId}` : ``),
                 {
@@ -452,7 +452,7 @@ export default function DiffView(props: DiffViewProps) {
 
         axios
             .get(
-                `${import.meta.env.VITE_API_URL}/submissions/codefinder?id=${submissionId}&class_id=${classId}&format=json` +
+                `${import.meta.env.VITE_API_URL}/submissions/codefinder?id=${submissionId}&format=json` +
                 `&practice=${isPractice ? 1 : 0}` +
                 (practiceProblemId != null ? `&practice_problem_id=${practiceProblemId}` : ``),
                 { headers: { Authorization: `Bearer ${localStorage.getItem('AUTOTA_AUTH_TOKEN')}` } }
