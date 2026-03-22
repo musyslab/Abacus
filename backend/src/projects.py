@@ -155,42 +155,6 @@ def list_solution_files(project_repo: ProjectRepository = Provide[Container.proj
     except Exception:
         return make_response([], HTTPStatus.OK)
 
-@projects_api.route('/run-plagiarism', methods=['POST'])
-@jwt_required()
-@inject
-def run_plagiarism(user_repo: UserRepository = Provide[Container.user_repo], submission_repo: SubmissionRepository = Provide[Container.submission_repo], project_repo: ProjectRepository = Provide[Container.project_repo]):
-    if current_user.Role != ADMIN_ROLE:
-        message = {
-            'message': 'Access Denied'
-        }
-        return make_response(message, HTTPStatus.UNAUTHORIZED)
-    
-    input_json = request.get_json()
-    projectid = input_json['project_id']
-
-    # Fetch language from projects DB and pass it through
-    proj = project_repo.get_selected_project(projectid)
-    language = getattr(proj, "Language", "") if proj else ""
-
-    from src.services.dataService import run_local_plagiarism
-    result = run_local_plagiarism(projectid, submission_repo, user_repo, project_repo, language=language)
-
-    return make_response(result, HTTPStatus.OK)
-    
-@projects_api.route('/projects-by-user', methods=['GET'])
-@jwt_required()
-@inject
-def get_projects_by_user(project_repo: ProjectRepository = Provide[Container.project_repo], submission_repo: SubmissionRepository = Provide[Container.submission_repo]):
-    projects= project_repo.get_all_projects()
-    student_submissions={}
-    for project in projects:
-        subs = submission_repo.get_most_recent_submission_by_project(project.Id, [current_user.Id])
-        class_name = project_repo.get_className_by_projectId(project.Id)
-        if current_user.Id in subs: 
-            sub = subs[current_user.Id]
-            student_submissions[project.Name]=[sub.Id, 0, sub.Time.strftime("%x %X"), class_name, str(project.ClassId)]
-    return jsonify(student_submissions)
-
 @projects_api.route('/create_project', methods=['POST'])
 @jwt_required()
 @inject
@@ -822,71 +786,6 @@ def getAssignmentDescription(project_repo: ProjectRepository = Provide[Container
             'Access-Control-Expose-Headers': 'Content-Disposition, Content-Type, X-Filename',
         },
     )
-
-@projects_api.route('/ProjectGrading', methods=['POST'])
-@jwt_required()
-@inject
-def ProjectGrading(
-    submission_repo: SubmissionRepository = Provide[Container.submission_repo],
-    project_repo: ProjectRepository = Provide[Container.project_repo],
-    user_repo: UserRepository = Provide[Container.user_repo],
-):
-    if current_user.Role != ADMIN_ROLE:
-        message = {
-            'message': 'You do not have permission to do this!'
-        }
-        return make_response(message, HTTPStatus.FORBIDDEN)
-
-    input_json = request.get_json()
-    project_id = input_json['ProjectId']
-    user_id = input_json['userID']
-
-    submissions = submission_repo.get_most_recent_submission_by_project(project_id, [user_id])
-
-    test_info = []
-    grading_data = {}
-    student_code = ""
-    project_language = project_repo.get_selected_project(project_id).Language
-
-    if user_id in submissions:
-        student_code = submission_repo.read_code_file(submissions[user_id].CodeFilepath)
-        student_output = submission_repo.read_output_file(submissions[user_id].OutputFilepath)
-        try:
-            payload = json.loads(student_output) if student_output else {}
-        except Exception:
-            payload = {}
-        for r in (payload or {}).get("results", []):
-            test_info.append({
-                "name": (r or {}).get("name", ""),
-                "passed": bool((r or {}).get("passed", False)),
-                "State": bool((r or {}).get("passed", False)),
-                "shortDiff": (r or {}).get("shortDiff", ""),
-                "longDiff": (r or {}).get("longDiff", ""),
-            })
-
-        grading_data[user_id] = [student_code, test_info]
-    else:
-        grading_data[user_id] = ["", ""]
-
-    return make_response(json.dumps({"Code": student_code, "TestResults": test_info, "Language": project_language}), HTTPStatus.OK)
-
-
-@projects_api.route('/unlockStudentAccount', methods=['POST'])
-@jwt_required()
-@inject
-def unlockStudentAccount(user_repo: UserRepository = Provide[Container.user_repo]):
-    if current_user.Role != ADMIN_ROLE:
-        message = {
-            'message': 'You do not have permission to do this!'
-        }
-        return make_response(message, HTTPStatus.FORBIDDEN)
-    input_json = request.get_json()
-    user_Id = input_json['UserId']
-    user_repo.unlock_student_account(user_Id)
-    message = {
-        'message': 'Success'
-    }
-    return make_response(message, HTTPStatus.OK)
 
 @projects_api.route('/reorder', methods=['POST'])
 @jwt_required()

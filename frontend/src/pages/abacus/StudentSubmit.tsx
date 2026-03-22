@@ -423,14 +423,14 @@ const StudentSubmit = () => {
 
   const breadcrumbsItems = useMemo(() => {
     return [
-      { label: "Problem List", to: "/student/problems" },
+      { label: "Student Problem Select", to: "/student/problems" },
       { label: project?.Name || "Student Submit" },
     ];
   }, [project]);
 
   const submissionViewBreadcrumbs = useMemo(() => {
     return [
-      { label: "Problem List", to: "/student/problems" },
+      { label: "Student Problem Select", to: "/student/problems" },
       {
         label: project?.Name || "Student Submit",
         to: projectId > 0 ? `/student/${projectId}/submit` : undefined,

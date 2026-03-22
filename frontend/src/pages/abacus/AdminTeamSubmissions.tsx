@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
-import { FaFileAlt } from "react-icons/fa";
+import { FaDownload, FaFileAlt } from "react-icons/fa";
 
 import ProblemSubmissionsDashboard, {
     buildSummaryMap,
@@ -45,6 +45,36 @@ export default function AdminTeamSubmissions() {
     function authConfig() {
         const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
         return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    }
+
+    function downloadAssignment(projectId: number) {
+        if (!projectId || projectId <= 0) return;
+
+        axios
+            .get(`${API}/projects/getAssignmentDescription?project_id=${projectId}`, {
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem("AUTOTA_AUTH_TOKEN")}`,
+                },
+                responseType: "blob",
+            })
+            .then((res) => {
+                const type =
+                    (res.headers as any)["content-type"] || "application/octet-stream";
+                const blob = new Blob([res.data], { type });
+                const name =
+                    (res.headers as any)["x-filename"] || "assignment_description";
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = name;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(url);
+            })
+            .catch(() => {
+                setPageNotice("Failed to download assignment instructions.");
+            });
     }
 
     async function fetchSchoolName() {
@@ -162,6 +192,7 @@ export default function AdminTeamSubmissions() {
 
     const breadcrumbs = isAdminMode
         ? [
+            { label: "Admin Menu", to: "/admin" },
             { label: "School List", to: "/admin/schools" },
             { label: "Team Manage", to: teamManagePath },
             { label: "Team Submissions" },
@@ -173,6 +204,7 @@ export default function AdminTeamSubmissions() {
 
     const submissionViewBreadcrumbs = isAdminMode
         ? [
+            { label: "Admin Menu", to: "/admin" },
             { label: "School List", to: "/admin/schools" },
             { label: "Team Manage", to: teamManagePath },
             { label: "Team Submissions", to: teamSubmissionsPath },
@@ -187,10 +219,7 @@ export default function AdminTeamSubmissions() {
     return (
         <ProblemSubmissionsDashboard
             helmetTitle={isAdminMode ? "[Admin] Abacus" : "Abacus"}
-            menuProps={{
-                showProblemList: isAdminMode,
-                showAdminUpload: isAdminMode,
-            }}
+            menuProps={{}}
             breadcrumbs={breadcrumbs}
             breadcrumbTrailingSeparator={!managedSchoolId}
             dashboardTitle={dashboardTitle}
@@ -201,6 +230,20 @@ export default function AdminTeamSubmissions() {
             pageNotice={pageNotice}
             isLoading={isLoading}
             submissions={submissions}
+
+            getTopActions={(vm) => [
+                {
+                    key: "instructions",
+                    label: "Download Instructions",
+                    icon: <FaDownload aria-hidden="true" />,
+                    variant: "highlight",
+                    title: "Download assignment instructions",
+                    onClick: () => {
+                        downloadAssignment(vm.project.Id);
+                    },
+                },
+            ]}
+
             getActions={(vm) => {
                 const canViewOutput = vm.summary.latestSubmissionId !== null;
 

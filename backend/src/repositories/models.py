@@ -15,10 +15,11 @@ class Projects(db.Model):
     Type = Column(String, nullable=False)
     Difficulty = Column(String, nullable=False)
     OrderIndex = Column(Integer, unique=True)
-    Submissions=relationship('Submissions') 
-    solutionpath=Column(String)
+    Submissions = relationship('Submissions')
+    solutionpath = Column(String)
     AsnDescriptionPath = Column(String)
     AdditionalFilePath = Column(String)
+
 
 class Submissions(db.Model):
     __tablename__ = "Submissions"
@@ -30,7 +31,8 @@ class Submissions(db.Model):
     Team = Column(Integer, ForeignKey('Teams.Id'))
     User = Column(Integer, ForeignKey('StudentUsers.Id'))
     Project = Column(Integer, ForeignKey('Projects.Id'))
-    TestCaseResults=Column(String)
+    TestCaseResults = Column(String)
+
 
 class LoginAttempts(db.Model):
     __tablename__ = "LoginAttempts"
@@ -39,11 +41,6 @@ class LoginAttempts(db.Model):
     IPAddress = Column(String)
     Email = Column(String(256), nullable=False)
 
-class StudentUnlocks(db.Model):
-    __tablename__ = "StudentUnlocks"
-    UserId = Column(Integer, ForeignKey('StudentUsers.Id'), primary_key=True)
-    ProjectId = Column(Integer, ForeignKey('Projects.Id'), primary_key=True)
-    Time = Column(DateTime)
 
 class Testcases(db.Model):
     __tablename__ = "Testcases"
@@ -55,17 +52,6 @@ class Testcases(db.Model):
     Output = Column(String)
     Hidden = Column(Boolean, default=False)
 
-class OHVisits(db.Model):
-    __tablename__ = "OHVisits"
-    Sqid = Column(Integer, primary_key=True, autoincrement=True)
-    StudentQuestionscol = Column(String)
-    ruling = Column(Integer)
-    dismissed = Column(Integer)
-    StudentId = Column(Integer, ForeignKey('StudentUsers.Id'))
-    TimeSubmitted = Column(DateTime)
-    projectId = Column(Integer, ForeignKey('Projects.Id'))
-    TimeAccepted = Column(DateTime)
-    TimeCompleted = Column(DateTime)
 
 class StudentGrades(db.Model):
     __tablename__ = "StudentGrades"
@@ -78,6 +64,7 @@ class StudentGrades(db.Model):
     ErrorDefsJson = Column(String(20000))
     UpdatedAt = Column(DateTime)
 
+
 class StudentSuggestions(db.Model):
     __tablename__ = "StudentSuggestions"
     idStudentSuggestions = Column(Integer, primary_key=True, autoincrement=True)
@@ -85,40 +72,12 @@ class StudentSuggestions(db.Model):
     StudentSuggestionscol = Column(String)
     TimeSubmitted = Column(DateTime)
 
-class SubmissionCharges(db.Model):
-    __tablename__ = "SubmissionCharges"
-    Id = Column(Integer, primary_key=True, autoincrement=True)
-    UserId = Column(Integer)
-    ClassId = Column(Integer)
-    BaseCharge = Column(Integer)
-    RewardCharge = Column(Integer)
-    
-class SubmissionChargeRedeptions(db.Model):
-    __tablename__ = "SubmissionChargeRedeptions"
-    Id = Column(Integer, primary_key=True, autoincrement=True)
-    UserId = Column(Integer)
-    ClassId = Column(Integer)
-    projectId = Column(Integer)
-    Type = Column(String)
-    ClaimedTime = Column(DateTime)
-    RedeemedTime = Column(DateTime)
-    SubmissionId = Column(Integer)
-    Recouped = Column(Integer)
-    
-class SubmissionManualErrors(db.Model):
-    __tablename__ = "SubmissionManualErrors"
-    Id = Column(Integer, primary_key=True, autoincrement=True)
-    SubmissionId = Column(Integer, ForeignKey('Submissions.Id'))
-    StartLine = Column(Integer)
-    EndLine = Column(Integer)
-    ErrorId = Column(String(80))
-    Count = Column(Integer)
-    Note = Column(String(2000))
 
 class Schools(db.Model):
     __tablename__ = "Schools"
     Id = Column(Integer, primary_key=True, autoincrement=True)
     Name = Column(String(256), nullable=False, unique=True)
+
 
 class Teams(db.Model):
     __tablename__ = "Teams"
@@ -128,6 +87,7 @@ class Teams(db.Model):
     Name = Column(String(45), nullable=False)
     Division = Column(String(5))
     IsOnline = Column(Boolean, default=False)
+
 
 class AdminUsers(db.Model):
     __tablename__ = "AdminUsers"
@@ -142,6 +102,7 @@ class AdminUsers(db.Model):
     Question1 = Column(String(255))
     Question2 = Column(String(255))
 
+
 class StudentUsers(db.Model):
     __tablename__ = "StudentUsers"
     Id = Column(Integer, primary_key=True, autoincrement=True)
@@ -152,4 +113,3 @@ class StudentUsers(db.Model):
     MemberId = Column(Integer, nullable=True)
     PasswordHash = Column(String(255))
     IsLocked = Column(Boolean, default=False)
-

@@ -58,17 +58,28 @@ export default function SubmissionView() {
     const isProblemReviewSubmissionRoute =
         !!problemId && location.pathname.startsWith(`/admin/problem/${problemId}/review/submission/`)
 
+    const isAdminUploadSubmissionRoute =
+        location.pathname.startsWith("/admin/upload/submission/")
+
     const fallbackBreadcrumbItems: BreadcrumbItem[] = (() => {
         if (isProblemReviewSubmissionRoute) {
             return [
-                { label: "School List", to: "/admin/schools" },
+                { label: "Admin Menu", to: "/admin" },
                 { label: "Problem List", to: "/admin/problems" },
                 { label: "Submissions", to: `/admin/problem/${problemId}/review` },
             ]
         }
 
+        if (isAdminUploadSubmissionRoute) {
+            return [
+                { label: "Admin Menu", to: "/admin" },
+                { label: "Admin Upload", to: "/admin/upload" },
+            ]
+        }
+
         if (school_id && teamId && location.pathname.startsWith(`/admin/${school_id}/team-manage/${teamId}/submissions/`)) {
             return [
+                { label: "Admin Menu", to: "/admin" },
                 { label: "School List", to: "/admin/schools" },
                 { label: "Team Manage", to: `/admin/${school_id}/team-manage` },
                 { label: "Team Submissions", to: `/admin/${school_id}/team-manage/${teamId}/submissions` },
@@ -156,7 +167,7 @@ export default function SubmissionView() {
                             )}
                         </div>
                     </div>
-                    <CodeDiffView submissionId={submissionId} revealHiddenOutput />
+                    <CodeDiffView submissionId={submissionId} revealHiddenOutput={isAdminMode} />
                 </div>
             </div>
         </>

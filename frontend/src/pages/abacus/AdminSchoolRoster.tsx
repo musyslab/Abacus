@@ -8,6 +8,7 @@ import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
 import MenuComponent from "../components/MenuComponent";
 import "../../styling/AdminSchoolRoster.scss";
 
+type AttendanceMode = "all" | "inPerson" | "virtual";
 type Division = "Blue" | "Gold" | "Eagle";
 type FilterMode = "all" | Division;
 
@@ -28,7 +29,10 @@ type SchoolSummary = {
   teachers: TeacherInfo[] | null;
   teamCount: number;
   studentCount: number;
+  virtualTeamCount: number;
+  virtualStudentCount: number;
   divisions: Record<Division, DivisionSummary> | null;
+  virtualDivisions: Record<Division, DivisionSummary> | null;
 };
 
 const DIVISIONS: Division[] = ["Blue", "Gold", "Eagle"];
@@ -45,6 +49,12 @@ const VIEW_OPTIONS: { label: string; value: FilterMode }[] = [
   { label: "Eagle", value: "Eagle" },
 ];
 
+const ATTENDANCE_OPTIONS: { label: string; value: AttendanceMode }[] = [
+  { label: "All", value: "all" },
+  { label: "In-person", value: "inPerson" },
+  { label: "Virtual", value: "virtual" },
+];
+
 const EMPTY_DIVISION_SUMMARY: DivisionSummary = {
   teamCount: 0,
   studentCount: 0,
@@ -52,19 +62,59 @@ const EMPTY_DIVISION_SUMMARY: DivisionSummary = {
 
 function getDivisionSummary(
   school: SchoolSummary,
-  division: Division
+  division: Division,
+  attendance: AttendanceMode = "all"
 ): DivisionSummary {
-  return school.divisions?.[division] || EMPTY_DIVISION_SUMMARY;
+  const inPerson = school.divisions?.[division] || EMPTY_DIVISION_SUMMARY;
+  const virtual = school.virtualDivisions?.[division] || EMPTY_DIVISION_SUMMARY;
+
+  if (attendance === "inPerson") return inPerson;
+  if (attendance === "virtual") return virtual;
+
+  return {
+    teamCount: Number(inPerson.teamCount || 0) + Number(virtual.teamCount || 0),
+    studentCount:
+      Number(inPerson.studentCount || 0) + Number(virtual.studentCount || 0),
+  };
 }
 
-function getTeamCountForView(school: SchoolSummary, view: FilterMode): number {
-  if (view === "all") return Number(school.teamCount || 0);
-  return Number(getDivisionSummary(school, view).teamCount || 0);
+function getTeamCountForView(
+  school: SchoolSummary,
+  view: FilterMode,
+  attendance: AttendanceMode
+): number {
+  if (view === "all") {
+    if (attendance === "inPerson") {
+      return Number(school.teamCount || 0);
+    }
+    if (attendance === "virtual") {
+      return Number(school.virtualTeamCount || 0);
+    }
+    return Number(school.teamCount || 0) + Number(school.virtualTeamCount || 0);
+  }
+  return Number(getDivisionSummary(school, view, attendance).teamCount || 0);
 }
 
-function getStudentCountForView(school: SchoolSummary, view: FilterMode): number {
-  if (view === "all") return Number(school.studentCount || 0);
-  return Number(getDivisionSummary(school, view).studentCount || 0);
+function getStudentCountForView(
+  school: SchoolSummary,
+  view: FilterMode,
+  attendance: AttendanceMode
+): number {
+  if (view === "all") {
+    if (attendance === "inPerson") {
+      return Number(school.studentCount || 0);
+    }
+    if (attendance === "virtual") {
+      return Number(school.virtualStudentCount || 0);
+    }
+    return (
+      Number(school.studentCount || 0) +
+      Number(school.virtualStudentCount || 0)
+    );
+  }
+  return Number(
+    getDivisionSummary(school, view, attendance).studentCount || 0
+  );
 }
 
 const AdminSchoolRoster = () => {
@@ -76,6 +126,8 @@ const AdminSchoolRoster = () => {
   const [pageError, setPageError] = useState("");
   const [query, setQuery] = useState("");
   const [selectedView, setSelectedView] = useState<FilterMode>("all");
+  const [selectedAttendance, setSelectedAttendance] =
+    useState<AttendanceMode>("all");
 
   function authConfig() {
     const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
@@ -129,11 +181,21 @@ const AdminSchoolRoster = () => {
     const summary: {
       totalTeams: number;
       totalStudents: number;
+      virtualTeams: number;
+      virtualStudents: number;
       divisions: Record<Division, DivisionSummary>;
+      virtualDivisions: Record<Division, DivisionSummary>;
     } = {
       totalTeams: 0,
       totalStudents: 0,
+      virtualTeams: 0,
+      virtualStudents: 0,
       divisions: {
+        Blue: { teamCount: 0, studentCount: 0 },
+        Gold: { teamCount: 0, studentCount: 0 },
+        Eagle: { teamCount: 0, studentCount: 0 },
+      },
+      virtualDivisions: {
         Blue: { teamCount: 0, studentCount: 0 },
         Gold: { teamCount: 0, studentCount: 0 },
         Eagle: { teamCount: 0, studentCount: 0 },
@@ -143,14 +205,33 @@ const AdminSchoolRoster = () => {
     for (const school of schools) {
       summary.totalTeams += Number(school.teamCount || 0);
       summary.totalStudents += Number(school.studentCount || 0);
+      summary.virtualTeams += Number(school.virtualTeamCount || 0);
+      summary.virtualStudents += Number(school.virtualStudentCount || 0);
 
       for (const division of DIVISIONS) {
-        const divisionSummary = getDivisionSummary(school, division);
+        const divisionSummary = getDivisionSummary(
+          school,
+          division,
+          "inPerson"
+        );
+        const virtualDivisionSummary = getDivisionSummary(
+          school,
+          division,
+          "virtual"
+        );
+
         summary.divisions[division].teamCount += Number(
           divisionSummary.teamCount || 0
         );
         summary.divisions[division].studentCount += Number(
           divisionSummary.studentCount || 0
+        );
+
+        summary.virtualDivisions[division].teamCount += Number(
+          virtualDivisionSummary.teamCount || 0
+        );
+        summary.virtualDivisions[division].studentCount += Number(
+          virtualDivisionSummary.studentCount || 0
         );
       }
     }
@@ -161,17 +242,27 @@ const AdminSchoolRoster = () => {
   const selectedViewLabel =
     selectedView === "all" ? "All divisions" : `${selectedView} division`;
 
+  const selectedAttendanceLabel =
+    selectedAttendance === "all"
+      ? "All attendance"
+      : selectedAttendance === "inPerson"
+        ? "In-person"
+        : "Virtual";
+
   return (
     <>
       <Helmet>
         <title>Abacus</title>
       </Helmet>
 
-      <MenuComponent showProblemList={true} showAdminUpload={true} />
+      <MenuComponent />
 
       <div className="admin-school-roster-root">
         <DirectoryBreadcrumbs
-          items={[{ label: "School List" }]}
+          items={[
+            { label: "Admin Menu", to: "/admin" },
+            { label: "School List" },
+          ]}
           trailingSeparator={true}
         />
 
@@ -180,22 +271,35 @@ const AdminSchoolRoster = () => {
         <div className="admin-school-roster-container">
           <div className="roster-overview">
             <div className="overview-card overview-card--primary">
-              <div className="overview-card__eyebrow">Overall roster totals (Across All Schools)</div>
+              <div className="overview-card__eyebrow">
+                Overall in-person roster totals (Across All Schools)
+              </div>
               <div className="overview-card__headline">
-                {overallSummary.totalTeams} Teams
+                {overallSummary.totalTeams} Teams{" "}
+                <span className="muted small">
+                  ({overallSummary.virtualTeams} Virtual)
+                </span>
               </div>
               <div className="overview-card__subheadline">
-                {overallSummary.totalStudents} Students
+                {overallSummary.totalStudents} Students{" "}
+                <span className="muted small">
+                  ({overallSummary.virtualStudents} Virtual)
+                </span>
               </div>
             </div>
 
             {DIVISIONS.map((division) => {
               const teamsUsed = overallSummary.divisions[division].teamCount;
+              const virtualTeamsInDivision =
+                overallSummary.virtualDivisions[division].teamCount;
               const studentsInDivision =
                 overallSummary.divisions[division].studentCount;
+              const virtualStudentsInDivision =
+                overallSummary.virtualDivisions[division].studentCount;
               const cap = DIVISION_CAPS[division];
               const remaining = Math.max(cap - teamsUsed, 0);
-              const percent = cap > 0 ? Math.min((teamsUsed / cap) * 100, 100) : 0;
+              const percent =
+                cap > 0 ? Math.min((teamsUsed / cap) * 100, 100) : 0;
 
               return (
                 <div
@@ -207,11 +311,21 @@ const AdminSchoolRoster = () => {
                   <div className="division-stats">
                     <div className="division-stats__row">
                       <span>Teams</span>
-                      <strong>{teamsUsed}</strong>
+                      <strong>
+                        {teamsUsed}{" "}
+                        <span className="muted small">
+                          ({virtualTeamsInDivision} Virtual)
+                        </span>
+                      </strong>
                     </div>
                     <div className="division-stats__row">
                       <span>Students</span>
-                      <strong>{studentsInDivision}</strong>
+                      <strong>
+                        {studentsInDivision}{" "}
+                        <span className="muted small">
+                          ({virtualStudentsInDivision} Virtual)
+                        </span>
+                      </strong>
                     </div>
                   </div>
 
@@ -240,8 +354,8 @@ const AdminSchoolRoster = () => {
           </div>
 
           <div className="page-subtitle muted">
-            Search schools and teachers, then switch the table between all teams
-            and division-specific counts.
+            Search schools and teachers, then switch the table between
+            division-specific and attendance-specific counts.
           </div>
 
           {pageError ? (
@@ -282,29 +396,66 @@ const AdminSchoolRoster = () => {
                 ) : null}
               </div>
 
-              <div className="filter-bar" role="tablist" aria-label="Roster view filter">
-                {VIEW_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="tab"
-                    aria-selected={selectedView === option.value}
-                    className={`filter-chip filter-chip--${String(
-                      option.value
-                    ).toLowerCase()} ${selectedView === option.value ? "is-active" : ""
-                      }`}
-                    onClick={() => setSelectedView(option.value)}
+              <div className="toolbar__filters">
+                <div className="filter-group">
+                  <div className="filter-group__label muted small">
+                    Division
+                  </div>
+                  <div
+                    className="filter-bar"
+                    role="tablist"
+                    aria-label="Roster division filter"
                   >
-                    {option.label}
-                  </button>
-                ))}
+                    {VIEW_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="tab"
+                        aria-selected={selectedView === option.value}
+                        className={`filter-chip filter-chip--${String(
+                          option.value
+                        ).toLowerCase()} ${selectedView === option.value ? "is-active" : ""
+                          }`}
+                        onClick={() => setSelectedView(option.value)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="filter-group">
+                  <div className="filter-group__label muted small">
+                    Attendance
+                  </div>
+                  <div
+                    className="filter-bar"
+                    role="tablist"
+                    aria-label="Roster attendance filter"
+                  >
+                    {ATTENDANCE_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="tab"
+                        aria-selected={selectedAttendance === option.value}
+                        className={`filter-chip filter-chip--${option.value.toLowerCase()} ${selectedAttendance === option.value ? "is-active" : ""
+                          }`}
+                        onClick={() => setSelectedAttendance(option.value)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
             <div className="toolbar__right muted">
               Showing <strong>{filtered.length}</strong> of{" "}
               <strong>{schools.length}</strong> schools in{" "}
-              <strong>{selectedViewLabel}</strong>
+              <strong>{selectedViewLabel}</strong> /{" "}
+              <strong>{selectedAttendanceLabel}</strong>
             </div>
           </div>
 
@@ -328,10 +479,15 @@ const AdminSchoolRoster = () => {
                   </tr>
                 ) : (
                   filtered.map((s) => {
-                    const viewTeamCount = getTeamCountForView(s, selectedView);
+                    const viewTeamCount = getTeamCountForView(
+                      s,
+                      selectedView,
+                      selectedAttendance
+                    );
                     const viewStudentCount = getStudentCountForView(
                       s,
-                      selectedView
+                      selectedView,
+                      selectedAttendance
                     );
                     const isZeroDivisionRow =
                       selectedView !== "all" &&
@@ -388,7 +544,12 @@ const AdminSchoolRoster = () => {
                           <div className="count-cell__value">{viewTeamCount}</div>
                           {selectedView !== "all" ? (
                             <div className="muted small">
-                              Total: {Number(s.teamCount || 0)}
+                              Total:{" "}
+                              {getTeamCountForView(
+                                s,
+                                "all",
+                                selectedAttendance
+                              )}
                             </div>
                           ) : null}
                         </td>
@@ -399,7 +560,12 @@ const AdminSchoolRoster = () => {
                           </div>
                           {selectedView !== "all" ? (
                             <div className="muted small">
-                              Total: {Number(s.studentCount || 0)}
+                              Total:{" "}
+                              {getStudentCountForView(
+                                s,
+                                "all",
+                                selectedAttendance
+                              )}
                             </div>
                           ) : null}
                         </td>

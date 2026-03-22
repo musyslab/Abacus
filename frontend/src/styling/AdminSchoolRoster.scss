@@ -214,6 +214,23 @@
   gap: 12px;
 }
 
+.toolbar__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-end;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-group__label {
+  padding-left: 2px;
+}
+
 .toolbar__right {
   white-space: nowrap;
   padding-top: 4px;
@@ -330,6 +347,18 @@
   background: #dff7f5;
   border-color: #0f766e;
   color: #0f766e;
+}
+
+.filter-chip--inperson.is-active {
+  background: #dcfce7;
+  border-color: #15803d;
+  color: #166534;
+}
+
+.filter-chip--virtual.is-active {
+  background: #ede9fe;
+  border-color: #7c3aed;
+  color: #6d28d9;
 }
 
 .table-wrap {

@@ -166,10 +166,10 @@ export default function StudentProjectSelection() {
         return buildTeamSubmissionViewModels(projects, summaryByProject);
     }, [projects, summaryByProject]);
 
-    const breadcrumbs = [{ label: "Problem Select" }];
+    const breadcrumbs = [{ label: "Student Problem Select" }];
 
     const submissionViewBreadcrumbs = [
-        { label: "Problem Select", to: "/student/problems" },
+        { label: "Student Problem Select", to: "/student/problems" },
     ];
 
     return (
@@ -177,7 +177,11 @@ export default function StudentProjectSelection() {
             helmetTitle="Abacus"
             breadcrumbs={breadcrumbs}
             breadcrumbTrailingSeparator={true}
-            dashboardTitle={team?.name || "Problem Select"}
+            dashboardTitle={
+                team?.name
+                    ? `Student Problem Select: ${team.name}`
+                    : "Student Problem Select"
+            }
             team={team}
             fallbackTeamName="Problem Select"
             fallbackTeamNumber={team?.teamNumber ?? null}

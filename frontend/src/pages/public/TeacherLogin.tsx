@@ -77,7 +77,7 @@ class TeacherLogin extends Component<{}, TeacherLoginPageState> {
       if (this.state.role === 0) {
         return <Navigate to="/teacher/team-manage" replace />;
       }
-      return <Navigate to="/admin/schools" replace />;
+      return <Navigate to="/admin" replace />;
     }
 
     return (

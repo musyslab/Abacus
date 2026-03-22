@@ -296,15 +296,12 @@ export default function AdminProblemSubmissions() {
                 <title>[Admin] Abacus</title>
             </Helmet>
 
-            <MenuComponent
-                showProblemList={true}
-                showAdminUpload={true}
-            />
+            <MenuComponent />
 
             <div className="admin-problem-review-root">
                 <DirectoryBreadcrumbs
                     items={[
-                        { label: "School List", to: "/admin/schools" },
+                        { label: "Admin Menu", to: "/admin" },
                         { label: "Problem List", to: "/admin/problems" },
                         { label: "Submissions" },
                     ]}

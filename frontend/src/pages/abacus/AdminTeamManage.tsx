@@ -755,16 +755,18 @@ export default function AdminTeamManage() {
                 <title>{managedSchoolId ? "[Admin] Abacus" : "Abacus"}</title>
             </Helmet>
 
-            <MenuComponent
-                showProblemList={isAdminMode}
-                showAdminUpload={isAdminMode}
-            />
+            <MenuComponent />
 
             <div className="admin-team-manage-root">
                 <DirectoryBreadcrumbs
                     items={
                         managedSchoolId
-                            ? [{ label: "School List", to: "/admin/schools" }, { label: "Team Manage" }]
+
+                            ? [
+                                { label: "Admin Menu", to: "/admin" },
+                                { label: "School List", to: "/admin/schools" },
+                                { label: "Team Manage" }
+                            ]
                             : [{ label: "Team Manage" }]
                     }
                     trailingSeparator={!managedSchoolId}
