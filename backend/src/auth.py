@@ -469,10 +469,10 @@ def invite_student_stub(user_repo: UserRepository = Provide[Container.user_repo]
     if provided_hash != (student.EmailHash or ""):
         return make_response({'message': 'Email does not match saved hash for this member.'}, HTTPStatus.FORBIDDEN)
 
-    if (not DEBUGGER_MODE):
+    if (DEBUGGER_MODE):
         return make_response(
             {
-                'message: Email invite skipped in debugging mode.'
+                'message': 'Email invite skipped in debugging mode.'
             },
             HTTPStatus.OK
         )
