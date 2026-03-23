@@ -92,6 +92,9 @@ class UserRepository:
             db.session.delete(attempt)
         db.session.commit()
 
+    def get_teachers_by_school(self, school_id: int) -> Optional[AdminUsers]:
+        return AdminUsers.query.filter(AdminUsers.SchoolId == school_id, AdminUsers.Role == 0).order_by(AdminUsers.Id.asc()).all()
+
     # -----------------------------
     # Student operations
     # -----------------------------
@@ -143,6 +146,13 @@ class UserRepository:
         return (
             StudentUsers.query.filter(StudentUsers.TeamId == team_id)
             .count()
+        )
+    
+    def get_students_for_team(self, team_id: int) -> List[StudentUsers]:
+        return (
+            StudentUsers.query.filter(StudentUsers.TeamId == team_id)
+            .order_by(StudentUsers.MemberId.asc())
+            .all()
         )
 
     def get_student_by_emailhash(self, email_hash: str) -> Optional[StudentUsers]:
@@ -229,6 +239,12 @@ class UserRepository:
         for attempt in attempts:
             db.session.delete(attempt)
         db.session.commit()
+
+    def get_team_id_for_student(self, student_id: int) -> Optional[int]:
+        student = self.get_student_by_id(student_id)
+        if student:
+            return student.TeamId
+        return None
 
     # -----------------------------
     # School operations (kept here because your auth flow uses them)

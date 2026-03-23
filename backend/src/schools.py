@@ -6,7 +6,8 @@ from container import Container
 
 from src.repositories.school_repository import SchoolRepository
 from src.repositories.user_repository import UserRepository
-from src.repositories.models import AdminUsers
+from src.repositories.models import AdminUsers, Teams
+from src.constants import get_division_team_caps, get_division_member_limits
 
 school_api = Blueprint("school_api", __name__)
 
@@ -18,6 +19,19 @@ def teacher_id_for_school(school_id: int) -> int | None:
         .first()
     )
     return int(teacher.Id) if teacher else None
+    
+@school_api.route("/config/divisions", methods=["GET"])
+@jwt_required()
+def get_division_config():
+    if not isinstance(current_user, AdminUsers):
+        return jsonify({"message": "Unauthorized"}), 403
+
+    return jsonify(
+        {
+            "teamCaps": get_division_team_caps(),
+            "memberLimits": get_division_member_limits(),
+        }
+    )
 
 @school_api.route("/public/all", methods=["GET"])
 @inject
@@ -28,7 +42,11 @@ def public_get_schools(
     Public endpoint: lists all schools for the registration flow.
     Returns: [{"id": <id>, "name": "<school name>"}]
     """
-    schools = school_repo.get_all_schools()
+    hasTeams = request.args.get("hasTeams", type=bool) or False
+    if hasTeams:
+        schools = school_repo.get_all_schools_with_teams()
+    else:
+        schools = school_repo.get_all_schools()
     return jsonify([{"id": s.Id, "name": s.Name} for s in schools])
 
 @school_api.route("/all", methods=["GET"])
@@ -112,9 +130,12 @@ def admin_school_summary(
 ):
     """
     Admin-only (Role 1) endpoint: returns summary rows for all schools:
-      - teacher name/email (from Schools.TeacherID)
-      - teamCount (distinct TeamId values among students)
-      - studentCount (total students in the school)
+      - teachers assigned to the school
+      - in-person team count
+      - in-person student count
+      - virtual team count
+      - virtual student count
+      - team and student counts for each division, split by in-person vs virtual
     """
     if (not school_repo.is_admin_user(current_user)) or int(getattr(current_user, "Role", 0) or 0) != 1:
         return jsonify({"message": "Unauthorized"}), 403
@@ -123,44 +144,113 @@ def admin_school_summary(
     payload = []
 
     for s in schools:
-        # Teacher is the AdminUsers row for this school with Role == 0 (exclude Role 1 admins)
-        teacher = (
-            AdminUsers.query
-            .filter_by(SchoolId=int(s.Id), Role=0)
-            .order_by(AdminUsers.Id.asc())
-            .first()
-        )
+        teachers = user_repo.get_teachers_by_school(int(s.Id))
+        teacher_data = []
+        for t in teachers:
+            teacher_id = int(getattr(t, "Id", 0) or 0)
+            first = (getattr(t, "Firstname", "") or "").strip()
+            last = (getattr(t, "Lastname", "") or "").strip()
+            name = (f"{first} {last}").strip() or None
+            email = (getattr(t, "Email", None) or "").strip() or None
+            teacher_data.append({"id": teacher_id, "name": name, "email": email})
 
-        teacher_name = None
-        teacher_email = None
-        if teacher:
-            first = (getattr(teacher, "Firstname", "") or "").strip()
-            last = (getattr(teacher, "Lastname", "") or "").strip()
-            teacher_name = (f"{first} {last}").strip() or None
-            teacher_email = (getattr(teacher, "Email", None) or "").strip() or None
+        teams = Teams.query.filter_by(SchoolId=int(s.Id)).all()
+
+        division_team_counts = {"Blue": 0, "Gold": 0, "Eagle": 0}
+        virtual_division_team_counts = {"Blue": 0, "Gold": 0, "Eagle": 0}
+        team_meta_by_id = {}
+
+        for team in teams:
+            division = (getattr(team, "Division", "") or "").strip()
+            is_online = bool(getattr(team, "IsOnline", False))
+
+            team_meta_by_id[int(team.Id)] = {
+                "division": division,
+                "isOnline": is_online,
+            }
+
+            if division not in division_team_counts:
+                continue
+
+            if is_online:
+                virtual_division_team_counts[division] += 1
+            else:
+                division_team_counts[division] += 1
 
         students = user_repo.get_students_for_school(int(s.Id))
-        team_ids = set()
+
+        division_student_counts = {"Blue": 0, "Gold": 0, "Eagle": 0}
+        virtual_division_student_counts = {"Blue": 0, "Gold": 0, "Eagle": 0}
+        in_person_student_count = 0
+        virtual_student_count = 0
+
         for st in students:
             tid = getattr(st, "TeamId", None)
             if tid is None:
                 continue
+
             try:
                 tid_int = int(tid)
             except Exception:
                 continue
-            if tid_int > 0:
-                team_ids.add(tid_int)
+
+            if tid_int <= 0:
+                continue
+
+            team_meta = team_meta_by_id.get(tid_int)
+            if not team_meta:
+                continue
+
+            division = team_meta.get("division")
+            is_online = bool(team_meta.get("isOnline", False))
+
+            if division not in division_student_counts:
+                continue
+
+            if is_online:
+                virtual_division_student_counts[division] += 1
+                virtual_student_count += 1
+            else:
+                division_student_counts[division] += 1
+                in_person_student_count += 1
 
         payload.append(
             {
                 "id": int(s.Id),
                 "name": getattr(s, "Name", "") or "",
-                "teacherId": int(teacher.Id) if teacher else None,
-                "teacherName": teacher_name,
-                "teacherEmail": teacher_email,
-                "teamCount": len(team_ids),
-                "studentCount": len(students),
+                "teachers": teacher_data,
+                "teamCount": sum(division_team_counts.values()),
+                "studentCount": in_person_student_count,
+                "virtualTeamCount": sum(virtual_division_team_counts.values()),
+                "virtualStudentCount": virtual_student_count,
+                "divisions": {
+                    "Blue": {
+                        "teamCount": division_team_counts["Blue"],
+                        "studentCount": division_student_counts["Blue"],
+                    },
+                    "Gold": {
+                        "teamCount": division_team_counts["Gold"],
+                        "studentCount": division_student_counts["Gold"],
+                    },
+                    "Eagle": {
+                        "teamCount": division_team_counts["Eagle"],
+                        "studentCount": division_student_counts["Eagle"],
+                    },
+                },
+                "virtualDivisions": {
+                    "Blue": {
+                        "teamCount": virtual_division_team_counts["Blue"],
+                        "studentCount": virtual_division_student_counts["Blue"],
+                    },
+                    "Gold": {
+                        "teamCount": virtual_division_team_counts["Gold"],
+                        "studentCount": virtual_division_student_counts["Gold"],
+                    },
+                    "Eagle": {
+                        "teamCount": virtual_division_team_counts["Eagle"],
+                        "studentCount": virtual_division_student_counts["Eagle"],
+                    },
+                },
             }
         )
 

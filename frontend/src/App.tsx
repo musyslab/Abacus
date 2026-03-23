@@ -12,29 +12,19 @@ import SetPasswordPage from './pages/public/SetPassword';
 import LandingPage from './pages/public/Landing';
 import NotFound from './pages/public/NotFound';
 
-import StudentUpload from './pages/student/StudentUpload';
-import StudentOutputDiff from './pages/student/StudentOutputDiff';
-import StudentClassSelection from './pages/student/StudentClassSelection';
-import StudentOfficeHours from './pages/student/StudentOfficeHours';
-import StudentPastSubmissions from "./pages/student/StudentPastSubmissions";
-
-import AdminGrading from './pages/admin/AdminGrading';
-import AdminOfficeHours from './pages/admin/AdminOfficeHours';
-import AdminPlagiarism from "./pages/admin/AdminPlagiarism";
-import AdminProjectList2 from './pages/admin/AdminProjectList';
-import AdminProjectManage2 from './pages/admin/AdminProjectManage';
-import AdminStudentRoster from './pages/admin/AdminStudentRoster';
-import AdminViewStudentCode from './pages/admin/AdminViewStudentCode';
-
+import AdminMenu from './pages/abacus/AdminMenu';
 import AdminSchoolRoster from './pages/abacus/AdminSchoolRoster';
 import AdminProjectList from './pages/abacus/AdminProjectList';
 import AdminProjectManage from './pages/abacus/AdminProjectManage';
 import StudentSubmit from './pages/abacus/StudentSubmit';
 import StudentSubmissions from './pages/abacus/AdminStudentSubmissions';
-import StudentDiff from './pages/abacus/StudentDiff';
 import AdminTeamManage from './pages/abacus/AdminTeamManage';
+import AdminTeamSubmissions from './pages/abacus/AdminTeamSubmissions';
 import AdminUpload from './pages/abacus/AdminUpload';
 import StudentProjectSelection from './pages/abacus/StudentProjectSelection';
+import AdminProblemReview from './pages/abacus/AdminProblemSubmissions';
+
+import SubmissionView from './pages/abacus/SubmissionView';
 
 import ProtectedRoute from './pages/components/ProtectedRoute';
 
@@ -66,6 +56,38 @@ class App extends Component {
 
                     <Route path="/" element={<LandingPage />} />
 
+                    <Route path="/admin" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminMenu />
+                        </ProtectedRoute>
+                    } />
+
+                    <Route path="/admin/upload/submission/:id" element={
+                        <ProtectedRoute>
+                            <SubmissionView />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/problem/:problemId/review/submission/:id" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <SubmissionView />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/:school_id/team-manage/:teamId/submissions/:id" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <SubmissionView />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/teacher/team-manage/:teamId/submissions/:id" element={
+                        <ProtectedRoute requiredAdminRole={0}>
+                            <SubmissionView />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/submission/:id" element={
+                        <ProtectedRoute>
+                            <SubmissionView />
+                        </ProtectedRoute>
+                    } />
+
                     <Route path="/admin/schools" element={
                         <ProtectedRoute requiredAdminRole={1}>
                             <AdminSchoolRoster />
@@ -77,14 +99,15 @@ class App extends Component {
                         </ProtectedRoute>
                     }
                     />
+                    <Route path="/admin/:school_id/team-manage/:teamId/submissions" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminTeamSubmissions />
+                        </ProtectedRoute>
+                    }
+                    />
                     <Route path="/admin/:school_id/student/:student_id" element={
                         <ProtectedRoute>
                             <StudentSubmissions />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/:school_id/student/:student_id/:problem_id/:id" element={
-                        <ProtectedRoute>
-                            <StudentDiff />
                         </ProtectedRoute>
                     } />
                     <Route path="/admin/problems" element={
@@ -95,6 +118,11 @@ class App extends Component {
                     <Route path="/admin/problem/manage/:id" element={
                         <ProtectedRoute requiredAdminRole={1}>
                             <AdminProjectManage />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/problem/:id/review" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminProblemReview />
                         </ProtectedRoute>
                     } />
                     <Route path="/admin/upload" element={
@@ -108,81 +136,20 @@ class App extends Component {
                             <AdminTeamManage />
                         </ProtectedRoute>
                     } />
+                    <Route path="/teacher/team-manage/:teamId/submissions" element={
+                        <ProtectedRoute requiredAdminRole={0}>
+                            <AdminTeamSubmissions />
+                        </ProtectedRoute>
+                    } />
 
                     <Route path="/student/problems" element={
                         <ProtectedRoute>
                             <StudentProjectSelection />
                         </ProtectedRoute>
                     } />
-                    <Route path="/student/:problem_id/submit" element={
+                    <Route path="/student/:projectId/submit" element={
                         <ProtectedRoute>
                             <StudentSubmit />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/student/:problem_id/:id" element={
-                        <ProtectedRoute>
-                            <StudentDiff />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/:id/projects/*" element={
-                        <ProtectedRoute>
-                            <AdminProjectList2 />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/:class_id/project/:id" element={
-                        <ProtectedRoute>
-                            <AdminStudentRoster />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/:class_id/project/manage/:id" element={
-                        <ProtectedRoute>
-                            <AdminProjectManage2 />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/:class_id/project/:project_id/grade/:id" element={
-                        <ProtectedRoute>
-                            <AdminGrading />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/:class_id/project/:project_id/codeview/:id" element={
-                        <ProtectedRoute>
-                            <AdminViewStudentCode />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/plagiarism" element={
-                        <ProtectedRoute>
-                            <AdminPlagiarism />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/OfficeHours" element={
-                        <ProtectedRoute>
-                            <AdminOfficeHours />
-                        </ProtectedRoute>
-                    } />
-
-                    <Route path="/student/classes" element={
-                        <ProtectedRoute>
-                            <StudentClassSelection />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/student/:class_id/upload" element={
-                        <ProtectedRoute>
-                            <StudentUpload />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/student/:class_id/code/:id?" element={
-                        <ProtectedRoute>
-                            <StudentOutputDiff />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/student/PastSubmissions" element={
-                        <ProtectedRoute>
-                            <StudentPastSubmissions />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/student/:id/OfficeHours" element={
-                        <ProtectedRoute>
-                            <StudentOfficeHours />
                         </ProtectedRoute>
                     } />
                     {/* Catch-all for 404 */}

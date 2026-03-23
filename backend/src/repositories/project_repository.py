@@ -4,11 +4,9 @@ import random
 import shutil
 import subprocess
 from typing import Optional, Dict
-
 from flask import send_file
-
 from sqlalchemy.sql.expression import asc
-from .models import Projects, StudentGrades, Submissions, Testcases
+from .models import Projects, Submissions, Testcases
 from src.repositories.database import db
 from sqlalchemy import desc, and_
 from datetime import datetime
@@ -16,32 +14,9 @@ from pyston import PystonClient,File
 import asyncio
 import json
 
-
+from src.constants import COMPETITION_PROBLEM_MAX
 
 class ProjectRepository():
-
-    def get_current_project(self) -> Optional[Projects]:
-        """[Identifies the current project based on the start and end date]
-        Returns:
-            Project: [this should be the currently assigned project object]
-        """
-        now = datetime.now()
-        project = Projects.query.filter(Projects.End >= now, Projects.Start < now).first()
-        return project
-
-    def get_current_project_by_class(self, class_id: int) -> Optional[Projects]:
-        """Identifies the current project based on the start and end date.
-
-        Args:
-            class_id (int): The ID of the class.
-
-        Returns:
-            Optional[Projects]: The currently assigned project object.
-        """
-        now = datetime.now()
-        project = Projects.query.filter(Projects.ClassId==class_id,Projects.End >= now, Projects.Start < now).first()
-        #Start and end time format: 2023-05-31 14:33:00
-        return project
 
     def get_all_projects(self) -> Projects:
         """Get all projects from the mySQL database and return a project object sorted by end date.
@@ -62,29 +37,15 @@ class ProjectRepository():
         project= Projects.query.filter(Projects.Id == project_id).first()
         return project
 
-
-    def get_projects_by_class_id(self,class_id: int) -> int:
-        """
-        Returns a list of projects associated with a given class ID.
-
-        Args:
-        class_id (int): The ID of the class to retrieve projects for.
-
-        Returns:
-        A list of project objects associated with the given class ID.
-        """
-        class_projects = Projects.query.filter(Projects.ClassId==class_id)
-        return class_projects
     
-    def create_project(self, name: str, language:str, file_path:str, description_path:str, additional_file_path:str):
-        project = Projects(Name=name, Language=language, solutionpath=file_path, AsnDescriptionPath=description_path, AdditionalFilePath=additional_file_path)
+    def create_project(self, name: str, language:str, project_type:str, difficulty:str, order_index: int | None, file_path:str, description_path:str, additional_file_path:str):
+        project = Projects(Name=name, Language=language, Type=project_type, Difficulty=difficulty, OrderIndex=order_index, solutionpath=file_path, AsnDescriptionPath=description_path, AdditionalFilePath=additional_file_path)
         db.session.add(project)
         db.session.commit()
         return project.Id
         
-    def get_project(self, project_id:int) -> Projects:
+    def get_project(self, project_id:int) -> Dict[str, any]:
         project_data = Projects.query.filter(Projects.Id == project_id).first()
-        project ={}
         project_solutionFile = project_data.solutionpath
         #Strip just the file name from the path
         project_solutionFile = project_solutionFile.split("/")[-1]
@@ -96,36 +57,84 @@ class ProjectRepository():
         except Exception:
             add_list = []
         project_additionalfiles = [os.path.basename(p) for p in add_list if p]
-        project[project_data.Id] = [
-            str(project_data.Name),
-            str(project_data.Language),
-            str(project_solutionFile),
-            str(project_descriptionfile),
-            project_additionalfiles,
-        ]
+
+        project = {
+            "id": project_data.Id,
+            "language": str(project_data.Language),
+            "name": str(project_data.Name),
+            "type": str(project_data.Type),
+            "difficulty": str(project_data.Difficulty),
+            "solutionFile": str(project_solutionFile),
+            "descriptionFile": str(project_descriptionfile),
+            "additionalFiles": project_additionalfiles
+        }
+
         return project
 
-    def edit_project(self, name: str, language:str, project_id:int, path:str, description_path:str, additional_file_path:str):
+    def edit_project(self, name: str, language:str, project_type: str, difficulty: str, order_index: int | None, project_id:int, path:str, description_path:str, additional_file_path:str):
         project = Projects.query.filter(Projects.Id == project_id).first()
         project.Name = name
         project.Language = language
+        project.Type = project_type
+        project.Difficulty = difficulty
         project.solutionpath = path
         project.AsnDescriptionPath = description_path
         project.AdditionalFilePath = additional_file_path
-        db.session.commit() 
+        project.OrderIndex = order_index
+        db.session.commit()
+    
+    def get_competition_projects(self) -> list:
+        projects = Projects.query.filter(Projects.Type == "competition").order_by(asc(Projects.OrderIndex)).all()
+        return projects
+    
+    def edit_project_order(self, project_id: int, new_order_index: int):
+        project = Projects.query.filter(Projects.Id == project_id).first()
+        if project and project.Type == "competition":
+            project.OrderIndex = new_order_index
+            db.session.commit()
+
+    def get_next_order_index(self) -> Optional[int]:
+        """
+        Returns the next available order index (1..10) for competition.
+        If all 10 slots are taken, returns None.
+        """
+        rows = (
+            Projects.query.filter(Projects.Type == "competition", Projects.OrderIndex.isnot(None)).order_by(asc(Projects.OrderIndex)).all()
+        )
+
+        used = {
+            int(row.OrderIndex) for row in rows
+            if row.OrderIndex is not None and 1 <= int(row.OrderIndex) <= COMPETITION_PROBLEM_MAX
+        }
         
-    def get_testcases(self, project_id: int) -> Dict[int, list]:
+        for i in range(1, COMPETITION_PROBLEM_MAX + 1):
+            if i not in used:
+                return i
+        return None
+
+    def get_project_order_index(self, project_id: int) -> Optional[int]:
+        """
+        Returns the order index for a given project ID, or None if not set.
+        """
+        project = Projects.query.filter(Projects.Id == project_id).first()
+        if project and project.Type == "competition":
+            return project.OrderIndex
+        return None
+
+    def get_testcases(self, project_id: int) -> list[dict]:
         testcases = Testcases.query.filter(Testcases.ProjectId == project_id).all()
-        testcase_info: Dict[int, list] = {}
-        for test in testcases:
-            testcase_data = []
-            testcase_data.append(test.Id)          
-            testcase_data.append(test.Name)        
-            testcase_data.append(test.Description) 
-            testcase_data.append(test.input)       
-            testcase_data.append(test.Output) 
-            testcase_data.append(bool(getattr(test, "Hidden", False)))     
-            testcase_info[test.Id] = testcase_data
+        testcase_info: list[dict] = []
+
+        for t in testcases:
+            testcase_info.append({
+                "id": t.Id,
+                "name": t.Name,
+                "description": t.Description,
+                "input": t.input,
+                "output": t.Output,
+                "hidden": bool(getattr(t, "Hidden", False))
+            })
+
         return testcase_info
 
     def add_or_update_testcase(
@@ -269,26 +278,6 @@ class ProjectRepository():
         for submission in submissions:
             db.session.delete(submission)
         db.session.commit()
-    
-    def get_className_by_projectId(self, project_id):
-        try:
-            pid = int(project_id)
-        except (TypeError, ValueError):
-            return ""
-
-        project = Projects.query.filter(Projects.Id == pid).first()
-        if project is None:
-            return ""
-
-        class_obj = Classes.query.filter(Classes.Id == project.ClassId).first()
-        if class_obj is None:
-            return ""
-
-        return class_obj.Name
-
-    def get_class_id_by_name(self, class_name):
-        class_id = Classes.query.filter(Classes.Name==class_name).first().Id
-        return class_id
 
     def get_project_path(self, project_id):
         project = Projects.query.filter(Projects.Id==project_id).first()
@@ -304,20 +293,3 @@ class ProjectRepository():
         with open(filepath, 'rb') as file:
             file_contents = file.read()
         return file_contents  # Return the contents of the PDF file
-
-    def get_student_grade(self, project_id, user_id):
-        student_progress = StudentGrades.query.filter(and_(StudentGrades.Sid==user_id, StudentGrades.Pid==project_id)).first()
-        if student_progress is None:
-            return 0
-        return student_progress.Grade
-        
-    def set_student_grade(self, project_id, user_id, grade):
-        student_grade = StudentGrades.query.filter(and_(StudentGrades.Sid==user_id, StudentGrades.Pid==project_id)).first()
-        if student_grade is not None:
-            student_grade.Grade = grade
-            db.session.commit()
-            return
-        studentGrade = StudentGrades(Sid=user_id, Pid=project_id, Grade=grade)
-        db.session.add(studentGrade)
-        db.session.commit()
-        return

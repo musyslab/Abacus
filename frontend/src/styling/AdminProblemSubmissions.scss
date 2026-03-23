@@ -1,0 +1,369 @@
+.admin-problem-review-root {
+    padding-bottom: 2rem;
+}
+
+.problem-review-content {
+    width: 95%;
+    max-width: none;
+    margin: 0 auto;
+}
+
+.problem-review-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+    margin-top: 15px;
+}
+
+.problem-review-summary-card {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+    padding: 0.95rem 1rem;
+}
+
+.problem-review-summary-card__icon-wrap {
+    flex: 0 0 auto;
+}
+
+.problem-review-summary-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.9rem;
+    height: 2.9rem;
+    border-radius: 999px;
+    font-size: 1.15rem;
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+}
+
+.problem-review-summary-card__text {
+    min-width: 0;
+}
+
+.problem-review-summary-card__value {
+    color: #0f172a;
+    font-size: 1.55rem;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.problem-review-summary-card__label {
+    margin-top: 0.25rem;
+    color: #475569;
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+
+.problem-review-panel {
+    margin-top: 15px;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 14px;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+    padding: 1rem 1rem 1.25rem;
+}
+
+.problem-review-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.problem-review-toolbar__group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.problem-review-toolbar__group--sort {
+    margin-left: auto;
+}
+
+.problem-review-toolbar__label {
+    color: #374151;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.problem-review-filter {
+    min-width: 250px;
+    width: 280px;
+}
+
+.problem-review-sort {
+    min-width: 180px;
+    padding: 0.55rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #111827;
+
+    &:focus-visible {
+        outline: 2px solid #60a5fa;
+        outline-offset: 2px;
+    }
+}
+
+.problem-review-select__control {
+    min-height: 40px !important;
+    border-radius: 10px !important;
+    border-color: #d1d5db !important;
+    box-shadow: none !important;
+}
+
+.problem-review-select__control--is-focused {
+    border-color: #60a5fa !important;
+    box-shadow: 0 0 0 1px #60a5fa !important;
+}
+
+.problem-review-select__menu {
+    z-index: 20 !important;
+}
+
+.problem-review-section+.problem-review-section {
+    margin-top: 1.25rem;
+}
+
+.problem-review-section__title {
+    margin: 0 0 0.75rem;
+    color: #0f172a;
+    font-size: 1rem;
+    font-weight: 800;
+}
+
+.problem-review-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.problem-review-table {
+    width: 100%;
+    min-width: 900px;
+    table-layout: fixed;
+    border-collapse: collapse;
+    background: #f8fafc;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    overflow: hidden;
+
+    thead {
+        background: #e5e7eb;
+
+        th {
+            text-align: left;
+            padding: 0.75rem 0.85rem;
+            color: #111827;
+            font-size: 0.95rem;
+            border: 1px solid #d1d5db;
+            white-space: nowrap;
+        }
+    }
+
+    tbody {
+        tr {
+            background: #f8fafc;
+
+            &:nth-child(even) {
+                background: #f3f6fb;
+            }
+
+            &:hover {
+                background: #e9eef4;
+            }
+        }
+
+        td {
+            padding: 0.75rem 0.85rem;
+            border: 1px solid #e5e7eb;
+            vertical-align: middle;
+            color: #111827;
+        }
+    }
+}
+
+.problem-review-table__col--name {
+    width: 40%;
+}
+
+.problem-review-table__col--submitted {
+    width: 18%;
+}
+
+.problem-review-table__col--status {
+    width: 13%;
+}
+
+.problem-review-table__col--view,
+.problem-review-table__col--download {
+    width: 14.5%;
+}
+
+.problem-review-name-cell {
+    min-width: 0;
+}
+
+.problem-review-name {
+    font-weight: 700;
+    color: #0f172a;
+    overflow-wrap: anywhere;
+}
+
+.problem-review-submitted-cell {
+    min-width: 0;
+    white-space: nowrap;
+    color: #374151;
+    font-weight: 600;
+}
+
+.problem-review-status-cell {
+    min-width: 0;
+    font-weight: 700;
+    text-align: center;
+}
+
+.problem-review-status-cell--passed {
+    color: #065f46;
+    background: rgba(16, 185, 129, 0.12);
+    border-left: 3px solid #10b981;
+}
+
+.problem-review-status-cell--failed {
+    color: #7f1d1d;
+    background: rgba(239, 68, 68, 0.12);
+    border-left: 3px solid #ef4444;
+}
+
+.problem-review-status-cell--notsubmitted {
+    color: #6b7280;
+    background: #f8fafc;
+    border-left: 3px solid #cbd5e1;
+}
+
+.problem-review-action-cell {
+    text-align: center;
+    min-width: 0;
+}
+
+.problem-review-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.62rem 0.9rem;
+    min-height: 38px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    font-size: 0.92rem;
+    line-height: 1;
+    font-weight: 700;
+    border: 1px solid #d0d0d0;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #1f2937;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+        background 120ms ease,
+        border-color 120ms ease,
+        box-shadow 120ms ease,
+        transform 120ms ease;
+    white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+
+    &:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+        transform: translateY(-1px);
+        text-decoration: none;
+        color: #1f2937;
+    }
+
+    &:focus-visible {
+        outline: 2px solid #93c5fd;
+        outline-offset: 2px;
+    }
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    }
+}
+
+.problem-review-action--view,
+.problem-review-action--download {
+    border-color: #c7d2fe;
+    background: #eef2ff;
+    color: #3730a3;
+    font-size: 0.92rem;
+    font-weight: 700;
+
+    &:hover {
+        background: #e0e7ff;
+        border-color: #a5b4fc;
+        color: #312e81;
+    }
+}
+
+.problem-review-state {
+    padding: 1rem;
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px;
+    background: #f8fafc;
+    color: #374151;
+    font-weight: 600;
+}
+
+.problem-review-state--error {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+}
+
+.problem-review-empty {
+    text-align: center;
+    color: #6b7280;
+    background: #ffffff;
+    font-weight: 600;
+}
+
+.problem-review-unavailable {
+    color: #6b7280;
+    font-weight: 700;
+}
+
+@media (max-width: 900px) {
+    .problem-review-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .problem-review-toolbar {
+        align-items: stretch;
+    }
+
+    .problem-review-toolbar__group,
+    .problem-review-toolbar__group--sort {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .problem-review-filter,
+    .problem-review-sort {
+        width: 100%;
+        min-width: 0;
+    }
+}

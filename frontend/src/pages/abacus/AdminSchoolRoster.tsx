@@ -8,15 +8,114 @@ import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
 import MenuComponent from "../components/MenuComponent";
 import "../../styling/AdminSchoolRoster.scss";
 
-type SchoolSummary = {
+type AttendanceMode = "all" | "inPerson" | "virtual";
+type Division = "Blue" | "Gold" | "Eagle";
+type FilterMode = "all" | Division;
+
+type TeacherInfo = {
   id: number;
-  name: string;
-  teacherId: number | null;
-  teacherName: string | null;
-  teacherEmail: string | null;
+  name: string | null;
+  email: string | null;
+};
+
+type DivisionSummary = {
   teamCount: number;
   studentCount: number;
 };
+
+type SchoolSummary = {
+  id: number;
+  name: string;
+  teachers: TeacherInfo[] | null;
+  teamCount: number;
+  studentCount: number;
+  virtualTeamCount: number;
+  virtualStudentCount: number;
+  divisions: Record<Division, DivisionSummary> | null;
+  virtualDivisions: Record<Division, DivisionSummary> | null;
+};
+
+type DivisionConfigResponse = {
+  teamCaps: Record<Division, number>;
+  memberLimits: Record<Division, { min: number; max: number }>;
+};
+
+const DIVISIONS: Division[] = ["Blue", "Gold", "Eagle"];
+
+const VIEW_OPTIONS: { label: string; value: FilterMode }[] = [
+  { label: "All", value: "all" },
+  { label: "Blue", value: "Blue" },
+  { label: "Gold", value: "Gold" },
+  { label: "Eagle", value: "Eagle" },
+];
+
+const ATTENDANCE_OPTIONS: { label: string; value: AttendanceMode }[] = [
+  { label: "All", value: "all" },
+  { label: "In-person", value: "inPerson" },
+  { label: "Virtual", value: "virtual" },
+];
+
+const EMPTY_DIVISION_SUMMARY: DivisionSummary = {
+  teamCount: 0,
+  studentCount: 0,
+};
+
+function getDivisionSummary(
+  school: SchoolSummary,
+  division: Division,
+  attendance: AttendanceMode = "all"
+): DivisionSummary {
+  const inPerson = school.divisions?.[division] || EMPTY_DIVISION_SUMMARY;
+  const virtual = school.virtualDivisions?.[division] || EMPTY_DIVISION_SUMMARY;
+
+  if (attendance === "inPerson") return inPerson;
+  if (attendance === "virtual") return virtual;
+
+  return {
+    teamCount: Number(inPerson.teamCount || 0) + Number(virtual.teamCount || 0),
+    studentCount:
+      Number(inPerson.studentCount || 0) + Number(virtual.studentCount || 0),
+  };
+}
+
+function getTeamCountForView(
+  school: SchoolSummary,
+  view: FilterMode,
+  attendance: AttendanceMode
+): number {
+  if (view === "all") {
+    if (attendance === "inPerson") {
+      return Number(school.teamCount || 0);
+    }
+    if (attendance === "virtual") {
+      return Number(school.virtualTeamCount || 0);
+    }
+    return Number(school.teamCount || 0) + Number(school.virtualTeamCount || 0);
+  }
+  return Number(getDivisionSummary(school, view, attendance).teamCount || 0);
+}
+
+function getStudentCountForView(
+  school: SchoolSummary,
+  view: FilterMode,
+  attendance: AttendanceMode
+): number {
+  if (view === "all") {
+    if (attendance === "inPerson") {
+      return Number(school.studentCount || 0);
+    }
+    if (attendance === "virtual") {
+      return Number(school.virtualStudentCount || 0);
+    }
+    return (
+      Number(school.studentCount || 0) +
+      Number(school.virtualStudentCount || 0)
+    );
+  }
+  return Number(
+    getDivisionSummary(school, view, attendance).studentCount || 0
+  );
+}
 
 const AdminSchoolRoster = () => {
   const apiBase = (import.meta.env.VITE_API_URL as string) || "";
@@ -26,6 +125,11 @@ const AdminSchoolRoster = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [pageError, setPageError] = useState("");
   const [query, setQuery] = useState("");
+  const [selectedView, setSelectedView] = useState<FilterMode>("all");
+  const [selectedAttendance, setSelectedAttendance] =
+    useState<AttendanceMode>("all");
+  const [divisionCaps, setDivisionCaps] =
+    useState<Record<Division, number> | null>(null);
 
   function authConfig() {
     const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
@@ -54,8 +158,25 @@ const AdminSchoolRoster = () => {
     }
   }
 
+  async function fetchDivisionConfig() {
+    try {
+      const res = await axios.get<DivisionConfigResponse>(
+        `${apiBase}/schools/config/divisions`,
+        authConfig()
+      );
+      setDivisionCaps(res.data?.teamCaps || null);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        "Failed to load division configuration.";
+      setPageError((prev) => prev || msg);
+      setDivisionCaps(null);
+    }
+  }
+
   useEffect(() => {
     fetchSchoolSummary();
+    fetchDivisionConfig();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiBase]);
 
@@ -64,12 +185,88 @@ const AdminSchoolRoster = () => {
     if (!q) return schools;
 
     return schools.filter((s) => {
-      const teacher = (s.teacherName || "").toLowerCase();
-      const email = (s.teacherEmail || "").toLowerCase();
-      const name = (s.name || "").toLowerCase();
-      return name.includes(q) || teacher.includes(q) || email.includes(q);
+      const schoolName = (s.name || "").toLowerCase();
+      const teacherMatch = (s.teachers || []).some(
+        (t) =>
+          (t.name || "").toLowerCase().includes(q) ||
+          (t.email || "").toLowerCase().includes(q)
+      );
+
+      return schoolName.includes(q) || teacherMatch;
     });
   }, [schools, query]);
+
+  const overallSummary = useMemo(() => {
+    const summary: {
+      totalTeams: number;
+      totalStudents: number;
+      virtualTeams: number;
+      virtualStudents: number;
+      divisions: Record<Division, DivisionSummary>;
+      virtualDivisions: Record<Division, DivisionSummary>;
+    } = {
+      totalTeams: 0,
+      totalStudents: 0,
+      virtualTeams: 0,
+      virtualStudents: 0,
+      divisions: {
+        Blue: { teamCount: 0, studentCount: 0 },
+        Gold: { teamCount: 0, studentCount: 0 },
+        Eagle: { teamCount: 0, studentCount: 0 },
+      },
+      virtualDivisions: {
+        Blue: { teamCount: 0, studentCount: 0 },
+        Gold: { teamCount: 0, studentCount: 0 },
+        Eagle: { teamCount: 0, studentCount: 0 },
+      },
+    };
+
+    for (const school of schools) {
+      summary.totalTeams += Number(school.teamCount || 0);
+      summary.totalStudents += Number(school.studentCount || 0);
+      summary.virtualTeams += Number(school.virtualTeamCount || 0);
+      summary.virtualStudents += Number(school.virtualStudentCount || 0);
+
+      for (const division of DIVISIONS) {
+        const divisionSummary = getDivisionSummary(
+          school,
+          division,
+          "inPerson"
+        );
+        const virtualDivisionSummary = getDivisionSummary(
+          school,
+          division,
+          "virtual"
+        );
+
+        summary.divisions[division].teamCount += Number(
+          divisionSummary.teamCount || 0
+        );
+        summary.divisions[division].studentCount += Number(
+          divisionSummary.studentCount || 0
+        );
+
+        summary.virtualDivisions[division].teamCount += Number(
+          virtualDivisionSummary.teamCount || 0
+        );
+        summary.virtualDivisions[division].studentCount += Number(
+          virtualDivisionSummary.studentCount || 0
+        );
+      }
+    }
+
+    return summary;
+  }, [schools]);
+
+  const selectedViewLabel =
+    selectedView === "all" ? "All divisions" : `${selectedView} division`;
+
+  const selectedAttendanceLabel =
+    selectedAttendance === "all"
+      ? "All attendance"
+      : selectedAttendance === "inPerson"
+        ? "In-person"
+        : "Virtual";
 
   return (
     <>
@@ -77,19 +274,113 @@ const AdminSchoolRoster = () => {
         <title>Abacus</title>
       </Helmet>
 
-      <MenuComponent showProblemList={true} showAdminUpload={true} />
+      <MenuComponent />
 
       <div className="admin-school-roster-root">
         <DirectoryBreadcrumbs
-          items={[{ label: "School List" }]}
+          items={[
+            { label: "Admin Menu", to: "/admin" },
+            { label: "School List" },
+          ]}
           trailingSeparator={true}
         />
 
         <div className="pageTitle">School List</div>
 
         <div className="admin-school-roster-container">
+          <div className="roster-overview">
+            <div className="overview-card overview-card--primary">
+              <div className="overview-card__eyebrow">
+                Overall in-person roster totals (Across All Schools)
+              </div>
+              <div className="overview-card__headline">
+                {overallSummary.totalTeams} Teams{" "}
+                <span className="muted small">
+                  ({overallSummary.virtualTeams} Virtual)
+                </span>
+              </div>
+              <div className="overview-card__subheadline">
+                {overallSummary.totalStudents} Students{" "}
+                <span className="muted small">
+                  ({overallSummary.virtualStudents} Virtual)
+                </span>
+              </div>
+            </div>
+
+            {DIVISIONS.map((division) => {
+              const teamsUsed = overallSummary.divisions[division].teamCount;
+              const virtualTeamsInDivision =
+                overallSummary.virtualDivisions[division].teamCount;
+              const studentsInDivision =
+                overallSummary.divisions[division].studentCount;
+              const virtualStudentsInDivision =
+                overallSummary.virtualDivisions[division].studentCount;
+              const cap = divisionCaps?.[division];
+              const remaining =
+                typeof cap === "number" ? Math.max(cap - teamsUsed, 0) : null;
+              const percent =
+                typeof cap === "number" && cap > 0
+                  ? Math.min((teamsUsed / cap) * 100, 100)
+                  : 0;
+              return (
+                <div
+                  key={division}
+                  className={`overview-card overview-card--${division.toLowerCase()}`}
+                >
+                  <div className="overview-card__eyebrow">{division} Division</div>
+
+                  <div className="division-stats">
+                    <div className="division-stats__row">
+                      <span>Teams</span>
+                      <strong>
+                        {teamsUsed}{" "}
+                        <span className="muted small">
+                          ({virtualTeamsInDivision} Virtual)
+                        </span>
+                      </strong>
+                    </div>
+                    <div className="division-stats__row">
+                      <span>Students</span>
+                      <strong>
+                        {studentsInDivision}{" "}
+                        <span className="muted small">
+                          ({virtualStudentsInDivision} Virtual)
+                        </span>
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="cap-progress">
+                    <div className="cap-progress__track" aria-hidden="true">
+                      <div
+                        className={`cap-progress__fill cap-progress__fill--${division.toLowerCase()}`}
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+
+                    <div className="cap-progress__meta">
+                      <span>
+                        {cap == null
+                          ? "Loading cap..."
+                          : `${teamsUsed} / ${cap} Teams Used`}
+                      </span>
+                      <span>
+                        {remaining == null
+                          ? "Loading..."
+                          : remaining === 0
+                            ? "At cap"
+                            : `${remaining} Team${remaining === 1 ? "" : "s"} Left`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
           <div className="page-subtitle muted">
-            View all schools, assigned teachers, and basic roster counts.
+            Search schools and teachers, then switch the table between
+            division-specific and attendance-specific counts.
           </div>
 
           {pageError ? (
@@ -111,7 +402,7 @@ const AdminSchoolRoster = () => {
                   id="school-search"
                   className="search__input"
                   type="text"
-                  placeholder="Search by school, teacher, or email…"
+                  placeholder="Search by school, teacher, or email..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   autoComplete="off"
@@ -129,11 +420,67 @@ const AdminSchoolRoster = () => {
                   </button>
                 ) : null}
               </div>
+
+              <div className="toolbar__filters">
+                <div className="filter-group">
+                  <div className="filter-group__label muted small">
+                    Division
+                  </div>
+                  <div
+                    className="filter-bar"
+                    role="tablist"
+                    aria-label="Roster division filter"
+                  >
+                    {VIEW_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="tab"
+                        aria-selected={selectedView === option.value}
+                        className={`filter-chip filter-chip--${String(
+                          option.value
+                        ).toLowerCase()} ${selectedView === option.value ? "is-active" : ""
+                          }`}
+                        onClick={() => setSelectedView(option.value)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="filter-group">
+                  <div className="filter-group__label muted small">
+                    Attendance
+                  </div>
+                  <div
+                    className="filter-bar"
+                    role="tablist"
+                    aria-label="Roster attendance filter"
+                  >
+                    {ATTENDANCE_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="tab"
+                        aria-selected={selectedAttendance === option.value}
+                        className={`filter-chip filter-chip--${option.value.toLowerCase()} ${selectedAttendance === option.value ? "is-active" : ""
+                          }`}
+                        onClick={() => setSelectedAttendance(option.value)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="toolbar__right muted">
               Showing <strong>{filtered.length}</strong> of{" "}
-              <strong>{schools.length}</strong>
+              <strong>{schools.length}</strong> schools in{" "}
+              <strong>{selectedViewLabel}</strong> /{" "}
+              <strong>{selectedAttendanceLabel}</strong>
             </div>
           </div>
 
@@ -142,7 +489,7 @@ const AdminSchoolRoster = () => {
               <thead>
                 <tr>
                   <th>School</th>
-                  <th>Teacher</th>
+                  <th>Teachers</th>
                   <th className="num">Teams</th>
                   <th className="num">Students</th>
                   <th className="actions">Actions</th>
@@ -152,40 +499,100 @@ const AdminSchoolRoster = () => {
                 {filtered.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="empty">
-                      {isLoading ? "Loading…" : "No schools found."}
+                      {isLoading ? "Loading..." : "No schools found."}
                     </td>
                   </tr>
                 ) : (
                   filtered.map((s) => {
-                    const teacherName = (s.teacherName || "").trim();
-                    const teacherEmail = (s.teacherEmail || "").trim();
-                    const teacherLabel = teacherName || "Unassigned";
+                    const viewTeamCount = getTeamCountForView(
+                      s,
+                      selectedView,
+                      selectedAttendance
+                    );
+                    const viewStudentCount = getStudentCountForView(
+                      s,
+                      selectedView,
+                      selectedAttendance
+                    );
+                    const isZeroDivisionRow =
+                      selectedView !== "all" &&
+                      viewTeamCount === 0 &&
+                      viewStudentCount === 0;
 
                     return (
-                      <tr key={s.id}>
+                      <tr
+                        key={s.id}
+                        className={isZeroDivisionRow ? "is-zero-row" : ""}
+                      >
                         <td>
                           <div className="school-name">{s.name}</div>
                           <div className="muted small mono">ID: {s.id}</div>
                         </td>
 
                         <td>
-                          <div className="teacher-name">{teacherLabel}</div>
-                          {teacherEmail ? (
-                            <div className="muted small">
-                              <a className="link" href={`mailto:${teacherEmail}`}>
-                                {teacherEmail}
-                              </a>
+                          {s.teachers && s.teachers.length > 0 ? (
+                            <div className="teacher-cell">
+                              {s.teachers.map((teacher, idx) => {
+                                const teacherName =
+                                  (teacher.name || "").trim() || "Unassigned";
+                                const teacherEmail = (teacher.email || "").trim();
+
+                                return (
+                                  <div
+                                    key={teacher.id || idx}
+                                    className="teacher-entry"
+                                  >
+                                    <div className="teacher-name">
+                                      {teacherName}
+                                    </div>
+
+                                    {teacherEmail ? (
+                                      <div className="muted small">
+                                        <a
+                                          className="link"
+                                          href={`mailto:${teacherEmail}`}
+                                        >
+                                          {teacherEmail}
+                                        </a>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                );
+                              })}
                             </div>
                           ) : (
-                            <div className="muted small">
-                              {teacherName ? "" : "No teacher assigned"}
-                            </div>
+                            <div className="muted small">No teachers assigned</div>
                           )}
                         </td>
 
-                        <td className="num mono">{Number(s.teamCount || 0)}</td>
                         <td className="num mono">
-                          {Number(s.studentCount || 0)}
+                          <div className="count-cell__value">{viewTeamCount}</div>
+                          {selectedView !== "all" ? (
+                            <div className="muted small">
+                              Total:{" "}
+                              {getTeamCountForView(
+                                s,
+                                "all",
+                                selectedAttendance
+                              )}
+                            </div>
+                          ) : null}
+                        </td>
+
+                        <td className="num mono">
+                          <div className="count-cell__value">
+                            {viewStudentCount}
+                          </div>
+                          {selectedView !== "all" ? (
+                            <div className="muted small">
+                              Total:{" "}
+                              {getStudentCountForView(
+                                s,
+                                "all",
+                                selectedAttendance
+                              )}
+                            </div>
+                          ) : null}
                         </td>
 
                         <td className="actions">

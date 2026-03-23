@@ -9,13 +9,9 @@ import {
     FaSignOutAlt,
     FaChalkboardTeacher,
     FaUserCircle,
-    FaList,
-    FaUpload,
 } from "react-icons/fa";
 
 interface MenuComponentProps {
-    showProblemList?: boolean;
-    showAdminUpload?: boolean;
     variant?: "app" | "home" | "public";
     onScrollToSection?: (key: "about" | "event" | "rules") => void;
 }
@@ -82,7 +78,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
             if (status === "admin") {
                 const isAdmin = role === 1;
                 if (isAdmin) {
-                    const info = { label: "School List", path: "/admin/schools" };
+                    const info = { label: "Admin Menu", path: "/admin" };
                     this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
                     return info;
                 }
@@ -251,26 +247,6 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                             </button>
 
                             <div className="menu__right">
-                                {this.props.showProblemList && (
-                                    <Link
-                                        to="/admin/problems"
-                                        className="menu__item menu__item--link"
-                                        title="Go to problem list"
-                                    >
-                                        <FaList className="menu__icon" aria-hidden="true" />
-                                        <span className="menu__text">Problem List</span>
-                                    </Link>
-                                )}
-                                {this.props.showAdminUpload && (
-                                    <Link
-                                        to="/admin/upload"
-                                        className="menu__item menu__item--link"
-                                        title="Go to Admin Upload"
-                                    >
-                                        <FaUpload className="menu__icon" aria-hidden="true" />
-                                        <span className="menu__text">Admin Upload</span>
-                                    </Link>
-                                )}
                                 <button
                                     type="button"
                                     className="menu__item menu__item--link"

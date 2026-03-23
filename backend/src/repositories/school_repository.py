@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from src.repositories.database import db
-from .models import AdminUsers, StudentUsers, Schools
+from .models import AdminUsers, StudentUsers, Schools, Teams
 
 
 class SchoolRepository:
@@ -20,6 +20,15 @@ class SchoolRepository:
 
     def get_all_schools(self) -> List[Schools]:
         return Schools.query.order_by(Schools.Name.asc()).all()
+    
+    def get_all_schools_with_teams(self) -> List[Schools]:
+        return (
+            Schools.query
+                .join(Teams, Teams.SchoolId == Schools.Id)
+                .distinct()
+                .order_by(Schools.Name.asc())
+                .all()
+        )
 
     def get_school_by_teacher_id(self, teacher_id: int) -> Optional[Schools]:
         admin = AdminUsers.query.filter(AdminUsers.Id == teacher_id).one_or_none()

@@ -1,0 +1,55 @@
+.submission-view-content {
+
+    .submission-details {
+        width: 95%;
+        margin: 1rem auto 1rem;
+    }
+
+    .submission-details-content {
+        display: flex;
+        flex-direction: column;
+
+        border: 1px solid #e7eaf1;
+        border-radius: 12px;
+        background: #ffffff;
+        box-shadow: 0 1px 6px rgba(80, 95, 126, 0.07);
+        padding: 10px;
+    }
+
+    .submission-details-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        align-items: center;
+        width: 100%;
+    }
+
+    /* Individual chips */
+    .meta-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 12px;
+        border-radius: 999px;
+
+        background-color: #f3f4f6; 
+        border: 1px solid #e5e7eb;
+
+        font-size: 0.85rem;
+        color: #374151;
+        white-space: nowrap;
+    }
+
+
+    /* Label inside chip */
+    .meta-label {
+        font-weight: 600;
+        color: #4b5563; /* gray-600 */
+    }
+
+    /* Value inside chip */
+    .meta-value {
+        font-weight: 500;
+        color: #111827; /* gray-900 */
+    }
+}
