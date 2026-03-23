@@ -27,8 +27,12 @@ from src.repositories.project_repository import ProjectRepository
 from src.repositories.models import AdminUsers, StudentUsers, Teams, Submissions
 from src.services.dataService import all_submissions 
 from src.models.ProjectJson import ProjectJson
-from src.constants import ADMIN_ROLE
-from src.constants import ADMIN_ROLE, get_competition_schedule
+from src.constants import (
+     ADMIN_ROLE,
+     get_competition_schedule,
+     is_student_submission_locked,
+     is_teacher_submission_locked,
+)
 from flask import jsonify
 from flask import request
 from dependency_injector.wiring import inject, Provide
