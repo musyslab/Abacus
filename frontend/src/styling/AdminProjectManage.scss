@@ -1420,23 +1420,9 @@ body:has(.testcase-modal) {
   margin-bottom: 0.5rem;
 }
 
-.project-type-difficulty {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10rem;
-}
-
 .segment-project-type {
   .segment-option.selected { color: #fff; font-weight: 600; }
   .segment-option.selected.none { background: #9ca3af; }
   .segment-option.selected.competition { background: #1d63c1; }
   .segment-option.selected.practice { background: #7e3ff2; }
-}
-
-.segment-project-difficulty {
-  .segment-option.selected { color: #fff; font-weight: 600; }
-  .segment-option.selected.easy { background: #2e8b57; }
-  .segment-option.selected.medium { background: #d98c00; }
-  .segment-option.selected.hard { background: #c62828; }
 }
