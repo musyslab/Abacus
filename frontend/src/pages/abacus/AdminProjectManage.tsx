@@ -54,7 +54,6 @@ class Testcase {
 
 type SolutionLang = 'java' | 'python'
 type ProjectType = 'competition' | 'practice' | 'none'
-type ProjectDifficulty = 'easy' | 'medium' | 'hard'
 
 const isJavaFileName = (n: string) => /\.java$/i.test(n)
 
@@ -124,7 +123,6 @@ export default function AdminProjectManage() {
     const [removedAdditionalFiles, setRemovedAdditionalFiles] = useState<string[]>([])
     const [mainJavaFileName, setMainJavaFileName] = useState<string>('')
     const [projectType, setProjectType] = useState<ProjectType>('none')
-    const [projectDifficulty, setProjectDifficulty] = useState<ProjectDifficulty>('easy')
 
     // Lock page scroll whenever either modal is open
     useEffect(() => {
@@ -363,7 +361,6 @@ export default function AdminProjectManage() {
                     setProjectName(data["name"] || '')
                     setProjectLanguage(data["language"] || '')
                     setProjectType(data["type"] as ProjectType)
-                    setProjectDifficulty(data["difficulty"] as ProjectDifficulty)
                     setServerProjectLanguageSnapshot(data["language"] || '')
                     setSolutionFileNames([])
                     setSolutionFiles([])
@@ -525,7 +522,6 @@ export default function AdminProjectManage() {
             formData.append('name', ProjectName)
             formData.append('language', ProjectLanguage)
             formData.append('project_type', projectType)
-            formData.append('difficulty', projectDifficulty)
 
             const res = await axios.post(`${API}/projects/create_project`, formData, authConfig())
             const newId = res.data
@@ -570,7 +566,6 @@ export default function AdminProjectManage() {
             formData.append('name', ProjectName)
             formData.append('language', ProjectLanguage)
             formData.append('project_type', projectType)
-            formData.append('difficulty', projectDifficulty)
 
             await axios.post(`${API}/projects/edit_project`, formData, authConfig())
 
@@ -960,35 +955,19 @@ export default function AdminProjectManage() {
                                             onChange={e => setProjectName(e.currentTarget.value)}
                                         />
                                     </div>
-                                    <div className="project-type-difficulty">
-                                        <div className="form-field input-field">
-                                            <label>Problem Type</label>
-                                            <SegmentedControl
-                                                className="segment-project-type"
-                                                options={[
-                                                    { label: "None", value: "none" },
-                                                    { label: "Competition", value: "competition" },
-                                                    { label: "Practice", value: "practice" },
-                                                ]}
-                                                value={projectType}
-                                                onChange={(v) => setProjectType(v as ProjectType)}
-                                                getOptionClassName={(v) => v.toLowerCase()}
-                                            />
-                                        </div>
-                                        <div className="form-field input-field">
-                                            <label>Problem Difficulty</label>
-                                            <SegmentedControl
-                                                className="segment-project-difficulty"
-                                                options={[
-                                                    { label: "Easy", value: "easy" },
-                                                    { label: "Medium", value: "medium" },
-                                                    { label: "Hard", value: "hard" },
-                                                ]}
-                                                value={projectDifficulty}
-                                                onChange={(v) => setProjectDifficulty(v as ProjectDifficulty)}
-                                                getOptionClassName={(v) => v.toLowerCase()}
-                                            />
-                                        </div>
+                                    <div className="form-field input-field">
+                                        <label>Problem Type</label>
+                                        <SegmentedControl
+                                            className="segment-project-type"
+                                            options={[
+                                                { label: "None", value: "none" },
+                                                { label: "Competition", value: "competition" },
+                                                { label: "Practice", value: "practice" },
+                                            ]}
+                                            value={projectType}
+                                            onChange={(v) => setProjectType(v as ProjectType)}
+                                            getOptionClassName={(v) => v.toLowerCase()}
+                                        />
                                     </div>
 
                                     <div className="form-group language-group">
