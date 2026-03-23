@@ -8,7 +8,7 @@ import {
     FaEye,
     FaChevronUp,
     FaChevronDown,
-    FaArrowsAlt ,
+    FaArrowsAlt,
 } from "react-icons/fa";
 import axios from "axios";
 
@@ -41,8 +41,6 @@ type ProjectSection = {
     projects: ProjectObject[];
 };
 
-type RawProjectObject = Record<string, unknown>;
-
 const REORDER_BUTTON_LABELS: Record<ReorderableProjectType, string> = {
     competition: "Reorder Competition Problems",
     practice: "Reorder Practice Problems",
@@ -60,75 +58,6 @@ function sortProjectsByOrderIndex(projects: ProjectObject[]) {
         if (b.OrderIndex === null) return -1;
         return a.OrderIndex - b.OrderIndex;
     });
-}
-
-function toNumber(value: unknown, fallback = 0) {
-    if (typeof value === "number" && Number.isFinite(value)) {
-        return value;
-    }
-
-    if (typeof value === "string" && value.trim() !== "") {
-        const parsed = Number(value);
-        if (Number.isFinite(parsed)) {
-            return parsed;
-        }
-    }
-
-    return fallback;
-}
-
-function toNullableNumber(value: unknown) {
-    if (value === null || value === undefined || value === "") {
-        return null;
-    }
-
-    const parsed = toNumber(value, Number.NaN);
-    return Number.isFinite(parsed) ? parsed : null;
-}
-
-function toProjectType(value: unknown): ProjectType {
-    return value === "competition" || value === "practice" || value === "none"
-        ? value
-        : "none";
-}
-
-function getCountValue(source: RawProjectObject, keys: string[], fallback = 0) {
-    for (const key of keys) {
-        if (key in source) {
-            return toNumber(source[key], fallback);
-        }
-    }
-
-    return fallback;
-}
-
-function normalizeProject(raw: RawProjectObject): ProjectObject {
-    return {
-        Id: toNumber(raw.Id, 0),
-        Name: typeof raw.Name === "string" ? raw.Name : "",
-        Type: toProjectType(raw.Type),
-        OrderIndex: toNullableNumber(raw.OrderIndex),
-        NotSubmittedCount: getCountValue(raw, [
-            "NotSubmittedCount",
-            "notSubmittedCount",
-            "NotSubmitted",
-            "notSubmitted",
-        ]),
-        SubmittedAtLeastOnceCount: getCountValue(raw, [
-            "SubmittedAtLeastOnceCount",
-            "submittedAtLeastOnceCount",
-            "SubmittedCount",
-            "submittedCount",
-            "TotalSubmissions",
-            "totalSubmissions",
-        ]),
-        PassingAllTestcasesCount: getCountValue(raw, [
-            "PassingAllTestcasesCount",
-            "passingAllTestcasesCount",
-            "PassingCount",
-            "passingCount",
-        ]),
-    };
 }
 
 export default function AdminProjectList() {
@@ -176,9 +105,11 @@ export default function AdminProjectList() {
 
     async function fetchProjects() {
         try {
-            const res = await axios.get(`${API}/projects/all_projects`, authConfig());
-            const data = Array.isArray(res.data) ? (res.data as RawProjectObject[]) : [];
-            setProjects(data.map(normalizeProject));
+            const res = await axios.get<ProjectObject[]>(
+                `${API}/projects/all_projects`,
+                authConfig()
+            );
+            setProjects(Array.isArray(res.data) ? res.data : []);
         } catch (err) {
             console.log(err);
         }
@@ -360,7 +291,7 @@ export default function AdminProjectList() {
                             onClick={() => openOrderModal(reorderableType, section.projects)}
                             disabled={section.projects.length < 2}
                         >
-                            <FaArrowsAlt  aria-hidden="true" />
+                            <FaArrowsAlt aria-hidden="true" />
                             <span className="button-text">
                                 {REORDER_BUTTON_LABELS[reorderableType]}
                             </span>
