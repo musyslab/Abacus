@@ -10,6 +10,7 @@ from .models import (
     Submissions,
     Projects,
     StudentUsers,
+    HelpRequests,
 )
 
 class SubmissionRepository():
@@ -156,3 +157,36 @@ class SubmissionRepository():
     def get_all_submissions_for_project(self, project_id):
         submissions = Submissions.query.filter(Submissions.Project == project_id).all()
         return submissions
+    def create_help_request(self, student_id: int, problem_id: int, description: str) -> int:
+        new_request = HelpRequests(
+            StudentId=student_id,
+            ProblemId=problem_id,
+            Description=description,
+            Status=0 # Starts at 0 (Not Started)
+        )
+        db.session.add(new_request)
+        db.session.commit()
+        return new_request.Id
+
+    def update_help_request_status(self, request_id: int, new_status: int) -> bool:
+        # Find the request
+        req = HelpRequests.query.filter(HelpRequests.Id == request_id).first()
+        if not req:
+            return False
+        
+        # Update the status
+        req.Status = new_status
+        
+        # If admin marks it as complete (2), stamp the current time
+        if new_status == 2:
+            req.CompletedAt = datetime.now()
+        else:
+            # Optional: if they move it back to 'in progress', clear the complete time
+            req.CompletedAt = None
+            
+        db.session.commit()
+        return True
+        
+    def get_all_help_requests(self) -> List[HelpRequests]:
+        # Fetches all requests, newest first
+        return HelpRequests.query.order_by(desc(HelpRequests.CreatedAt)).all()

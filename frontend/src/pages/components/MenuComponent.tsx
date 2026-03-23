@@ -9,9 +9,8 @@ import {
     FaSignOutAlt,
     FaChalkboardTeacher,
     FaUserCircle,
-    FaList,
-    FaUpload,
     FaQuestionCircle,
+    FaClipboardList,
 } from "react-icons/fa";
 
 interface MenuComponentProps {
@@ -30,6 +29,7 @@ interface MenuComponentState {
     dashboardPath: string;
     isRoleLoaded: boolean;
     isStudent: boolean;
+    isAdminRole:boolean;
 }
 
 class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
@@ -40,6 +40,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
             dashboardPath: "/home",
             isRoleLoaded: false,
             isStudent: false,
+            isAdminRole: false,
         };
     }
 
@@ -76,7 +77,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
             // Students
             if (status === "student") {
                 const info = { label: "Problem Select", path: "/student/problems" };
-                this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true, isStudent: true });
+                this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true, isStudent: true, isAdminRole: false });
                 return info;
             }
 
@@ -85,7 +86,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                 const isAdmin = role === 1;
                 if (isAdmin) {
                     const info = { label: "Admin Menu", path: "/admin" };
-                    this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
+                    this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true, isAdminRole: true });
                     return info;
                 }
 
@@ -263,6 +264,16 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                                         <FaQuestionCircle className="menu__icon" aria-hidden="true" />
                                         <span className="menu__text">Request Help</span>
                                     </button>
+                                )}
+                                {this.state.isAdminRole && (
+                                    <Link
+                                        to="/admin/help-requests"
+                                        className="menu__item menu__item--link"
+                                        title="View Help Queue"
+                                    >
+                                        <FaClipboardList className="menu__icon" aria-hidden="true" />
+                                        <span className="menu__text">Help Queue</span>
+                                    </Link>
                                 )}
                                 <button
                                     type="button"

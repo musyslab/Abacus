@@ -1,9 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs"
-import MenuComponent from "../components/MenuComponent"
-import { Helmet } from "react-helmet"
-
 import HelpModal from "../components/HelpModal";
 import { useNavigate } from "react-router-dom";
 import { FaDownload, FaFileAlt, FaUpload } from "react-icons/fa";
@@ -29,6 +25,12 @@ type TeamMeResponse = {
     isOnline?: boolean;
     is_online?: boolean;
 };
+
+interface CreateHelpRequestData {
+    problemId?: number | null;
+    problemName: string;
+    description: string;
+}
 
 export default function StudentProjectSelection() {
     const apiBase = (import.meta.env.VITE_API_URL as string) || "";
@@ -167,7 +169,27 @@ export default function StudentProjectSelection() {
             setIsLoading(false);
         }
     }
-
+    
+    const createHelpRequest = async (data: CreateHelpRequestData) => {
+        // Note: Adjust the '/submission' prefix if your blueprint is mounted differently!
+        const response = await axios.post(
+            `${apiBase}/submissions/help-request`, data, authConfig()
+        );
+        return response.data;
+    };
+    const handleSubmitHelpRequest = async (data: { problemName: string; description: string; problemId?: number }) => {
+        try {
+            await createHelpRequest({
+                problemName: data.problemName,
+                description: data.description,
+                problemId: data.problemId // pass this if you have it!
+            });
+            console.log("Request sent successfully!");
+        } catch (error) {
+            console.error("Failed to submit request", error);
+            throw error; // Let the modal catch this and show the red error box
+        }
+    };
     const submissions = useMemo(() => {
         return buildTeamSubmissionViewModels(projects, summaryByProject);
     }, [projects, summaryByProject]);
@@ -177,24 +199,23 @@ export default function StudentProjectSelection() {
     const submissionViewBreadcrumbs = [
         { label: "Student Problem Select", to: "/student/problems" },
     ];
+    
 
     return (
         <>
-            <Helmet>
-                    <title>Abacus</title>
-            </Helmet>
-            
-            <MenuComponent onRequestHelp={() => setIsHelpModalOpen(true)} />
-
             <HelpModal 
                 isOpen={isHelpModalOpen}
                 onClose={() => setIsHelpModalOpen(false)}
-                //onSubmitRequest={handleSubmitHelpRequest}
-                //availableProblems={availableProblems}
+                onSubmitRequest={handleSubmitHelpRequest}
+                availableProblems={projects.map(project => ({id: project.Id.toString(), name: project.Name}))}
             />
-            
+
             <ProblemSubmissionsDashboard
                 helmetTitle="Abacus"
+                menuProps={{ 
+                    variant: "app", 
+                    onRequestHelp: () => setIsHelpModalOpen(true) 
+                }}
                 breadcrumbs={breadcrumbs}
                 breadcrumbTrailingSeparator={true}
                 dashboardTitle={

@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.schema import ForeignKey
 from sqlalchemy.types import Date
+from sqlalchemy.sql import func
 
 from src.repositories.database import db
 
@@ -92,3 +93,17 @@ class StudentUsers(db.Model):
     MemberId = Column(Integer, nullable=True)
     PasswordHash = Column(String(255))
     IsLocked = Column(Boolean, default=False)
+
+class HelpRequests(db.Model):
+    __tablename__ = "HelpRequests"
+
+    Id = Column(Integer, primary_key=True, autoincrement=True)
+    StudentId = Column(Integer, ForeignKey('StudentUsers.Id'), nullable=False)
+    ProblemId = Column(Integer, ForeignKey('Projects.Id'), nullable=True) 
+    Description = Column(Text, nullable=False)
+    Status = Column(Integer, default=0, nullable=False)
+    # Timestamp
+    CreatedAt = Column(DateTime, default=func.now(), nullable=False)
+    
+    # Stays null until compelted
+    CompletedAt = Column(DateTime, nullable=True)
