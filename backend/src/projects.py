@@ -44,7 +44,6 @@ projects_api = Blueprint('projects_api', __name__)
 ALLOWED_SOURCE_EXTS = {'.py', '.c', '.java', '.rkt'}
 TS_DIR_RE = re.compile(r"^\d{8}_\d{6}$")
 PROJECT_TYPES = {'competition', 'practice', 'none'}
-DIFFICULTIES = {'easy', 'medium', 'hard'}
 
 def project_root() -> str:
     return "/tabot-files/project-files"
@@ -130,7 +129,6 @@ def all_projects(project_repo: ProjectRepository = Provide[Container.project_rep
             "Id": proj.Id,
             "Name": proj.Name,
             "Type": proj.Type,
-            "Difficulty": proj.Difficulty,
             "OrderIndex": proj.OrderIndex,
             "TotalSubmissions": thisdic.get(proj.Id, 0)
         } for proj in data
@@ -190,8 +188,7 @@ def create_project(project_repo: ProjectRepository = Provide[Container.project_r
     name = request.form.get('name', '').strip()
     language = request.form.get('language', '').strip()
     project_type = request.form.get('project_type', '').strip()
-    difficulty = request.form.get('difficulty', '').strip()
-    if name == '' or language == '' or (project_type not in PROJECT_TYPES) or (difficulty not in DIFFICULTIES):
+    if name == '' or language == '' or (project_type not in PROJECT_TYPES):
         return make_response("Error in form", HTTPStatus.BAD_REQUEST)
 
     base_proj = safe_name(name)
@@ -225,14 +222,14 @@ def create_project(project_repo: ProjectRepository = Provide[Container.project_r
             add_names.append(orig_name)
     selected_path = path
 
-    # Find order index if project is a competition project
+    # Find order index for ordered project types
     order_index = None
-    if project_type == "competition":
-        order_index = project_repo.get_next_order_index()
+    if project_type in {"competition", "practice"}:
+        order_index = project_repo.get_next_order_index(project_type)
         if order_index is None:
             return make_response({'message': 'Maximum number of competition projects reached'}, HTTPStatus.BAD_REQUEST)
 
-    new_project_id = project_repo.create_project(name, language, project_type, difficulty, order_index, selected_path, assignmentdesc_path, json.dumps(add_names))
+    new_project_id = project_repo.create_project(name, language, project_type, order_index, selected_path, assignmentdesc_path, json.dumps(add_names))
 
     return make_response(str(new_project_id), HTTPStatus.OK)
 
@@ -251,16 +248,22 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
     name = request.form.get('name', '')
     language = request.form.get('language', '')
     project_type = request.form.get('project_type', '').strip().lower()
-    difficulty = request.form.get('difficulty', '').strip().lower()
     
-    if name == '' or language == '' or (project_type not in PROJECT_TYPES) or (difficulty not in DIFFICULTIES):
+    if name == '' or language == '' or (project_type not in PROJECT_TYPES):
         return make_response({'message': 'Error in form'}, HTTPStatus.BAD_REQUEST)
     
-    # Computes order_index for competition projects
-    if project_type == "competition":
+    existing_proj = project_repo.get_selected_project(pid)
+
+    # Computes order_index for ordered project types
+    if project_type in {"competition", "practice"}:
+        current_type = (getattr(existing_proj, "Type", "") or "").strip().lower()
         current_index = project_repo.get_project_order_index(pid) if pid else None
-        order_index = current_index if current_index is not None else project_repo.get_next_order_index()
-        
+        order_index = (
+            current_index
+            if current_type == project_type and current_index is not None
+            else project_repo.get_next_order_index(project_type)
+        )
+
         if order_index is None:
             return make_response({'message': 'Maximum number of competition projects reached'}, HTTPStatus.BAD_REQUEST)
     else:
@@ -288,7 +291,6 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
     # Default to existing paths if no new files are uploaded
     path = existing_path
     assignmentdesc_path = project_repo.get_project_desc_path(pid)
-    existing_proj = project_repo.get_selected_project(pid)
 
     # Determine whether we need to mint a new version directory
     solution_uploads = request.files.getlist('solutionFiles')
@@ -416,7 +418,7 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
     if latest_version:
         path = latest_version
 
-    project_repo.edit_project(name, language, project_type, difficulty, order_index, pid, path, assignmentdesc_path, json.dumps(add_names))
+    project_repo.edit_project(name, language, project_type, order_index, pid, path, assignmentdesc_path, json.dumps(add_names))
 
     # Recompute testcase outputs **against the path we just wrote**, so we don't depend on
     # any cached ORM objects or delayed reads.
@@ -818,21 +820,30 @@ def reorder_projects(
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
     data = request.get_json() or {}
-    projects = project_repo.get_competition_projects()
     id_order = data.get('id_order', [])
+    project_type = (data.get('project_type', '') or '').strip().lower()
+
+    if project_type not in {'competition', 'practice'}:
+        return make_response({'message': 'Invalid project type'}, HTTPStatus.BAD_REQUEST)
 
     if not isinstance(id_order, list) or not all(isinstance(i, int) for i in id_order):
         return make_response({'message': 'Invalid ID order format'}, HTTPStatus.BAD_REQUEST)
-    if len(id_order) != len(projects):
+
+    projects = project_repo.get_projects_by_type(project_type)
+    project_ids = [int(project.Id) for project in projects]
+
+    if len(id_order) != len(project_ids):
         return make_response({'message': 'ID order length mismatch'}, HTTPStatus.BAD_REQUEST)
     if len(id_order) != len(set(id_order)):
         return make_response({'message': 'Duplicate IDs in order'}, HTTPStatus.BAD_REQUEST)
+    if set(id_order) != set(project_ids):
+        return make_response({'message': 'ID order does not match the selected project type'}, HTTPStatus.BAD_REQUEST)
 
-    id_to_proj = {str(p.Id): p for p in projects}
+    id_to_proj = {int(p.Id): p for p in projects}
 
     # First pass to flush the order
     for idx, proj_id in enumerate(id_order):
-        proj = id_to_proj.get(str(proj_id))
+        proj = id_to_proj.get(proj_id)
         if proj:
             project_repo.edit_project_order(proj.Id, -idx - 1)
         else:
@@ -841,7 +852,7 @@ def reorder_projects(
     # Second pass to set the correct order.
     # Avoids duplicate unique values
     for idx, proj_id in enumerate(id_order):
-        proj = id_to_proj.get(str(proj_id))
+        proj = id_to_proj.get(proj_id)
         if proj:
             project_repo.edit_project_order(proj.Id, idx + 1)
         else:

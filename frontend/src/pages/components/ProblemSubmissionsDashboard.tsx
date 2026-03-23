@@ -20,7 +20,6 @@ export type ProjectObject = {
     Name: string;
     TotalSubmissions: number;
     Type: ProjectType;
-    Difficulty: string;
     OrderIndex: number | null;
 };
 

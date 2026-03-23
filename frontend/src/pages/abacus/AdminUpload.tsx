@@ -23,7 +23,6 @@ interface ProjectObject {
     Id: number;
     Name: string;
     Type: string;
-    Difficulty: string;
     OrderIndex: number;
     TotalSubmissions: number;
 }
