@@ -29,6 +29,7 @@ type TeamMeResponse = {
 interface CreateHelpRequestData {
     problemId?: number | null;
     problemName: string;
+    reason: string;
     description: string;
 }
 
@@ -170,26 +171,6 @@ export default function StudentProjectSelection() {
         }
     }
     
-    const createHelpRequest = async (data: CreateHelpRequestData) => {
-        // Note: Adjust the '/submission' prefix if your blueprint is mounted differently!
-        const response = await axios.post(
-            `${apiBase}/submissions/help-request`, data, authConfig()
-        );
-        return response.data;
-    };
-    const handleSubmitHelpRequest = async (data: { problemName: string; description: string; problemId?: number }) => {
-        try {
-            await createHelpRequest({
-                problemName: data.problemName,
-                description: data.description,
-                problemId: data.problemId // pass this if you have it!
-            });
-            console.log("Request sent successfully!");
-        } catch (error) {
-            console.error("Failed to submit request", error);
-            throw error; // Let the modal catch this and show the red error box
-        }
-    };
     const submissions = useMemo(() => {
         return buildTeamSubmissionViewModels(projects, summaryByProject);
     }, [projects, summaryByProject]);
@@ -202,83 +183,75 @@ export default function StudentProjectSelection() {
     
 
     return (
-        <>
-            <HelpModal 
-                isOpen={isHelpModalOpen}
-                onClose={() => setIsHelpModalOpen(false)}
-                onSubmitRequest={handleSubmitHelpRequest}
-                availableProblems={projects.map(project => ({id: project.Id.toString(), name: project.Name}))}
-            />
+        <ProblemSubmissionsDashboard
+            helmetTitle="Abacus"
+            menuProps={{ 
+                variant: "app", 
+                onRequestHelp: () => navigate("/student/help-requests") 
+            }}
+            breadcrumbs={breadcrumbs}
+            breadcrumbTrailingSeparator={true}
+            dashboardTitle={
+                team?.name
+                    ? `Student Problem Select: ${team.name}`
+                    : "Student Problem Select"
+            }
+            team={team}
+            fallbackTeamName="Problem Select"
+            fallbackTeamNumber={team?.teamNumber ?? null}
+            pageError={pageError}
+            pageNotice={pageNotice}
+            isLoading={isLoading}
+            submissions={submissions}
+            getTopActions={(vm) => [
+                {
+                    key: "instructions",
+                    label: "Download Instructions",
+                    icon: <FaDownload aria-hidden="true" />,
+                    variant: "highlight",
+                    title: "Download assignment instructions",
+                    onClick: () => {
+                        downloadAssignment(vm.project.Id);
+                    },
+                },
+            ]}
+            getActions={(vm) => {
+                const canViewOutput = vm.summary.latestSubmissionId !== null;
 
-            <ProblemSubmissionsDashboard
-                helmetTitle="Abacus"
-                menuProps={{ 
-                    variant: "app", 
-                    onRequestHelp: () => setIsHelpModalOpen(true) 
-                }}
-                breadcrumbs={breadcrumbs}
-                breadcrumbTrailingSeparator={true}
-                dashboardTitle={
-                    team?.name
-                        ? `Student Problem Select: ${team.name}`
-                        : "Student Problem Select"
-                }
-                team={team}
-                fallbackTeamName="Problem Select"
-                fallbackTeamNumber={team?.teamNumber ?? null}
-                pageError={pageError}
-                pageNotice={pageNotice}
-                isLoading={isLoading}
-                submissions={submissions}
-                getTopActions={(vm) => [
+                return [
                     {
-                        key: "instructions",
-                        label: "Download Instructions",
-                        icon: <FaDownload aria-hidden="true" />,
-                        variant: "highlight",
-                        title: "Download assignment instructions",
+                        key: "upload",
+                        label: "Upload program",
+                        icon: <FaUpload aria-hidden="true" />,
+                        variant: "primary",
+                        title: "Upload a submission for this problem",
                         onClick: () => {
-                            downloadAssignment(vm.project.Id);
+                            navigate(`/student/${vm.project.Id}/submit`);
                         },
                     },
-                ]}
-                getActions={(vm) => {
-                    const canViewOutput = vm.summary.latestSubmissionId !== null;
+                    {
+                        key: "output",
+                        label: "See output",
+                        icon: <FaFileAlt aria-hidden="true" />,
+                        variant: "secondary",
+                        disabled: !canViewOutput,
+                        title: canViewOutput
+                            ? "View your latest submission output"
+                            : "A submission is required to view output.",
+                        onClick: () => {
+                            if (!canViewOutput || vm.summary.latestSubmissionId === null) return;
 
-                    return [
-                        {
-                            key: "upload",
-                            label: "Upload program",
-                            icon: <FaUpload aria-hidden="true" />,
-                            variant: "primary",
-                            title: "Upload a submission for this problem",
-                            onClick: () => {
-                                navigate(`/student/${vm.project.Id}/submit`);
-                            },
+                            navigate(`/submission/${vm.summary.latestSubmissionId}`, {
+                                state: {
+                                    breadcrumbItems: submissionViewBreadcrumbs,
+                                },
+                            });
                         },
-                        {
-                            key: "output",
-                            label: "See output",
-                            icon: <FaFileAlt aria-hidden="true" />,
-                            variant: "secondary",
-                            disabled: !canViewOutput,
-                            title: canViewOutput
-                                ? "View your latest submission output"
-                                : "A submission is required to view output.",
-                            onClick: () => {
-                                if (!canViewOutput || vm.summary.latestSubmissionId === null) return;
-
-                                navigate(`/submission/${vm.summary.latestSubmissionId}`, {
-                                    state: {
-                                        breadcrumbItems: submissionViewBreadcrumbs,
-                                    },
-                                });
-                            },
-                        },
-                    ];
-                }}
-                emptyStateMessage="Problems will appear here once they are available."
-            />
-        </>
+                    },
+                ];
+            }}
+            emptyStateMessage="Problems will appear here once they are available."
+        />
+        
     );
 }

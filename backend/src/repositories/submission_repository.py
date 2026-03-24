@@ -157,12 +157,14 @@ class SubmissionRepository():
     def get_all_submissions_for_project(self, project_id):
         submissions = Submissions.query.filter(Submissions.Project == project_id).all()
         return submissions
-    def create_help_request(self, student_id: int, problem_id: int, description: str) -> int:
+
+    def create_help_request(self, student_id: int, problem_id: int, reason: str, description: str) -> int:
         new_request = HelpRequests(
             StudentId=student_id,
             ProblemId=problem_id,
+            Reason=reason,
             Description=description,
-            Status=0 # Starts at 0 (Not Started)
+            Status=0 # 0 means task has not started
         )
         db.session.add(new_request)
         db.session.commit()
@@ -177,11 +179,10 @@ class SubmissionRepository():
         # Update the status
         req.Status = new_status
         
-        # If admin marks it as complete (2), stamp the current time
+        # FIX: Use utcnow() instead of now() so it matches the database's UTC time
         if new_status == 2:
-            req.CompletedAt = datetime.now()
+            req.CompletedAt = datetime.utcnow() 
         else:
-            # Optional: if they move it back to 'in progress', clear the complete time
             req.CompletedAt = None
             
         db.session.commit()
@@ -190,3 +191,24 @@ class SubmissionRepository():
     def get_all_help_requests(self) -> List[HelpRequests]:
         # Fetches all requests, newest first
         return HelpRequests.query.order_by(desc(HelpRequests.CreatedAt)).all()
+
+    def get_student_help_requests(self, student_id: int) -> List[HelpRequests]:
+        # Fetches requests for a specific student, newest first
+        return HelpRequests.query.filter(
+            HelpRequests.StudentId == student_id
+        ).order_by(desc(HelpRequests.CreatedAt)).all()
+        
+    def delete_help_request(self, request_id: int, student_id: int) -> bool:
+        # Find the request, ensuring it belongs to the student AND is still waiting
+        req = HelpRequests.query.filter(
+            HelpRequests.Id == request_id, 
+            HelpRequests.StudentId == student_id,
+            HelpRequests.Status == 0 # 0 means task has not started
+        ).first()
+        
+        if not req:
+            return False
+            
+        db.session.delete(req)
+        db.session.commit()
+        return True

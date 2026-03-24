@@ -8,6 +8,7 @@ import {
     FaRegClock,
     FaCheckCircle,
     FaPlay,
+    FaUndo,
 } from 'react-icons/fa'
 
 interface HelpRequestsState {
@@ -18,8 +19,10 @@ interface HelpRequestsState {
 interface HelpRequestItem {
     id: number
     studentId: number
+    teamDivision: string
     teamName: string
-    problemId: number | null
+    problemName: string | null
+    reason: string
     description: string
     status: number // 0 = Waiting, 1 = In Progress, 2 = Complete
     createdAt: string
@@ -82,7 +85,7 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
     updateRequestStatus = (id: number, newStatus: number) => {
         axios
             .put(
-                `${import.meta.env.VITE_API_URL}/submission/help-request/${id}`,
+                `${import.meta.env.VITE_API_URL}/submissions/help-request/${id}`,
                 { status: newStatus },
                 {
                     headers: {
@@ -176,22 +179,13 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
         const historyPage = Math.min(this.state.historyPage, totalHistoryPages)
         const historyStart = (historyPage - 1) * pageSize
         const historySlice = historyQuestions.slice(historyStart, historyStart + pageSize)
-
         return (
             <div className="oh-page">
                 <>
-                    <MenuComponent
-                        showUpload={false}
-                        showAdminUpload={true}
-                        showHelp={false}
-                        showCreate={false}
-                        showLast={false}
-                        showReviewButton={false}
-                    ></MenuComponent>
+                    <MenuComponent/>
 
                     <DirectoryBreadcrumbs
                         items={[
-                            { label: "Dashboard", to: "/admin/home" },
                             { label: "Help Requests" },
                         ]}
                     />
@@ -205,8 +199,12 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                                 <tr className="head-row">
                                     <th className="col-status">Status</th>
                                     <th className="col-position">Queue</th>
+                                    <th className="col-role">Role</th>
+                                    <th className="col-division">Division</th>
                                     <th className="col-student">Team Name</th>
-                                    <th className="col-question">Description</th>
+                                    <th className="col-problem">Problem</th>
+                                    <th className="col-reason">Reason</th>
+                                    <th className="col-description">Description</th>
                                     <th className="col-wait">Wait Time</th>
                                     <th className="col-feedback">Actions</th>
                                 </tr>
@@ -238,8 +236,12 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                                             </td>
 
                                             <td className="cell-position">{index + 1}</td>
+                                            <td className="cell-role"><strong>{item.teamName ? "Student" : "Teacher"}</strong></td>
+                                            <td className="cell-division"><strong>{item.teamDivision}</strong></td>
                                             <td className="cell-student"><strong>{item.teamName}</strong></td>
-                                            <td className="cell-question">{item.description}</td>
+                                            <td className="cell-problem">{item.problemName ? item.problemName : "General"}</td>
+                                            <td className="cell-reason">{item.reason}</td>
+                                            <td className="cell-description">{item.description}</td>
                                             <td className="cell-wait">
                                                 {this.formatWaitTimeDisplay(item.createdAt)}
                                             </td>
@@ -274,11 +276,15 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                             <thead className="table-head">
                                 <tr className="head-row">
                                     <th className="col-status">Status</th>
+                                    <th className="col-role">Role</th>
+                                    <th className="col-division">Team Division</th>
                                     <th className="col-student">Team Name</th>
                                     <th className="col-problem">Problem</th>
-                                    <th className="col-question">Description</th>
+                                    <th className="col-reason">Reason</th>
+                                    <th className="col-description">Description</th>
                                     <th className="col-wait">Requested At</th>
                                     <th className="col-feedback">Resolved At</th>
+                                    <th className="col-actions">Actions</th>
                                 </tr>
                             </thead>
 
@@ -297,10 +303,28 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                                                     <FaCheckCircle />
                                                 </span>
                                             </td>
+                                            <td className="cell-role"><strong>{item.teamName ? "Student" : "Teacher"}</strong></td>
+                                            <td className="cell-division"><strong>{item.teamDivision}</strong></td>
                                             <td className="cell-student"><strong>{item.teamName}</strong></td>
-                                            <td className="cell-question">{item.description}</td>
+                                            <td className="cell-problem">{item.problemName?item.problemName:"General"}</td>
+                                            <td className="cell-reason">{item.reason}</td>
+                                            <td className="cell-description">{item.description}</td>
                                             <td className="cell-wait">{this.formatTime(item.createdAt)}</td>
                                             <td className="cell-feedback">{this.formatTime(item.completedAt)}</td>
+                                            <td className="cell-actions">
+                                                <button
+                                                    className="button"
+                                                    style={{ backgroundColor: '#f59e0b', color: 'white', border: 'none' }}
+                                                    onClick={() => {
+                                                        if(window.confirm("Are you sure you want to reopen this request?")) {
+                                                            this.updateRequestStatus(item.id, 0)
+                                                        }
+                                                    }}
+                                                    title="Send back to the active queue"
+                                                >
+                                                    <FaUndo aria-hidden="true" /> Reopen
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))
                                 )}

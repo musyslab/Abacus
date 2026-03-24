@@ -135,7 +135,7 @@ CREATE TABLE HelpRequests (
     Id int NOT NULL AUTO_INCREMENT, 
     StudentId int NOT NULL,
     ProblemId int,
-    ProblemName varchar(255) NOT NULL, 
+    Reason varchar(255) NOT NULL,
     Description text,
     Status int NOT NULL,         
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 

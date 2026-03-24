@@ -99,7 +99,8 @@ class HelpRequests(db.Model):
 
     Id = Column(Integer, primary_key=True, autoincrement=True)
     StudentId = Column(Integer, ForeignKey('StudentUsers.Id'), nullable=False)
-    ProblemId = Column(Integer, ForeignKey('Projects.Id'), nullable=True) 
+    ProblemId = Column(Integer, ForeignKey('Projects.Id'), nullable=True)
+    Reason = Column(String(255), nullable=False)
     Description = Column(Text, nullable=False)
     Status = Column(Integer, default=0, nullable=False)
     # Timestamp

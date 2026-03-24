@@ -450,17 +450,18 @@ def create_help_request(
        return make_response(jsonify({'message': 'Only students can request help'}), HTTPStatus.FORBIDDEN)
         
     data = request.get_json(silent=True) or {}
-    problem_id = data.get("problemId") # Optional based on your frontend
-    problem_name = data.get("problemName")
+    problem_id = data.get("problemId") 
     description = data.get("description")
+    reason = data.get("reason")
     
-    if not problem_name or not description:
-        return make_response(jsonify({'message': 'Problem name and description are required'}), HTTPStatus.BAD_REQUEST)
+    if not reason or not description:
+        return make_response(jsonify({'message': 'Reason, and description are required'}), HTTPStatus.BAD_REQUEST)
         
     new_id = submission_repo.create_help_request(
         student_id=current_user.Id,
         problem_id=problem_id if problem_id else None,
-        description=description
+        description=description,
+        reason=reason
     )
     
     return make_response(jsonify({'message': 'Help request submitted!', 'id': new_id}), HTTPStatus.CREATED)
@@ -496,6 +497,7 @@ def get_all_help_requests(
     submission_repo: SubmissionRepository = Provide[Container.submission_repo],
     user_repo: UserRepository = Provide[Container.user_repo],
     team_repo: TeamRepository = Provide[Container.team_repo],
+    project_repo: ProjectRepository = Provide[Container.project_repo],
 ):
     # Only Admins/Judges should be able to pull the full list
     if getattr(current_user, "Role", None) != ADMIN_ROLE:
@@ -511,12 +513,15 @@ def get_all_help_requests(
         student = user_repo.get_student_by_id(student_id)
         team_id = int(getattr(student, "TeamId", 0) or 0) if student else 0
         team = team_repo.get_team_by_id(team_id) if team_id > 0 else None
+        project = project_repo.get_project_id(getattr(req, "ProblemId", None)) if getattr(req, "ProblemId", None) else None
 
         payload.append({
             "id": getattr(req, "Id", 0),
             "studentId": student_id,
+            "teamDivision": str(getattr(team, "Division", "") or "").strip(),
             "teamName": str(getattr(team, "Name", "") or f"Team {team_id}").strip(),
-            "problemId": getattr(req, "ProblemId", None),
+            "problemName": getattr(project, "Name", None) if project else None,
+            "reason": str(getattr(req, "Reason", "") or "").strip(),
             "description": str(getattr(req, "Description", "") or "").strip(),
             "status": getattr(req, "Status", 0), # 0 = Not Started, 1 = In Progress, 2 = Complete
             "createdAt": req.CreatedAt.isoformat() if getattr(req, "CreatedAt", None) else None,
@@ -524,3 +529,51 @@ def get_all_help_requests(
         })
 
     return make_response(jsonify(payload), HTTPStatus.OK)
+
+@submission_api.route('/my-help-requests', methods=['GET'])
+@jwt_required()
+@inject
+def get_my_help_requests(
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo],
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+):
+    # Only students can view their own requests
+    if not isinstance(current_user, StudentUsers):
+        return make_response(jsonify({'message': 'Only students can view their requests'}), HTTPStatus.FORBIDDEN)
+
+    requests = submission_repo.get_student_help_requests(current_user.Id)
+    
+    payload = []
+    for req in requests:
+        # Get the problem name if a problem ID exists
+        project = project_repo.get_project_id(getattr(req, "ProblemId", None)) if getattr(req, "ProblemId", None) else None
+
+        payload.append({
+            "id": getattr(req, "Id", 0),
+            "problemName": getattr(project, "Name", None) if project else None,
+            "reason": str(getattr(req, "Reason", "") or "").strip(),
+            "description": str(getattr(req, "Description", "") or "").strip(),
+            "status": getattr(req, "Status", 0), # 0 = Not Started, 1 = In Progress, 2 = Complete
+            "createdAt": req.CreatedAt.isoformat() if getattr(req, "CreatedAt", None) else None,
+            "completedAt": req.CompletedAt.isoformat() if getattr(req, "CompletedAt", None) else None
+        })
+
+    return make_response(jsonify(payload), HTTPStatus.OK)
+
+@submission_api.route('/help-request/<int:request_id>', methods=['DELETE'])
+@jwt_required()
+@inject
+def cancel_help_request(
+    request_id: int,
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo]
+):
+    # Only students should be able to cancel their own requests
+    if not isinstance(current_user, StudentUsers):
+        return make_response(jsonify({'message': 'Only students can cancel requests'}), HTTPStatus.FORBIDDEN)
+        
+    success = submission_repo.delete_help_request(request_id, current_user.Id)
+    
+    if not success:
+        return make_response(jsonify({'message': 'Request not found, or it is already being helped by a judge.'}), HTTPStatus.NOT_FOUND)
+        
+    return make_response(jsonify({'message': 'Request cancelled successfully'}), HTTPStatus.OK)

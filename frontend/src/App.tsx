@@ -28,6 +28,8 @@ import SubmissionView from './pages/abacus/SubmissionView';
 
 import ProtectedRoute from './pages/components/ProtectedRoute';
 import AdminHelpRequests from './pages/abacus/AdminHelpRequests';
+import StudentHelpRequests from './pages/abacus/StudentHelpRequests';
+
 
 class App extends Component {
 
@@ -156,6 +158,11 @@ class App extends Component {
                     <Route path = "/admin/help-requests" element={
                         <ProtectedRoute requiredAdminRole={1}>
                             <AdminHelpRequests />
+                        </ProtectedRoute>
+                    } />
+                    <Route path = "/student/help-requests" element={
+                        <ProtectedRoute>
+                            <StudentHelpRequests />
                         </ProtectedRoute>
                     } />
                     {/* Catch-all for 404 */}
