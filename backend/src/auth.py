@@ -21,15 +21,21 @@ from src.repositories.user_repository import UserRepository
 
 auth_api = Blueprint("auth_api", __name__)
 
-# ToDo: Don't Hardcode
-PASSWORD_TOKEN_SALT = "autota-password-token"
-PASSWORD_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24  # 24 hours
-
 def require_env(name: str) -> str:
     value = (os.environ.get(name) or "").strip()
     if not value:
         raise RuntimeError(f"{name} is not set.")
     return value
+
+def require_int_env(name: str) -> int:
+    value = require_env(name)
+    try:
+        return int(value)
+    except ValueError as e:
+        raise RuntimeError(f"{name} must be an integer.") from e
+
+PASSWORD_TOKEN_SALT = require_env("PASSWORD_TOKEN_SALT")
+PASSWORD_TOKEN_MAX_AGE_SECONDS = require_int_env("PASSWORD_TOKEN_MAX_AGE_SECONDS")
 
 def frontend_base_url() -> str:
     # The React app URL must come from the real process environment.
