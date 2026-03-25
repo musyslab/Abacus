@@ -37,6 +37,13 @@ def require_int_env(name: str) -> int:
 PASSWORD_TOKEN_SALT = require_env("PASSWORD_TOKEN_SALT")
 PASSWORD_TOKEN_MAX_AGE_SECONDS = require_int_env("PASSWORD_TOKEN_MAX_AGE_SECONDS")
 
+# Schools where students may not be able to receive email directly, so password
+# emails should CC the teacher if the teacher email matches one of these suffixes.
+TEACHER_EMAIL_ENDSWITH = [
+    "@milwaukee.k12.wi.us",
+    "@depere.k12.wi.us",
+]
+
 def frontend_base_url() -> str:
     # The React app URL must come from the real process environment.
     # No localhost fallback. No Flask-config fallback.
@@ -78,7 +85,14 @@ def decode_password_token(token: str) -> dict:
 def build_password_link(token: str) -> str:
     return f"{frontend_base_url()}/set-password?token={token}"
 
-def milwaukee_teacher_cc_email(student: Optional[StudentUsers], user_repo: UserRepository) -> Optional[str]:
+def teacher_cc_email_for_restricted_student_email_schools(
+    student: Optional[StudentUsers],
+    user_repo: UserRepository,
+) -> Optional[str]:
+    """
+    Returns the teacher email to CC for schools where students cannot receive
+    email directly and password/setup emails should also go to the teacher.
+    """
     if not student:
         return None
 
@@ -89,7 +103,7 @@ def milwaukee_teacher_cc_email(student: Optional[StudentUsers], user_repo: UserR
     teacher = user_repo.get_admin_by_id(teacher_id)
     teacher_email = (getattr(teacher, "Email", "") or "").strip().lower() if teacher else ""
 
-    if teacher_email.endswith("@milwaukee.k12.wi.us"):
+    if any(teacher_email.endswith(suffix) for suffix in TEACHER_EMAIL_ENDSWITH):
         return teacher_email
 
     return None
@@ -471,7 +485,7 @@ def delete_student_user(
 @auth_api.route("/student/invite", methods=["POST"])
 @jwt_required()
 @inject
-def invite_student_stub(
+def send_student_password_link(
     user_repo: UserRepository = Provide[Container.user_repo],
     team_repo: TeamRepository = Provide[Container.team_repo],
 ):
@@ -531,7 +545,7 @@ def invite_student_stub(
         )
 
     try:
-        cc_email = milwaukee_teacher_cc_email(student, user_repo)
+        cc_email = teacher_cc_email_for_restricted_student_email_schools(student, user_repo)
         token = create_password_token("student", student.Id, student.PasswordHash or "")
         link = build_password_link(token)
         send_password_link_email(
@@ -591,7 +605,7 @@ def request_student_password_reset(user_repo: UserRepository = Provide[Container
         student = user_repo.get_student_by_emailhash(email_hash)
         if student and (not DEBUGGER_MODE):
             try:
-                cc_email = milwaukee_teacher_cc_email(student, user_repo)
+                cc_email = teacher_cc_email_for_restricted_student_email_schools(student, user_repo)
                 token = create_password_token("student", student.Id, student.PasswordHash or "")
                 link = build_password_link(token)
                 send_password_link_email(
