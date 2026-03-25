@@ -171,6 +171,18 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                             <div className="menu__right">
                                 {loggedIn ? (
                                     <>
+                                        {this.state.isRoleLoaded && !this.state.isAdminRole && (
+                                            <Link to="/student/help-requests" className="menu__item menu__item--link" title="My Help Requests">
+                                                <FaQuestionCircle className="menu__icon" aria-hidden="true" />
+                                                <span className="menu__text">Help Requests</span>
+                                            </Link>
+                                        )}
+                                        {this.state.isRoleLoaded && this.state.isAdminRole && (
+                                            <Link to="/admin/help-requests" className="menu__item menu__item--link" title="View Help Queue">
+                                                <FaClipboardList className="menu__icon" aria-hidden="true" />
+                                                <span className="menu__text">Help Queue</span>
+                                            </Link>
+                                        )}
                                         <button type="button" className="menu__item" onClick={this.handleRoleHome}>
                                             <FaHome className="menu__icon" aria-hidden="true" />
                                             <span className="menu__text">{this.state.dashboardLabel}</span>
@@ -210,6 +222,18 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                             <div className="menu__right">
                                 {loggedIn ? (
                                     <>
+                                        {this.state.isRoleLoaded && !this.state.isAdminRole && (
+                                            <Link to="/student/help-requests" className="menu__item menu__item--link" title="My Help Requests">
+                                                <FaQuestionCircle className="menu__icon" aria-hidden="true" />
+                                                <span className="menu__text">Help Requests</span>
+                                            </Link>
+                                        )}
+                                        {this.state.isRoleLoaded && this.state.isAdminRole && (
+                                            <Link to="/admin/help-requests" className="menu__item menu__item--link" title="View Help Queue">
+                                                <FaClipboardList className="menu__icon" aria-hidden="true" />
+                                                <span className="menu__text">Help Queue</span>
+                                            </Link>
+                                        )}
                                         <button type="button" className="menu__item" onClick={this.handleRoleHome}>
                                             <FaHome className="menu__icon" aria-hidden="true" />
                                             <span className="menu__text">{this.state.dashboardLabel}</span>
@@ -254,18 +278,19 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                             </button>
 
                             <div className="menu__right">
-                                {this.state.isStudent && (
-                                    <button
-                                        type="button"
+                                {this.state.isRoleLoaded && !this.state.isAdminRole && (
+                                    <Link
+                                        to="/student/help-requests"
                                         className="menu__item menu__item--link"
-                                        onClick={this.props.onRequestHelp}
-                                        title="Request Help"
+                                        title="My Help Requests"
                                     >
                                         <FaQuestionCircle className="menu__icon" aria-hidden="true" />
-                                        <span className="menu__text">Request Help</span>
-                                    </button>
+                                        <span className="menu__text">Help Requests</span>
+                                    </Link>
                                 )}
-                                {this.state.isAdminRole && (
+                                
+                                {/* Only show for Admins */}
+                                {this.state.isRoleLoaded && this.state.isAdminRole && (
                                     <Link
                                         to="/admin/help-requests"
                                         className="menu__item menu__item--link"

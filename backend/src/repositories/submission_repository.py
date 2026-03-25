@@ -158,9 +158,10 @@ class SubmissionRepository():
         submissions = Submissions.query.filter(Submissions.Project == project_id).all()
         return submissions
 
-    def create_help_request(self, student_id: int, problem_id: int, reason: str, description: str) -> int:
+    def create_help_request(self, student_id: int, teacher_id: int, problem_id: int, reason: str, description: str) -> int:
         new_request = HelpRequests(
             StudentId=student_id,
+            TeacherId=teacher_id,
             ProblemId=problem_id,
             Reason=reason,
             Description=description,
@@ -171,15 +172,14 @@ class SubmissionRepository():
         return new_request.Id
 
     def update_help_request_status(self, request_id: int, new_status: int) -> bool:
-        # Find the request
+
         req = HelpRequests.query.filter(HelpRequests.Id == request_id).first()
         if not req:
             return False
         
-        # Update the status
+    
         req.Status = new_status
         
-        # FIX: Use utcnow() instead of now() so it matches the database's UTC time
         if new_status == 2:
             req.CompletedAt = datetime.utcnow() 
         else:
@@ -189,17 +189,18 @@ class SubmissionRepository():
         return True
         
     def get_all_help_requests(self) -> List[HelpRequests]:
-        # Fetches all requests, newest first
+
         return HelpRequests.query.order_by(desc(HelpRequests.CreatedAt)).all()
 
-    def get_student_help_requests(self, student_id: int) -> List[HelpRequests]:
-        # Fetches requests for a specific student, newest first
+    def get_student_help_requests(self, student_id: int, teacher_id: int) -> List[HelpRequests]:
+
         return HelpRequests.query.filter(
-            HelpRequests.StudentId == student_id
+            HelpRequests.StudentId == student_id,
+            HelpRequests.TeacherId == teacher_id
         ).order_by(desc(HelpRequests.CreatedAt)).all()
-        
+
     def delete_help_request(self, request_id: int, student_id: int) -> bool:
-        # Find the request, ensuring it belongs to the student AND is still waiting
+
         req = HelpRequests.query.filter(
             HelpRequests.Id == request_id, 
             HelpRequests.StudentId == student_id,

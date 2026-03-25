@@ -133,7 +133,8 @@ CREATE TABLE `Testcases` (
 -- ============================================
 CREATE TABLE HelpRequests (
     Id int NOT NULL AUTO_INCREMENT, 
-    StudentId int NOT NULL,
+    StudentId int,
+    TeacherId int,
     ProblemId int,
     Reason varchar(255) NOT NULL,
     Description text,
@@ -143,6 +144,7 @@ CREATE TABLE HelpRequests (
     PRIMARY KEY (`Id`),
     UNIQUE KEY `Id_UNIQUE` (`Id`),
     FOREIGN KEY (`StudentId`) REFERENCES StudentUsers(Id) ON DELETE CASCADE,
+    FOREIGN KEY (`TeacherId`) REFERENCES AdminUsers(Id) ON DELETE SET NULL,
     FOREIGN KEY (`ProblemId`) REFERENCES Projects(Id) ON DELETE SET NULL                
 )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 

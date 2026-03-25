@@ -1,6 +1,6 @@
 import { Component } from 'react'
 import axios from 'axios'
-import '../../styling/AdminHelpRequests.scss' 
+import '../../styling/HelpRequests.scss' 
 import MenuComponent from '../components/MenuComponent'
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs"
 import {
@@ -19,6 +19,7 @@ interface HelpRequestsState {
 interface HelpRequestItem {
     id: number
     studentId: number
+    teacherId: number
     teamDivision: string
     teamName: string
     problemName: string | null
@@ -49,12 +50,10 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
     }
 
     componentDidUpdate(_prevProps: {}, prevState: HelpRequestsState) {
-        // Clamp history page if the history size shrinks
         if (prevState.helpRequests !== this.state.helpRequests) {
             const history = this.state.helpRequests.filter((q) => q.status === 2)
             const totalPages = Math.max(1, Math.ceil(history.length / 5))
             if (this.state.historyPage > totalPages) {
-                // eslint-disable-next-line react/no-did-update-set-state
                 this.setState({ historyPage: totalPages })
             }
         }
@@ -81,7 +80,6 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
             })
     }
 
-    // Handles changing status (0 -> 1 -> 2)
     updateRequestStatus = (id: number, newStatus: number) => {
         axios
             .put(
@@ -95,7 +93,7 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                 }
             )
             .then(() => {
-                this.fetchRequests() // Refresh the queue immediately
+                this.fetchRequests() 
             })
             .catch((err) => {
                 console.error("Failed to update status:", err)
@@ -105,10 +103,8 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
     calculateTimeDifference = (timestampStr: string) => {
         if (!timestampStr) return 0
 
-        // 1. Replace space with T (Safari compatibility)
         let safeTimestampStr = timestampStr.replace(" ", "T")
         
-        // 2. Force the browser to treat it as UTC by appending 'Z'
         if (!safeTimestampStr.endsWith("Z")) {
             safeTimestampStr += "Z"
         }
@@ -125,21 +121,19 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
     formatTime = (timestampStr: string | null) => {
         if (!timestampStr) return "—"
         
-        // Do the exact same UTC fix for the visual timestamps!
         let safeTimestampStr = timestampStr.replace(" ", "T")
         if (!safeTimestampStr.endsWith("Z")) {
             safeTimestampStr += "Z"
         }
 
-        // Now when it prints the time, it will perfectly match the judge's local clock
         return new Date(safeTimestampStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
 
     startFetchingInterval() {
         this.fetchRequests()
-        // Poll every 30 seconds for a live competition environment
         this.fetchIntervalId = window.setInterval(this.fetchRequests, 30000) 
     }
+    
     formatWaitTimeDisplay = (timestampStr: string) => {
         const totalMinutes = this.calculateTimeDifference(timestampStr);
         
@@ -164,21 +158,23 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
     render() {
         const { helpRequests } = this.state
 
-        // Queue: Status 0 (Waiting) or 1 (In Progress)
-        const queueQuestions = helpRequests
+        const allActiveQuestions = helpRequests
             .filter((q) => q.status !== 2)
-            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) // Oldest first
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) 
 
-        // History: Status 2 (Completed)
+        const studentQueue = allActiveQuestions.filter((q) => q.studentId !== 0)
+        const teacherQueue = allActiveQuestions.filter((q) => q.studentId === 0)
+
         const historyQuestions = helpRequests
             .filter((q) => q.status === 2)
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) // Newest first
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) 
 
         const pageSize = 5
         const totalHistoryPages = Math.max(1, Math.ceil(historyQuestions.length / pageSize))
         const historyPage = Math.min(this.state.historyPage, totalHistoryPages)
         const historyStart = (historyPage - 1) * pageSize
         const historySlice = historyQuestions.slice(historyStart, historyStart + pageSize)
+
         return (
             <div className="oh-page">
                 <>
@@ -192,14 +188,14 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
 
                     <div className="pageTitle">Help Requests</div>
 
+                    {/* ======================= STUDENT QUEUE ======================= */}
                     <div className="table-section">
-                        <div className="tableTitle">Current Queue</div>
+                        <div className="tableTitle">Student Queue</div>
                         <table border={1} className="question-queue-table oh-table">
                             <thead className="table-head">
                                 <tr className="head-row">
                                     <th className="col-status">Status</th>
                                     <th className="col-position">Queue</th>
-                                    <th className="col-role">Role</th>
                                     <th className="col-division">Division</th>
                                     <th className="col-student">Team Name</th>
                                     <th className="col-problem">Problem</th>
@@ -211,14 +207,14 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                             </thead>
 
                             <tbody className="table-body">
-                                {queueQuestions.length === 0 ? (
+                                {studentQueue.length === 0 ? (
                                     <tr className="empty-row">
-                                        <td className="empty-cell" colSpan={7}>
-                                            No teams are currently waiting for help.
+                                        <td className="empty-cell" colSpan={9}>
+                                            No students are currently waiting for help.
                                         </td>
                                     </tr>
                                 ) : (
-                                    queueQuestions.map((item: HelpRequestItem, index) => (
+                                    studentQueue.map((item: HelpRequestItem, index) => (
                                         <tr
                                             key={item.id}
                                             className={`data-row ${item.status === 1 ? 'is-in-oh' : ''}`}
@@ -236,9 +232,8 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                                             </td>
 
                                             <td className="cell-position">{index + 1}</td>
-                                            <td className="cell-role"><strong>{item.teamName ? "Student" : "Teacher"}</strong></td>
-                                            <td className="cell-division"><strong>{item.teamDivision}</strong></td>
-                                            <td className="cell-student"><strong>{item.teamName}</strong></td>
+                                            <td className="cell-division"><strong>{item.teamDivision ? item.teamDivision : "N/A"}</strong></td>
+                                            <td className="cell-student"><strong>{item.teamName !== "Team 0" ? item.teamName : "N/A"}</strong></td>
                                             <td className="cell-problem">{item.problemName ? item.problemName : "General"}</td>
                                             <td className="cell-reason">{item.reason}</td>
                                             <td className="cell-description">{item.description}</td>
@@ -270,7 +265,83 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                         </table>
                     </div>
 
-                    <div className="table-section">
+                    {/* ======================= TEACHER QUEUE ======================= */}
+                    <div className="table-section" style={{ marginTop: '2rem' }}>
+                        <div className="tableTitle">Teacher Queue</div>
+                        <table border={1} className="question-queue-table oh-table">
+                            <thead className="table-head">
+                                <tr className="head-row">
+                                    <th className="col-status">Status</th>
+                                    <th className="col-position">Queue</th>
+                                    <th className="col-student">Name</th>
+                                    <th className="col-problem">Problem</th>
+                                    <th className="col-reason">Reason</th>
+                                    <th className="col-description">Description</th>
+                                    <th className="col-wait">Wait Time</th>
+                                    <th className="col-feedback">Actions</th>
+                                </tr>
+                            </thead>
+
+                            <tbody className="table-body">
+                                {teacherQueue.length === 0 ? (
+                                    <tr className="empty-row">
+                                        <td className="empty-cell" colSpan={8}>
+                                            No teachers are currently waiting for help.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    teacherQueue.map((item: HelpRequestItem, index) => (
+                                        <tr
+                                            key={item.id}
+                                            className={`data-row ${item.status === 1 ? 'is-in-oh' : ''}`}
+                                        >
+                                            <td className="cell-status" aria-label={item.status === 1 ? 'In Progress' : 'Waiting'}>
+                                                {item.status === 1 ? (
+                                                    <span className="status in-oh" aria-hidden="true" title="A judge is helping them">
+                                                        <FaHandshake />
+                                                    </span>
+                                                ) : (
+                                                    <span className="status waiting" aria-hidden="true" title="Waiting in queue">
+                                                        <FaRegClock />
+                                                    </span>
+                                                )}
+                                            </td>
+
+                                            <td className="cell-position">{index + 1}</td>
+                                            <td className="cell-student"><strong>{item.teamName ? item.teamName : "N/A"}</strong></td>
+                                            <td className="cell-problem">{item.problemName ? item.problemName : "General"}</td>
+                                            <td className="cell-reason">{item.reason}</td>
+                                            <td className="cell-description">{item.description}</td>
+                                            <td className="cell-wait">
+                                                {this.formatWaitTimeDisplay(item.createdAt)}
+                                            </td>
+
+                                            <td className="cell-feedback">
+                                                {item.status === 0 ? (
+                                                    <button
+                                                        className="button button-accept"
+                                                        onClick={() => this.updateRequestStatus(item.id, 1)}
+                                                    >
+                                                        <FaPlay aria-hidden="true" /> Start Helping
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        className="button button-completed"
+                                                        onClick={() => this.updateRequestStatus(item.id, 2)}
+                                                    >
+                                                        <FaCheckCircle aria-hidden="true" /> Resolve
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* ======================= HISTORY TABLE ======================= */}
+                    <div className="table-section" style={{ marginTop: '2rem' }}>
                         <div className="tableTitle">History</div>
                         <table border={1} className="question-queue-table oh-table history-table">
                             <thead className="table-head">
@@ -278,7 +349,7 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                                     <th className="col-status">Status</th>
                                     <th className="col-role">Role</th>
                                     <th className="col-division">Team Division</th>
-                                    <th className="col-student">Team Name</th>
+                                    <th className="col-student">Team/Teacher Name</th>
                                     <th className="col-problem">Problem</th>
                                     <th className="col-reason">Reason</th>
                                     <th className="col-description">Description</th>
@@ -291,7 +362,7 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                             <tbody className="table-body">
                                 {historyQuestions.length === 0 ? (
                                     <tr className="empty-row">
-                                        <td className="empty-cell" colSpan={6}>
+                                        <td className="empty-cell" colSpan={10}>
                                             No history yet.
                                         </td>
                                     </tr>
@@ -303,9 +374,9 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                                                     <FaCheckCircle />
                                                 </span>
                                             </td>
-                                            <td className="cell-role"><strong>{item.teamName ? "Student" : "Teacher"}</strong></td>
-                                            <td className="cell-division"><strong>{item.teamDivision}</strong></td>
-                                            <td className="cell-student"><strong>{item.teamName}</strong></td>
+                                            <td className="cell-role"><strong>{item.studentId === 0 ? "Teacher" : "Student"}</strong></td>
+                                            <td className="cell-division"><strong>{item.teamDivision ? item.teamDivision : "N/A"}</strong></td>
+                                            <td className="cell-student"><strong>{item.teamName ? item.teamName : "N/A"}</strong></td>
                                             <td className="cell-problem">{item.problemName?item.problemName:"General"}</td>
                                             <td className="cell-reason">{item.reason}</td>
                                             <td className="cell-description">{item.description}</td>

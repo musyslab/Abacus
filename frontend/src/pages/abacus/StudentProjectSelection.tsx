@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import HelpModal from "../components/HelpModal";
 import { useNavigate } from "react-router-dom";
 import { FaDownload, FaFileAlt, FaUpload } from "react-icons/fa";
 

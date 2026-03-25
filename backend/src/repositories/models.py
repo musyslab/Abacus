@@ -98,7 +98,8 @@ class HelpRequests(db.Model):
     __tablename__ = "HelpRequests"
 
     Id = Column(Integer, primary_key=True, autoincrement=True)
-    StudentId = Column(Integer, ForeignKey('StudentUsers.Id'), nullable=False)
+    StudentId = Column(Integer, ForeignKey('StudentUsers.Id'), nullable=True)
+    TeacherId = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=True)
     ProblemId = Column(Integer, ForeignKey('Projects.Id'), nullable=True)
     Reason = Column(String(255), nullable=False)
     Description = Column(Text, nullable=False)

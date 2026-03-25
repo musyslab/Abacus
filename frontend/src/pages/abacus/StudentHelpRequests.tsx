@@ -3,8 +3,8 @@ import axios from 'axios';
 import { FaPaperPlane, FaRegClock, FaHandshake, FaCheckCircle } from 'react-icons/fa';
 import MenuComponent from '../components/MenuComponent';
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
-import '../../styling/AdminHelpRequests.scss'; // Reusing the admin styling
-import '../../styling/HelpModal.scss'; // Keeping this for the form elements
+import '../../styling/HelpRequests.scss';
+
 
 interface HelpRequestItem {
     id: number;
