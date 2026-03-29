@@ -1,0 +1,87 @@
+.gold-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: #f5f7fb;
+  }
+  
+  .gold-card {
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    width: 400px;
+    text-align: center;
+  }
+  
+  .gold-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+  
+  .gold-subtitle {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 20px;
+  }
+  
+  .gold-input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #ccc;
+    margin-bottom: 15px;
+    font-size: 14px;
+    transition: border 0.2s ease;
+  }
+  
+  .gold-input:focus {
+    border-color: #4f46e5;
+    outline: none;
+  }
+  
+  .gold-button {
+    width: 100%;
+    padding: 12px;
+    background: #4f46e5;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+  
+  .gold-button:hover {
+    background: #4338ca;
+  }
+  
+  .gold-button:disabled {
+    background: #aaa;
+    cursor: not-allowed;
+  }
+  
+  .gold-message {
+    margin-top: 15px;
+    font-size: 14px;
+  }
+
+  .preview-container {
+    margin-bottom: 15px;
+    text-align: center;
+  }
+  
+  .preview-label {
+    font-size: 13px;
+    color: #555;
+    margin-bottom: 8px;
+  }
+  
+  .preview-frame {
+    width: 100%;
+    height: 300px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+  }
