@@ -13,6 +13,13 @@ import ProblemSubmissionsDashboard, {
     TeamDashboardTeam,
     TeamProblemSummary,
 } from "../components/ProblemSubmissionsDashboard";
+import {
+    CompetitionSchedule,
+    fetchCompetitionSchedule,
+    filterProjectsForCurrentStage,
+    getCompetitionStage,
+    CompetitionStage,
+} from "../components/CompetitionStageStatus";
 
 type TeamMeResponse = {
     id: number;
@@ -31,6 +38,9 @@ export default function StudentProjectSelection() {
 
     const [team, setTeam] = useState<TeamDashboardTeam | null>(null);
     const [projects, setProjects] = useState<ProjectObject[]>([]);
+    const [competitionSchedule, setCompetitionSchedule] =
+        useState<CompetitionSchedule | null>(null);
+    const [stageCheckTime] = useState<Date>(() => new Date());
     const [summaryByProject, setSummaryByProject] = useState<Record<number, TeamProblemSummary>>(
         {}
     );
@@ -116,7 +126,7 @@ export default function StudentProjectSelection() {
 
             setTeam(resolvedTeam);
 
-            const [projectsResult, summaryResult] = await Promise.allSettled([
+            const [projectsResult, summaryResult, scheduleResult] = await Promise.allSettled([
                 axios.get<ProjectObject[]>(`${apiBase}/projects/all_projects`, authConfig()),
                 axios.get(`${apiBase}/teams/submissions/summary`, {
                     ...authConfig(),
@@ -124,6 +134,7 @@ export default function StudentProjectSelection() {
                         team_id: resolvedTeam.id,
                     },
                 }),
+                fetchCompetitionSchedule(apiBase),
             ]);
 
             if (projectsResult.status === "fulfilled") {
@@ -145,9 +156,18 @@ export default function StudentProjectSelection() {
                 setSummaryByProject(buildSummaryMap(rows));
             } else {
                 setSummaryByProject({});
-                setPageNotice(
-                    "Problem list loaded, but the team submission summary endpoint is not returning data yet. Add GET /teams/submissions/summary to populate testcase totals and latest submission details."
-                );
+                const msg =
+                    (summaryResult.reason as any)?.response?.data?.message ||
+                    (summaryResult.reason as any)?.message ||
+                    "Problem list loaded, but the team submission summary endpoint is not returning data yet. Add GET /teams/submissions/summary to populate testcase totals and latest submission details.";
+                setPageNotice(msg);
+            }
+
+            if (scheduleResult.status === "fulfilled") {
+                setCompetitionSchedule(scheduleResult.value);
+            } else {
+                setCompetitionSchedule(null);
+                setPageError((prev) => prev || "Failed to load competition schedule.");
             }
         } catch (err: any) {
             const msg =
@@ -162,10 +182,33 @@ export default function StudentProjectSelection() {
             setIsLoading(false);
         }
     }
-    
+
+    const viewerStage = useMemo<CompetitionStage | null>(() => {
+        if (!competitionSchedule) return null;
+        return getCompetitionStage(competitionSchedule, stageCheckTime, "student");
+    }, [competitionSchedule, stageCheckTime]);
+
     const submissions = useMemo(() => {
-        return buildTeamSubmissionViewModels(projects, summaryByProject);
-    }, [projects, summaryByProject]);
+        const visibleProjects = filterProjectsForCurrentStage(
+            projects,
+            competitionSchedule,
+            stageCheckTime,
+            "student"
+        );
+        return buildTeamSubmissionViewModels(visibleProjects, summaryByProject);
+    }, [projects, summaryByProject, competitionSchedule, stageCheckTime]);
+
+    const stageNotice =
+        viewerStage === "over"
+            ? "Submissions and assignment descriptions will unlock 24 hours after the competition ends."
+            : "";
+
+    const resolvedPageNotice = pageNotice || stageNotice;
+
+    const emptyStateMessage =
+        viewerStage === "over"
+            ? "Submissions will unlock 24 hours after the competition ends."
+            : "Problems will appear here once they are available.";
 
     const breadcrumbs = [{ label: "Student Problem Select" }];
 
@@ -183,6 +226,7 @@ export default function StudentProjectSelection() {
             }}
             breadcrumbs={breadcrumbs}
             breadcrumbTrailingSeparator={true}
+            stageStatusAudience="student"
             dashboardTitle={
                 team?.name
                     ? `Student Problem Select: ${team.name}`
@@ -192,7 +236,7 @@ export default function StudentProjectSelection() {
             fallbackTeamName="Problem Select"
             fallbackTeamNumber={team?.teamNumber ?? null}
             pageError={pageError}
-            pageNotice={pageNotice}
+            pageNotice={resolvedPageNotice}
             isLoading={isLoading}
             submissions={submissions}
             getTopActions={(vm) => [
@@ -242,7 +286,7 @@ export default function StudentProjectSelection() {
                     },
                 ];
             }}
-            emptyStateMessage="Problems will appear here once they are available."
+            emptyStateMessage={emptyStateMessage}
         />
         
     );

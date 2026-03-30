@@ -26,6 +26,14 @@ class ProjectRepository():
         """
         return Projects.query.order_by(asc(Projects.Id)).all()
 
+    def get_projects_by_type(self, project_type: str) -> list[Projects]:
+        return (
+            Projects.query
+            .filter(Projects.Type == project_type)
+            .order_by(asc(Projects.OrderIndex), asc(Projects.Id))
+            .all()
+        )
+
     def get_selected_project(self, project_id: int) -> Projects:
         """[summary]
         Args:
@@ -38,8 +46,8 @@ class ProjectRepository():
         return project
 
     
-    def create_project(self, name: str, language:str, project_type:str, difficulty:str, order_index: int | None, file_path:str, description_path:str, additional_file_path:str):
-        project = Projects(Name=name, Language=language, Type=project_type, Difficulty=difficulty, OrderIndex=order_index, solutionpath=file_path, AsnDescriptionPath=description_path, AdditionalFilePath=additional_file_path)
+    def create_project(self, name: str, language:str, project_type:str, order_index: int | None, file_path:str, description_path:str, additional_file_path:str):
+        project = Projects(Name=name, Language=language, Type=project_type, OrderIndex=order_index, solutionpath=file_path, AsnDescriptionPath=description_path, AdditionalFilePath=additional_file_path)
         db.session.add(project)
         db.session.commit()
         return project.Id
@@ -63,7 +71,6 @@ class ProjectRepository():
             "language": str(project_data.Language),
             "name": str(project_data.Name),
             "type": str(project_data.Type),
-            "difficulty": str(project_data.Difficulty),
             "solutionFile": str(project_solutionFile),
             "descriptionFile": str(project_descriptionfile),
             "additionalFiles": project_additionalfiles
@@ -71,12 +78,11 @@ class ProjectRepository():
 
         return project
 
-    def edit_project(self, name: str, language:str, project_type: str, difficulty: str, order_index: int | None, project_id:int, path:str, description_path:str, additional_file_path:str):
+    def edit_project(self, name: str, language:str, project_type: str, order_index: int | None, project_id:int, path:str, description_path:str, additional_file_path:str):
         project = Projects.query.filter(Projects.Id == project_id).first()
         project.Name = name
         project.Language = language
         project.Type = project_type
-        project.Difficulty = difficulty
         project.solutionpath = path
         project.AsnDescriptionPath = description_path
         project.AdditionalFilePath = additional_file_path
@@ -89,35 +95,43 @@ class ProjectRepository():
     
     def edit_project_order(self, project_id: int, new_order_index: int):
         project = Projects.query.filter(Projects.Id == project_id).first()
-        if project and project.Type == "competition":
+        if project:
             project.OrderIndex = new_order_index
             db.session.commit()
 
-    def get_next_order_index(self) -> Optional[int]:
+    def get_next_order_index(self, project_type: str) -> Optional[int]:
         """
-        Returns the next available order index (1..10) for competition.
-        If all 10 slots are taken, returns None.
+        Returns the next available order index for a project type.
+        Competition projects are capped at COMPETITION_PROBLEM_MAX.
+        Practice projects are not capped.
         """
         rows = (
-            Projects.query.filter(Projects.Type == "competition", Projects.OrderIndex.isnot(None)).order_by(asc(Projects.OrderIndex)).all()
+            Projects.query
+            .filter(Projects.Type == project_type, Projects.OrderIndex.isnot(None))
+            .order_by(asc(Projects.OrderIndex))
+            .all()
         )
 
         used = {
             int(row.OrderIndex) for row in rows
-            if row.OrderIndex is not None and 1 <= int(row.OrderIndex) <= COMPETITION_PROBLEM_MAX
+            if row.OrderIndex is not None and int(row.OrderIndex) >= 1
         }
-        
-        for i in range(1, COMPETITION_PROBLEM_MAX + 1):
-            if i not in used:
-                return i
-        return None
+
+        next_index = 1
+        while next_index in used:
+            next_index += 1
+
+        if project_type == "competition" and next_index > COMPETITION_PROBLEM_MAX:
+            return None
+
+        return next_index
 
     def get_project_order_index(self, project_id: int) -> Optional[int]:
         """
         Returns the order index for a given project ID, or None if not set.
         """
         project = Projects.query.filter(Projects.Id == project_id).first()
-        if project and project.Type == "competition":
+        if project:
             return project.OrderIndex
         return None
 

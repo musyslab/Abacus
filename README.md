@@ -90,6 +90,6 @@ Get a github personal access token (PAT)
 
 ```cd into the frontend/backend directory```
 
-```docker build -f Dockerfile.prod -t ghcr.io/musyslab/tabot-<frontend/backend>:v<VERSION_NUMBER> .```
+```docker build -f Dockerfile.prod -t ghcr.io/musyslab/abacus-<frontend/backend>:v<VERSION_NUMBER> .```
 
-```docker push ghcr.io/musyslab/tabot-<frontend/backend>:v<VERSION_NUMBER>```
+```docker push ghcr.io/musyslab/abacus-<frontend/backend>:v<VERSION_NUMBER>```

@@ -39,14 +39,13 @@ CREATE TABLE `Projects` (
   `Name` varchar(1000) NOT NULL,
   `Language` varchar(45) NOT NULL,
   `Type` varchar(20) NOT NULL,
-  `Difficulty` varchar(10) NOT NULL,
   `OrderIndex` int DEFAULT NULL,
   `solutionpath` varchar(1000) DEFAULT NULL,
   `AsnDescriptionPath` varchar(1000) DEFAULT NULL,
   `AdditionalFilePath` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `idProjects_UNIQUE` (`Id`),
-  UNIQUE KEY `projects_orderindex_unique` (`OrderIndex`)
+  KEY `idx_projects_type_orderindex` (`Type`,`OrderIndex`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
