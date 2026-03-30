@@ -47,6 +47,7 @@ export default function StudentProjectSelection() {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [pageError, setPageError] = useState<string>("");
     const [pageNotice, setPageNotice] = useState<string>("");
+    const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
 
     function authConfig() {
         const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
@@ -214,10 +215,15 @@ export default function StudentProjectSelection() {
     const submissionViewBreadcrumbs = [
         { label: "Student Problem Select", to: "/student/problems" },
     ];
+    
 
     return (
         <ProblemSubmissionsDashboard
             helmetTitle="Abacus"
+            menuProps={{ 
+                variant: "app", 
+                onRequestHelp: () => navigate("/student/help-requests") 
+            }}
             breadcrumbs={breadcrumbs}
             breadcrumbTrailingSeparator={true}
             stageStatusAudience="student"
@@ -282,5 +288,6 @@ export default function StudentProjectSelection() {
             }}
             emptyStateMessage={emptyStateMessage}
         />
+        
     );
 }

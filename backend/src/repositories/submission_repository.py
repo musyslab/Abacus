@@ -10,6 +10,7 @@ from .models import (
     Submissions,
     Projects,
     StudentUsers,
+    HelpRequests,
 )
 
 class SubmissionRepository():
@@ -156,3 +157,67 @@ class SubmissionRepository():
     def get_all_submissions_for_project(self, project_id):
         submissions = Submissions.query.filter(Submissions.Project == project_id).all()
         return submissions
+
+    def create_help_request(self, student_id: int, teacher_id: int, problem_id: int, reason: str, description: str) -> int:
+        new_request = HelpRequests(
+            StudentId=student_id,
+            TeacherId=teacher_id,
+            ProblemId=problem_id,
+            Reason=reason,
+            Description=description,
+            Status=0 # 0 means task has not started
+        )
+        db.session.add(new_request)
+        db.session.commit()
+        return new_request.Id
+
+    def update_help_request_status(self, request_id: int, new_status: int) -> bool:
+
+        req = HelpRequests.query.filter(HelpRequests.Id == request_id).first()
+        if not req:
+            return False
+        
+        req.Status = new_status
+        
+        if new_status in [2, 3]:
+            req.CompletedAt = datetime.utcnow() 
+        else:
+            req.CompletedAt = None
+            
+        db.session.commit()
+        return True
+        
+    def get_all_help_requests(self) -> List[HelpRequests]:
+
+        return HelpRequests.query.order_by(desc(HelpRequests.CreatedAt)).all()
+
+    def get_student_help_requests(self, student_id: int, teacher_id: int) -> List[HelpRequests]:
+
+        return HelpRequests.query.filter(
+            HelpRequests.StudentId == student_id,
+            HelpRequests.TeacherId == teacher_id
+        ).order_by(desc(HelpRequests.CreatedAt)).all()
+
+    def delete_help_request(self, request_id: int, student_id: int) -> bool:
+
+        req = HelpRequests.query.filter(
+            HelpRequests.Id == request_id, 
+            HelpRequests.StudentId == student_id,
+            HelpRequests.Status == 0 # 0 means task has not started
+        ).first()
+        
+        if not req:
+            return False
+            
+        db.session.delete(req)
+        db.session.commit()
+        return True
+    
+    def set_help_request_admin(self, request_id: int, admin_id: int) -> bool:
+        req = HelpRequests.query.filter(HelpRequests.Id == request_id).first()
+        if not req:
+            return False
+        
+        req.CurrentAdminId = admin_id
+        db.session.commit()
+        return True

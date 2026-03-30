@@ -218,7 +218,7 @@ export default function ProblemSubmissionsDashboard({
             </Helmet>
 
             <MenuComponent {...menuProps} />
-
+            
             <div className="admin-team-submissions-root">
                 <DirectoryBreadcrumbs
                     items={breadcrumbs}
