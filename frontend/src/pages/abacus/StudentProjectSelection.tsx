@@ -25,13 +25,6 @@ type TeamMeResponse = {
     is_online?: boolean;
 };
 
-interface CreateHelpRequestData {
-    problemId?: number | null;
-    problemName: string;
-    reason: string;
-    description: string;
-}
-
 export default function StudentProjectSelection() {
     const apiBase = (import.meta.env.VITE_API_URL as string) || "";
     const navigate = useNavigate();

@@ -9,6 +9,7 @@ import {
     FaCheckCircle,
     FaPlay,
     FaUndo,
+    FaTimesCircle,
 } from 'react-icons/fa'
 
 interface HelpRequestsState {
@@ -22,10 +23,12 @@ interface HelpRequestItem {
     teacherId: number
     teamDivision: string
     teamName: string
+    teamSchool: string
     problemName: string | null
     reason: string
     description: string
-    status: number // 0 = Waiting, 1 = In Progress, 2 = Complete
+    status: number // 0 = Waiting, 1 = In Progress, 2 = Complete, 3 = Canceled by Student
+    adminName: string | null
     createdAt: string
     completedAt: string | null
 }
@@ -131,7 +134,7 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
 
     startFetchingInterval() {
         this.fetchRequests()
-        this.fetchIntervalId = window.setInterval(this.fetchRequests, 30000) 
+        this.fetchIntervalId = window.setInterval(this.fetchRequests, 30000) // Fetch every 30 seconds 
     }
     
     formatWaitTimeDisplay = (timestampStr: string) => {
@@ -159,14 +162,14 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
         const { helpRequests } = this.state
 
         const allActiveQuestions = helpRequests
-            .filter((q) => q.status !== 2)
+            .filter((q) => q.status !== 2 && q.status !== 3)
             .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) 
 
         const studentQueue = allActiveQuestions.filter((q) => q.studentId !== 0)
         const teacherQueue = allActiveQuestions.filter((q) => q.studentId === 0)
 
         const historyQuestions = helpRequests
-            .filter((q) => q.status === 2)
+            .filter((q) => q.status === 2 || q.status === 3)
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) 
 
         const pageSize = 5
@@ -198,6 +201,7 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                                     <th className="col-position">Queue</th>
                                     <th className="col-division">Division</th>
                                     <th className="col-student">Team Name</th>
+                                    <th className="col-school">Team School</th>
                                     <th className="col-problem">Problem</th>
                                     <th className="col-reason">Reason</th>
                                     <th className="col-description">Description</th>
@@ -221,8 +225,9 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                                         >
                                             <td className="cell-status" aria-label={item.status === 1 ? 'In Progress' : 'Waiting'}>
                                                 {item.status === 1 ? (
-                                                    <span className="status in-oh" aria-hidden="true" title="A judge is helping them">
-                                                        <FaHandshake />
+                                                    <span className="status in-oh" aria-hidden="true" title={`Being helped by ${item.adminName || 'an Admin'}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <FaHandshake /> 
+                                                        <span style={{ fontSize: '0.85em', fontWeight: 'bold' }}>{item.adminName}</span>
                                                     </span>
                                                 ) : (
                                                     <span className="status waiting" aria-hidden="true" title="Waiting in queue">
@@ -234,6 +239,7 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                                             <td className="cell-position">{index + 1}</td>
                                             <td className="cell-division"><strong>{item.teamDivision ? item.teamDivision : "N/A"}</strong></td>
                                             <td className="cell-student"><strong>{item.teamName !== "Team 0" ? item.teamName : "N/A"}</strong></td>
+                                            <td className="cell-school"><strong>{item.teamSchool ? item.teamSchool : "N/A"}</strong></td>
                                             <td className="cell-problem">{item.problemName ? item.problemName : "General"}</td>
                                             <td className="cell-reason">{item.reason}</td>
                                             <td className="cell-description">{item.description}</td>
@@ -274,6 +280,7 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                                     <th className="col-status">Status</th>
                                     <th className="col-position">Queue</th>
                                     <th className="col-student">Name</th>
+                                    <th className="col-school">School</th>
                                     <th className="col-problem">Problem</th>
                                     <th className="col-reason">Reason</th>
                                     <th className="col-description">Description</th>
@@ -295,20 +302,24 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                                             key={item.id}
                                             className={`data-row ${item.status === 1 ? 'is-in-oh' : ''}`}
                                         >
-                                            <td className="cell-status" aria-label={item.status === 1 ? 'In Progress' : 'Waiting'}>
-                                                {item.status === 1 ? (
-                                                    <span className="status in-oh" aria-hidden="true" title="A judge is helping them">
-                                                        <FaHandshake />
+                                            <td className="cell-status" aria-label="Outcome">
+                                                {item.status === 3 ? (
+                                                    <span className="status" style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '5px' }} title="Canceled by Student">
+                                                        <FaTimesCircle /> Canceled
                                                     </span>
                                                 ) : (
-                                                    <span className="status waiting" aria-hidden="true" title="Waiting in queue">
-                                                        <FaRegClock />
+                                                    <span className="status outcome-accepted" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} title={`Resolved by ${item.adminName || 'Admin'}`}>
+                                                        <FaCheckCircle /> 
+                                                        <span>
+                                                            Resolved {item.adminName && <span style={{ fontSize: '0.85em', opacity: 0.8 }}><br/>by {item.adminName}</span>}
+                                                        </span>
                                                     </span>
                                                 )}
                                             </td>
 
                                             <td className="cell-position">{index + 1}</td>
                                             <td className="cell-student"><strong>{item.teamName ? item.teamName : "N/A"}</strong></td>
+                                            <td className="cell-school"><strong>{item.teamSchool ? item.teamSchool : "N/A"}</strong></td>
                                             <td className="cell-problem">{item.problemName ? item.problemName : "General"}</td>
                                             <td className="cell-reason">{item.reason}</td>
                                             <td className="cell-description">{item.description}</td>
@@ -350,6 +361,7 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                                     <th className="col-role">Role</th>
                                     <th className="col-division">Team Division</th>
                                     <th className="col-student">Team/Teacher Name</th>
+                                    <th className="col-school">Team School</th>
                                     <th className="col-problem">Problem</th>
                                     <th className="col-reason">Reason</th>
                                     <th className="col-description">Description</th>
@@ -370,31 +382,47 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                                     historySlice.map((item: HelpRequestItem) => (
                                         <tr key={`hist-${item.id}`} className="data-row is-history">
                                             <td className="cell-status" aria-label="Outcome">
-                                                <span className="status outcome-accepted" aria-hidden="true">
-                                                    <FaCheckCircle />
-                                                </span>
+                                                {item.status === 3 ? (
+                                                    <span className="status" style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '5px' }} title="Canceled by Student">
+                                                        <FaTimesCircle /> Canceled
+                                                    </span>
+                                                ) : (
+                                                    <span className="status outcome-accepted" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} title={`Resolved by ${item.adminName || 'Admin'}`}>
+                                                        <FaCheckCircle /> 
+                                                        <span>
+                                                            Resolved {item.adminName && <span style={{ fontSize: '0.85em', opacity: 0.8 }}><br/>by {item.adminName}</span>}
+                                                        </span>
+                                                    </span>
+                                                )}
                                             </td>
                                             <td className="cell-role"><strong>{item.studentId === 0 ? "Teacher" : "Student"}</strong></td>
                                             <td className="cell-division"><strong>{item.teamDivision ? item.teamDivision : "N/A"}</strong></td>
                                             <td className="cell-student"><strong>{item.teamName ? item.teamName : "N/A"}</strong></td>
+                                            <td className="cell-school"><strong>{item.teamSchool ? item.teamSchool : "N/A"}</strong></td>
                                             <td className="cell-problem">{item.problemName?item.problemName:"General"}</td>
                                             <td className="cell-reason">{item.reason}</td>
                                             <td className="cell-description">{item.description}</td>
                                             <td className="cell-wait">{this.formatTime(item.createdAt)}</td>
                                             <td className="cell-feedback">{this.formatTime(item.completedAt)}</td>
                                             <td className="cell-actions">
-                                                <button
-                                                    className="button"
-                                                    style={{ backgroundColor: '#f59e0b', color: 'white', border: 'none' }}
-                                                    onClick={() => {
-                                                        if(window.confirm("Are you sure you want to reopen this request?")) {
-                                                            this.updateRequestStatus(item.id, 0)
-                                                        }
-                                                    }}
-                                                    title="Send back to the active queue"
-                                                >
-                                                    <FaUndo aria-hidden="true" /> Reopen
-                                                </button>
+                                                {item.status === 3 ? (
+                                                    <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
+                                                        N/A
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        className="button"
+                                                        style={{ backgroundColor: '#f59e0b', color: 'white', border: 'none' }}
+                                                        onClick={() => {
+                                                            if (window.confirm("Are you sure you want to reopen this request?")) {
+                                                                this.updateRequestStatus(item.id, 0)
+                                                            }
+                                                        }}
+                                                        title="Send back to the active queue"
+                                                    >
+                                                        <FaUndo aria-hidden="true" /> Reopen
+                                                    </button>
+                                                )}
                                             </td>
                                         </tr>
                                     ))

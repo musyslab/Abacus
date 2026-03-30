@@ -11,7 +11,8 @@ interface HelpRequestItem {
     problemName: string | null;
     reason: string;
     description: string;
-    status: number; // 0 = Waiting, 1 = In Progress, 2 = Complete
+    status: number; // 0 = Waiting, 1 = In Progress, 2 = Complete, 3 = Student Canceled
+    adminName: string | null;
     createdAt: string;
     completedAt: string | null;
 }
@@ -22,12 +23,12 @@ interface Project {
 }
 
 const StudentHelpRequests: React.FC = () => {
-    // Data State
+
     const [helpRequests, setHelpRequests] = useState<HelpRequestItem[]>([]);
     const [availableProblems, setAvailableProblems] = useState<Project[]>([]);
     const [historyPage, setHistoryPage] = useState(1);
 
-    // Form State
+
     const [selectedProblemId, setSelectedProblemId] = useState<string>("");    
     const [reason, setReason] = useState("");
     const [description, setDescription] = useState("");
@@ -53,12 +54,12 @@ const StudentHelpRequests: React.FC = () => {
         }
     }, [authConfig]);
 
-    // Fetch initial data and start polling
+
     useEffect(() => {
         fetchRequests();
         const intervalId = setInterval(fetchRequests, 30000); // Poll every 30s
         
-        // Example: Fetch projects for the dropdown (Adjust endpoint as needed)
+
         axios.get(`${import.meta.env.VITE_API_URL}/projects/all_projects`, authConfig())
             .then(res => setAvailableProblems(res.data))
             .catch(err => console.error(err));
@@ -77,7 +78,7 @@ const StudentHelpRequests: React.FC = () => {
 
         setIsSubmitting(true);
         try {
-            // Convert "general" to null, otherwise parse the ID to a number
+
             const problemIdPayload = selectedProblemId === "general" ? null : parseInt(selectedProblemId, 10);
 
             await axios.post(
@@ -94,7 +95,7 @@ const StudentHelpRequests: React.FC = () => {
             setSelectedProblemId("");
             setReason("");
             setDescription("");
-            fetchRequests(); // Refresh queue immediately
+            fetchRequests(); 
         } catch (err: any) {
             const serverMessage = err.response?.data?.message || "Failed to send request. Please try again.";
             setError(serverMessage);
@@ -107,18 +108,20 @@ const StudentHelpRequests: React.FC = () => {
         if (!window.confirm("Are you sure you want to cancel this help request?")) return;
 
         try {
-            await axios.delete(
+            // Change from axios.delete to axios.put, and pass the new status payload
+            await axios.put(
                 `${import.meta.env.VITE_API_URL}/submissions/help-request/${requestId}`,
+                { status: 3 }, // 3 = Canceled
                 authConfig()
             );
-            fetchRequests(); // Refresh the queue immediately
+            fetchRequests(); 
         } catch (err: any) {
             const serverMessage = err.response?.data?.message || "Failed to cancel request.";
-            alert(serverMessage); // Standard alert is usually fine for a quick action failure
+            alert(serverMessage); 
             console.error("Failed to cancel:", err);
         }
     };
-    // Time Formatters (Reused from Admin page)
+
     const calculateTimeDifference = (timestampStr: string) => {
         if (!timestampStr) return 0;
         let safeTimestampStr = timestampStr.replace(" ", "T");
@@ -143,13 +146,13 @@ const StudentHelpRequests: React.FC = () => {
         return new Date(safeTimestampStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
-    // Table Data Parsing
+
     const activeRequests = helpRequests
-        .filter(q => q.status !== 2)
+        .filter(q => q.status !== 2 && q.status !== 3)
         .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
     const historyRequests = helpRequests
-        .filter(q => q.status === 2)
+        .filter(q => q.status === 2 || q.status === 3)
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     const pageSize = 5;
@@ -171,14 +174,14 @@ const StudentHelpRequests: React.FC = () => {
                     
                     <div style={{ display: 'flex', gap: '20px', marginBottom: '15px' }}>
                         <div className="help-modal__field" style={{ flex: 1 }}>
-                            <label htmlFor="problem-select">Problem:</label>
+                            <label htmlFor="problem-select">Related to:</label>
                             <select 
                                 id="problem-select" 
                                 value={selectedProblemId} 
                                 onChange={(e) => setSelectedProblemId(e.target.value)}
                                 disabled={isSubmitting}
                             >
-                                <option value="" disabled>Select a problem...</option>
+                                <option value="" disabled>Select the problem...</option>
                                 <option value="general">General System / Environment Issue</option>
                                 {availableProblems.map((p) => (
                                     <option key={p.Id} value={p.Id.toString()}>{p.Name}</option>
@@ -224,7 +227,6 @@ const StudentHelpRequests: React.FC = () => {
             </div>
 
             {/* Active Queue Section */}
-            {/* Active Queue Section */}
             <div className="table-section">
                 <div className="tableTitle">Active Requests</div>
                 <table border={1} className="question-queue-table oh-table">
@@ -235,7 +237,7 @@ const StudentHelpRequests: React.FC = () => {
                             <th className="col-reason">Reason</th>
                             <th className="col-description">Description</th>
                             <th className="col-wait">Wait Time</th>
-                            <th className="col-actions">Actions</th> {/* NEW COLUMN */}
+                            <th className="col-actions">Actions</th> 
                         </tr>
                     </thead>
                     <tbody className="table-body">
@@ -248,9 +250,20 @@ const StudentHelpRequests: React.FC = () => {
                                 <tr key={item.id} className={`data-row ${item.status === 1 ? 'is-in-oh' : ''}`}>
                                     <td className="cell-status">
                                         {item.status === 1 ? (
-                                            <span className="status in-oh" title="A judge is helping you"><FaHandshake /> Helping Now</span>
+                                            <span 
+                                                className="status in-oh" 
+                                                title={`Being helped by ${item.adminName || 'an Admin'}`}
+                                                style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+                                            >
+                                                <FaHandshake /> 
+                                                <span>
+                                                    Helped by <strong style={{ fontWeight: '600' }}>{item.adminName || 'Admin'}</strong>
+                                                </span>
+                                            </span>
                                         ) : (
-                                            <span className="status waiting" title="Waiting in queue"><FaRegClock /> Waiting</span>
+                                            <span className="status waiting" title="Waiting in queue">
+                                                <FaRegClock /> Waiting
+                                            </span>
                                         )}
                                     </td>
                                     <td className="cell-problem">{item.problemName || "General"}</td>
@@ -258,7 +271,6 @@ const StudentHelpRequests: React.FC = () => {
                                     <td className="cell-description">{item.description}</td>
                                     <td className="cell-wait">{formatWaitTimeDisplay(item.createdAt)}</td>
                                     
-                                    {/* NEW CANCEL BUTTON CELL */}
                                     <td className="cell-actions">
                                         {item.status === 0 ? (
                                             <button 
@@ -302,7 +314,21 @@ const StudentHelpRequests: React.FC = () => {
                             historySlice.map((item) => (
                                 <tr key={`hist-${item.id}`} className="data-row is-history">
                                     <td className="cell-status">
-                                        <span className="status outcome-accepted"><FaCheckCircle /> Resolved</span>
+                                        <span 
+                                            className="status outcome-accepted" 
+                                            title={`Resolved by ${item.adminName || 'Admin'}`}
+                                            style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+                                        >
+                                            <FaCheckCircle /> 
+                                            <span>
+                                                Resolved 
+                                                {item.adminName && (
+                                                    <span style={{ fontSize: '0.85em', opacity: 0.8, display: 'block' }}>
+                                                        by {item.adminName}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </span>
                                     </td>
                                     <td className="cell-problem">{item.problemName || "General"}</td>
                                     <td className="cell-reason">{item.reason}</td>

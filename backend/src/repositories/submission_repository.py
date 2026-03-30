@@ -177,10 +177,9 @@ class SubmissionRepository():
         if not req:
             return False
         
-    
         req.Status = new_status
         
-        if new_status == 2:
+        if new_status in [2, 3]:
             req.CompletedAt = datetime.utcnow() 
         else:
             req.CompletedAt = None
@@ -211,5 +210,14 @@ class SubmissionRepository():
             return False
             
         db.session.delete(req)
+        db.session.commit()
+        return True
+    
+    def set_help_request_admin(self, request_id: int, admin_id: int) -> bool:
+        req = HelpRequests.query.filter(HelpRequests.Id == request_id).first()
+        if not req:
+            return False
+        
+        req.CurrentAdminId = admin_id
         db.session.commit()
         return True

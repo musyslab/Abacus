@@ -104,6 +104,7 @@ class HelpRequests(db.Model):
     Reason = Column(String(255), nullable=False)
     Description = Column(Text, nullable=False)
     Status = Column(Integer, default=0, nullable=False)
+    CurrentAdminId = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=True)
     # Timestamp
     CreatedAt = Column(DateTime, default=func.now(), nullable=False)
     

@@ -138,13 +138,15 @@ CREATE TABLE HelpRequests (
     ProblemId int,
     Reason varchar(255) NOT NULL,
     Description text,
-    Status int NOT NULL,         
+    Status int NOT NULL,
+    CurrentAdminId int,         
     CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
     CompletedAt TIMESTAMP NULL,
     PRIMARY KEY (`Id`),
     UNIQUE KEY `Id_UNIQUE` (`Id`),
     FOREIGN KEY (`StudentId`) REFERENCES StudentUsers(Id) ON DELETE CASCADE,
     FOREIGN KEY (`TeacherId`) REFERENCES AdminUsers(Id) ON DELETE SET NULL,
+    FOREIGN KEY (`CurrentAdminId`) REFERENCES AdminUsers(Id) ON DELETE SET NULL,
     FOREIGN KEY (`ProblemId`) REFERENCES Projects(Id) ON DELETE SET NULL                
 )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
