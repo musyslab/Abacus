@@ -24,6 +24,10 @@ import AdminUpload from './pages/abacus/AdminUpload';
 import StudentProjectSelection from './pages/abacus/StudentProjectSelection';
 import AdminProblemReview from './pages/abacus/AdminProblemSubmissions';
 
+import StudentGoldSubmissions from './pages/abacus/StudentGoldSubmissions';
+import StudentEagleSubmissions from './pages/abacus/StudentEagleSubmissions';
+
+
 import SubmissionView from './pages/abacus/SubmissionView';
 
 import ProtectedRoute from './pages/components/ProtectedRoute';
@@ -82,6 +86,18 @@ class App extends Component {
                             <SubmissionView />
                         </ProtectedRoute>
                     } />
+                    {/*add admin and teacher routes */}
+                    <Route path="/student/gold-submissions" element={
+                        <ProtectedRoute>
+                            <StudentGoldSubmissions />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/student/eagle-submissions" element={
+                        <ProtectedRoute>
+                            <StudentEagleSubmissions />
+                        </ProtectedRoute>
+                    } />
+
                     <Route path="/submission/:id" element={
                         <ProtectedRoute>
                             <SubmissionView />

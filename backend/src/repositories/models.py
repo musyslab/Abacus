@@ -91,3 +91,13 @@ class StudentUsers(db.Model):
     MemberId = Column(Integer, nullable=True)
     PasswordHash = Column(String(255))
     IsLocked = Column(Boolean, default=False)
+
+
+class GoldDivision(db.Model):
+    __tablename__ = "GoldDivision"
+    Id = Column(Integer, primary_key=True, autoincrement=True)
+    Link = Column(String(255), nullable=False)
+    StudentId = Column(Integer, ForeignKey('StudentUsers.Id'), nullable=False)
+    SubmittedAt = Column(Date)
+    Grade = Column(Integer)
+    AdminGraderId = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=True)

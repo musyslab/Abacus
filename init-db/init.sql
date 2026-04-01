@@ -128,6 +128,22 @@ CREATE TABLE `Testcases` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
+-- Table structure for table `GoldDivision`
+-- ============================================
+CREATE TABLE `GoldDivision` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `Link` text NOT NULL,
+  `StudentId` int,
+  `SubmittedAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `Grade` int,
+  `AdminGraderId` int,
+  FOREIGN KEY (`StudentId`) REFERENCES StudentUsers(Id) ON DELETE CASCADE,
+  FOREIGN KEY (`AdminGraderId`) REFERENCES AdminUsers(Id) ON DELETE SET NULL,
+  PRIMARY KEY (`Id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- ============================================
 -- Foreign keys (added after all tables exist)
 -- ============================================
 
