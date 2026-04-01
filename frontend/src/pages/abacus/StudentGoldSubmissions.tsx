@@ -7,9 +7,16 @@ import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
 import "../../styling/StudentGoldSubmissions.scss";
 
 const StudentGoldSubmissions = () => {
+  const API = (import.meta.env.VITE_API_URL as string) || "";
+
   const [link, setLink] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+
+  function authConfig() {
+    const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
+    return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  }
 
   const isValidScratchLink = (url: string) => {
     return url.includes("scratch.mit.edu/projects/");
@@ -38,14 +45,20 @@ const StudentGoldSubmissions = () => {
       setLoading(true);
       setMessage("");
 
-      await axios.post(`${import.meta.env.VITE_API_URL}/gold-submissions/create`, {
-        scratch_link: link,
-      });
+      await axios.post(
+        `${API}/gold-division/create`,
+        {
+          scratch_link: link,
+        },
+        authConfig()
+      );
 
       setMessage("✅ Submission successful!");
       setLink("");
     } catch (err: any) {
-      setMessage("❌ Submission failed. Try again.");
+      const msg =
+        err?.response?.data?.message || "Submission failed. Try again.";
+      setMessage(`❌ ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -112,10 +125,10 @@ const StudentGoldSubmissions = () => {
                     allowTransparency={true}
                     frameBorder="0"
                     scrolling="no"
-                    allowFullScreen={true}
+                    allowFullScreen
                     title="Scratch Preview"
                     className="preview-frame"
-                  ></iframe>
+                  />
                 </div>
               )}
 
@@ -131,7 +144,11 @@ const StudentGoldSubmissions = () => {
               </div>
 
               {message && (
-                <div className={`gold-message ${isError ? "gold-message--error" : "gold-message--success"}`}>
+                <div
+                  className={`gold-message ${
+                    isError ? "gold-message--error" : "gold-message--success"
+                  }`}
+                >
                   {message}
                 </div>
               )}

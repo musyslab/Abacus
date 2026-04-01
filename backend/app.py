@@ -62,6 +62,7 @@ def create_app():
     app.register_blueprint(team_api, url_prefix='/api/teams')
     app.register_blueprint(error_api, url_prefix='/api/error')
     app.register_blueprint(gold_division_api, url_prefix='/api/gold-division')
+    
 
     # Initialize extensions
     jwt.init_app(app)
