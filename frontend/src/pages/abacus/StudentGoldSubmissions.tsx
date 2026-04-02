@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
 
@@ -12,6 +12,7 @@ const StudentGoldSubmissions = () => {
   const [link, setLink] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [grade, setGrade] = useState<number | null>(null);
 
   function authConfig() {
     const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
@@ -29,6 +30,26 @@ const StudentGoldSubmissions = () => {
 
   const projectId = extractProjectId(link);
   const isError = message.includes("❌");
+
+  const fetchMySubmission = async () => {
+    try {
+      const res = await axios.get(
+        `${API}/gold-division/my`,
+        authConfig()
+      );
+
+      if (res.data) {
+        setGrade(res.data.grade);
+        setLink(res.data.link || "");
+      }
+    } catch {
+      // silently fail
+    }
+  };
+
+  useEffect(() => {
+    fetchMySubmission();
+  }, []);
 
   const handleSubmit = async () => {
     if (!link) {
@@ -54,7 +75,8 @@ const StudentGoldSubmissions = () => {
       );
 
       setMessage("✅ Submission successful!");
-      setLink("");
+      setGrade(null); // reset until refreshed
+      fetchMySubmission();
     } catch (err: any) {
       const msg =
         err?.response?.data?.message || "Submission failed. Try again.";
@@ -143,6 +165,7 @@ const StudentGoldSubmissions = () => {
                 </button>
               </div>
 
+              {/* Submission Message */}
               {message && (
                 <div
                   className={`gold-message ${
@@ -150,6 +173,13 @@ const StudentGoldSubmissions = () => {
                   }`}
                 >
                   {message}
+                </div>
+              )}
+
+              {/* Grade Display */}
+              {grade !== null && (
+                <div className="gold-message gold-message--success">
+                  Your grade: {grade}
                 </div>
               )}
             </div>
