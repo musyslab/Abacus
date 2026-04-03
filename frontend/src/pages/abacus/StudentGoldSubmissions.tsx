@@ -12,7 +12,8 @@ const StudentGoldSubmissions = () => {
   const [link, setLink] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [grade, setGrade] = useState<number | null>(null);
+  const [points, setPoints] = useState<number | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   function authConfig() {
     const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
@@ -33,13 +34,11 @@ const StudentGoldSubmissions = () => {
 
   const fetchMySubmission = async () => {
     try {
-      const res = await axios.get(
-        `${API}/gold-division/my`,
-        authConfig()
-      );
+      const res = await axios.get(`${API}/gold-division/my`, authConfig());
 
       if (res.data) {
-        setGrade(res.data.grade);
+        setPoints(res.data.points);
+        setFeedback(res.data.feedback ?? null);
         setLink(res.data.link || "");
       }
     } catch {
@@ -75,7 +74,8 @@ const StudentGoldSubmissions = () => {
       );
 
       setMessage("✅ Submission successful!");
-      setGrade(null); // reset until refreshed
+      setPoints(null);
+      setFeedback(null);
       fetchMySubmission();
     } catch (err: any) {
       const msg =
@@ -107,14 +107,16 @@ const StudentGoldSubmissions = () => {
 
         <div className="student-gold-content">
           <div className="callout callout--info">
-            Submit your Scratch project link below. A live preview will appear automatically when a valid
-            Scratch project link is entered.
+            Submit your Scratch project link below. A live preview will appear
+            automatically when a valid Scratch project link is entered.
           </div>
 
           <div className="gold-panel">
             <div className="gold-panel__header">
               <div>
-                <div className="gold-panel__title">Scratch Project Submission</div>
+                <div className="gold-panel__title">
+                  Scratch Project Submission
+                </div>
                 <div className="gold-panel__subtitle">
                   Paste your Scratch project URL to preview and submit it.
                 </div>
@@ -165,7 +167,6 @@ const StudentGoldSubmissions = () => {
                 </button>
               </div>
 
-              {/* Submission Message */}
               {message && (
                 <div
                   className={`gold-message ${
@@ -176,10 +177,18 @@ const StudentGoldSubmissions = () => {
                 </div>
               )}
 
-              {/* Grade Display */}
-              {grade !== null && (
+              {points !== null && (
                 <div className="gold-message gold-message--success">
-                  Your grade: {grade}
+                  Your points: {points}
+                </div>
+              )}
+
+              {feedback && (
+                <div className="gold-message gold-message--success">
+                  <strong>Feedback:</strong>
+                  <div style={{ marginTop: "6px", whiteSpace: "pre-wrap" }}>
+                    {feedback}
+                  </div>
                 </div>
               )}
             </div>

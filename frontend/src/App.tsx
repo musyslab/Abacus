@@ -88,15 +88,20 @@ class App extends Component {
                             <SubmissionView />
                         </ProtectedRoute>
                     } />
-                    {/*make admin and teacher apps */}
+
                     <Route path="/student/gold-submissions" element={
                         <ProtectedRoute>
                             <StudentGoldSubmissions />
                         </ProtectedRoute>
                     } />
+                    <Route path="/teacher/gold-submissions" element={
+                        <ProtectedRoute requiredAdminRole={0}>
+                            <AdminGoldSubmissions />
+                        </ProtectedRoute>
+                    } />
                     <Route path="/admin/gold-submissions" element={
-                        <ProtectedRoute>
-                            <AdminGoldSubmissions requiredAdminRole={1}/>
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminGoldSubmissions />
                         </ProtectedRoute>
                     } />
                     <Route path="/student/eagle-submissions" element={

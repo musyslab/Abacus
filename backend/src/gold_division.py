@@ -8,6 +8,14 @@ from src.repositories.models import GoldDivision, StudentUsers, AdminUsers
 gold_division_api = Blueprint('gold_division_api', __name__)
 
 
+def is_site_admin(user) -> bool:
+    return isinstance(user, AdminUsers) and int(getattr(user, "Role", 0) or 0) == 1
+
+
+def is_teacher(user) -> bool:
+    return isinstance(user, AdminUsers) and int(getattr(user, "Role", 0) or 0) == 0
+
+
 # -----------------------------
 # STUDENT: submit project
 # -----------------------------
@@ -43,16 +51,83 @@ def create_gold_submission():
 
 
 # -----------------------------
+# ADMIN / TEACHER: get visible submissions
+# Admins see all submissions + grades + claim state
+# Teachers see only their students' submissions, and
+# cannot see points/feedback or grading state
+# -----------------------------
+@gold_division_api.route('/visible', methods=['GET'])
+@jwt_required()
+def get_visible_submissions():
+
+    if not isinstance(current_user, AdminUsers):
+        return jsonify({'message': 'Admins/teachers only'}), 403
+
+    if is_site_admin(current_user):
+        submissions = GoldDivision.query.order_by(GoldDivision.SubmittedAt.desc()).all()
+
+        result = []
+        for s in submissions:
+            result.append({
+                "id": s.Id,
+                "link": s.Link,
+                "studentId": s.StudentId,
+                "submittedAt": s.SubmittedAt,
+                "points": s.Points,
+                "feedback": s.Feedback,
+                "adminGraderId": s.AdminGraderId,
+            })
+
+        return jsonify({
+            "currentAdminId": current_user.Id,
+            "canGrade": True,
+            "isTeacherView": False,
+            "submissions": result,
+        }), 200
+
+    if is_teacher(current_user):
+        submissions = (
+            GoldDivision.query
+            .join(StudentUsers, StudentUsers.Id == GoldDivision.StudentId)
+            .filter(StudentUsers.TeacherId == current_user.Id)
+            .order_by(GoldDivision.SubmittedAt.desc())
+            .all()
+        )
+
+        result = []
+        for s in submissions:
+            result.append({
+                "id": s.Id,
+                "link": s.Link,
+                "studentId": s.StudentId,
+                "submittedAt": s.SubmittedAt,
+                "points": None,
+                "feedback": None,
+                "adminGraderId": None,
+            })
+
+        return jsonify({
+            "currentAdminId": None,
+            "canGrade": False,
+            "isTeacherView": True,
+            "submissions": result,
+        }), 200
+
+    return jsonify({'message': 'Admins/teachers only'}), 403
+
+
+# -----------------------------
 # ADMIN: get all submissions
+# Kept for compatibility, but restricted to site admins
 # -----------------------------
 @gold_division_api.route('/all', methods=['GET'])
 @jwt_required()
 def get_all_submissions():
 
-    if not isinstance(current_user, AdminUsers):
+    if not is_site_admin(current_user):
         return jsonify({'message': 'Admins only'}), 403
 
-    submissions = GoldDivision.query.all()
+    submissions = GoldDivision.query.order_by(GoldDivision.SubmittedAt.desc()).all()
 
     result = []
     for s in submissions:
@@ -79,7 +154,7 @@ def get_all_submissions():
 @jwt_required()
 def claim_submission(submission_id):
 
-    if not isinstance(current_user, AdminUsers):
+    if not is_site_admin(current_user):
         return jsonify({'message': 'Admins only'}), 403
 
     submission = GoldDivision.query.get(submission_id)
@@ -103,7 +178,7 @@ def claim_submission(submission_id):
 @jwt_required()
 def unclaim_submission(submission_id):
 
-    if not isinstance(current_user, AdminUsers):
+    if not is_site_admin(current_user):
         return jsonify({'message': 'Admins only'}), 403
 
     submission = GoldDivision.query.get(submission_id)
@@ -121,13 +196,13 @@ def unclaim_submission(submission_id):
 
 
 # -----------------------------
-# ADMIN: grade (points + feedback)
+# ADMIN: grade
 # -----------------------------
 @gold_division_api.route('/grade/<int:submission_id>', methods=['POST'])
 @jwt_required()
 def grade_submission(submission_id):
 
-    if not isinstance(current_user, AdminUsers):
+    if not is_site_admin(current_user):
         return jsonify({'message': 'Admins only'}), 403
 
     submission = GoldDivision.query.get(submission_id)

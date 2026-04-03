@@ -825,12 +825,12 @@ export default function AdminTeamManage() {
 
     function goToTeamSubmissions(teamId: number, division: Division) {
         if (division === "Gold") {
-            navigate(isAdminMode ? "/admin/gold-submissions" : "/student/gold-submissions");
+            navigate(isAdminMode ? "/admin/gold-submissions" :  "/teacher/gold-submissions");
             return;
         }
         
         if (division === "Eagle") {
-            navigate(isAdminMode ? "/admin/eagle-submissions" : "/student/eagle-submissions");
+            navigate(isAdminMode ? "/admin/eagle-submissions" : "/teacher/eagle-submissions");
             return;
         }
 
