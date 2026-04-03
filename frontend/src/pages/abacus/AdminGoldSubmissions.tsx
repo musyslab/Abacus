@@ -7,6 +7,7 @@ import {
   FaPlay,
   FaUndo,
   FaUserLock,
+  FaPen,
 } from "react-icons/fa";
 
 import MenuComponent from "../components/MenuComponent";
@@ -19,7 +20,8 @@ type Submission = {
   link: string;
   studentId: number;
   submittedAt: string;
-  grade: number | null;
+  points: number | null;
+  feedback: string | null;
   adminGraderId: number | null;
 };
 
@@ -29,8 +31,15 @@ const AdminGoldSubmissions = () => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentAdminId, setCurrentAdminId] = useState<number | null>(null);
-  const [gradeInputs, setGradeInputs] = useState<Record<number, string>>({});
-  const [savedGrades, setSavedGrades] = useState<Record<number, boolean>>({});
+
+  const [pointsInput, setPointsInput] = useState<string>("");
+  const [feedbackInput, setFeedbackInput] = useState<string>("");
+
+  const [saved, setSaved] = useState(false);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [activeSubmission, setActiveSubmission] =
+    useState<Submission | null>(null);
 
   function authConfig() {
     const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
@@ -38,9 +47,7 @@ const AdminGoldSubmissions = () => {
   }
 
   const fetchSubmissions = async (showLoader = false) => {
-    if (showLoader) {
-      setLoading(true);
-    }
+    if (showLoader) setLoading(true);
 
     try {
       const res = await axios.get(`${API}/gold-division/all`, authConfig());
@@ -49,83 +56,69 @@ const AdminGoldSubmissions = () => {
     } catch (err) {
       console.error("Failed to fetch submissions", err);
     } finally {
-      if (showLoader) {
-        setLoading(false);
-      }
+      if (showLoader) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchSubmissions(true);
-
-    const interval = setInterval(() => {
-      fetchSubmissions(false);
-    }, 3000); // reloads table info every 3 seconds
-
+    const interval = setInterval(() => fetchSubmissions(false), 3000);
     return () => clearInterval(interval);
   }, []);
 
   const claim = async (id: number) => {
-    try {
-      await axios.post(`${API}/gold-division/claim/${id}`, {}, authConfig());
-      fetchSubmissions(false);
-    } catch (err) {
-      console.error("Failed to claim submission", err);
-    }
+    await axios.post(`${API}/gold-division/claim/${id}`, {}, authConfig());
+    fetchSubmissions(false);
   };
 
   const unclaim = async (id: number) => {
-    try {
-      await axios.post(`${API}/gold-division/unclaim/${id}`, {}, authConfig());
-      fetchSubmissions(false);
-    } catch (err) {
-      console.error("Failed to unclaim submission", err);
-    }
+    await axios.post(`${API}/gold-division/unclaim/${id}`, {}, authConfig());
+    fetchSubmissions(false);
   };
 
-  const grade = async (id: number, gradeValue: number) => {
-    if (Number.isNaN(gradeValue)) return;
+  const openModal = (submission: Submission) => {
+    setActiveSubmission(submission);
+    setPointsInput(submission.points?.toString() ?? "");
+    setFeedbackInput(submission.feedback ?? "");
+    setModalOpen(true);
+  };
 
-    try {
-      await axios.post(
-        `${API}/gold-division/grade/${id}`,
-        { grade: gradeValue },
-        authConfig()
-      );
+  const closeModal = () => {
+    setModalOpen(false);
+    setActiveSubmission(null);
+    setSaved(false);
+  };
 
-      setGradeInputs((prev) => {
-        const copy = { ...prev };
-        delete copy[id];
-        return copy;
-      });
+  const saveEvaluation = async () => {
+    if (!activeSubmission) return;
 
-      setSavedGrades((prev) => ({
-        ...prev,
-        [id]: true,
-      }));
+    const pointsValue = Number(pointsInput);
+    if (Number.isNaN(pointsValue)) return;
 
-      setTimeout(() => {
-        setSavedGrades((prev) => {
-          const copy = { ...prev };
-          delete copy[id];
-          return copy;
-        });
-      }, 2500);
+    await axios.post(
+      `${API}/gold-division/grade/${activeSubmission.id}`,
+      {
+        points: pointsValue,
+        feedback: feedbackInput,
+      },
+      authConfig()
+    );
 
-      fetchSubmissions(false);
-    } catch (err) {
-      console.error("Failed to grade submission", err);
-    }
+    setSaved(true);
+
+    setTimeout(() => {
+      setSaved(false);
+      closeModal();
+    }, 1500);
+
+    fetchSubmissions(false);
   };
 
   const formatDateTime = (timestampStr: string | null) => {
     if (!timestampStr) return "—";
-  
     const date = new Date(timestampStr);
-  
     return isNaN(date.getTime()) ? "—" : date.toLocaleString();
   };
-
 
   return (
     <>
@@ -154,172 +147,137 @@ const AdminGoldSubmissions = () => {
             <table border={1} className="gold-submissions-table">
               <thead className="table-head">
                 <tr className="head-row">
-                  <th className="col-student-id">Student ID</th>
-                  <th className="col-link">Project</th>
-                  <th className="col-submitted">Submitted At</th>
-                  <th className="col-status">Status</th>
-                  <th className="col-grade">Current Grade</th>
-                  <th className="col-input">Enter Grade</th>
-                  <th className="col-actions">Actions</th>
+                  <th>Student ID</th>
+                  <th>Project</th>
+                  <th>Submitted</th>
+                  <th>Status</th>
+                  <th>Points</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
 
               <tbody className="table-body">
-                {submissions.length === 0 ? (
-                  <tr className="empty-row">
-                    <td className="empty-cell" colSpan={7}>
-                      No gold submissions found.
-                    </td>
-                  </tr>
-                ) : (
-                  submissions.map((s) => {
-                    const claimedByMe =
-                      currentAdminId !== null &&
-                      s.adminGraderId === currentAdminId;
-                    const claimedByOther =
-                      s.adminGraderId !== null &&
-                      s.adminGraderId !== currentAdminId;
-                    const unclaimed = s.adminGraderId === null;
+                {submissions.map((s) => {
+                  const claimedByMe =
+                    currentAdminId !== null &&
+                    s.adminGraderId === currentAdminId;
 
-                    return (
-                      <tr
-                        key={s.id}
-                        className={`data-row ${
-                          claimedByMe ? "is-claimed-by-me" : ""
-                        } ${claimedByOther ? "is-claimed-by-other" : ""}`}
-                      >
-                        <td className="cell-student-id">
-                          <strong>{s.studentId}</strong>
-                        </td>
+                  const claimedByOther =
+                    s.adminGraderId !== null &&
+                    s.adminGraderId !== currentAdminId;
 
-                        <td className="cell-link">
-                          <a
-                            className="button button-view-code link-code"
-                            href={s.link}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            <FaExternalLinkAlt />
-                            View Project
-                          </a>
-                        </td>
+                  const unclaimed = s.adminGraderId === null;
 
-                        <td className="cell-submitted">
-                          {formatDateTime(s.submittedAt)}
-                        </td>
+                  return (
+                    <tr key={s.id} className="data-row">
+                      <td>
+                        <strong>{s.studentId}</strong>
+                      </td>
 
-                        <td className="cell-status">
-                          {unclaimed && (
-                            <span className="status-badge waiting">
-                              Unclaimed
-                            </span>
-                          )}
-                          {claimedByMe && (
-                            <span className="status-badge mine">
-                              <FaCheckCircle />
-                              Claimed by you
-                            </span>
-                          )}
-                          {claimedByOther && (
-                            <span className="status-badge locked">
-                              <FaUserLock />
-                              Claimed by another admin
-                            </span>
-                          )}
-                        </td>
+                      <td>
+                        <a
+                          className="button button-view-code"
+                          href={s.link}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <FaExternalLinkAlt />
+                          View
+                        </a>
+                      </td>
 
-                        <td className="cell-grade">
-                          {s.grade ?? "Not graded"}
-                        </td>
+                      <td>{formatDateTime(s.submittedAt)}</td>
 
-                        <td className="cell-input">
-                          {claimedByMe ? (
-                            <input
-                              type="number"
-                              placeholder="Enter grade"
-                              value={
-                                gradeInputs[s.id] ??
-                                (s.grade !== null ? String(s.grade) : "")
-                              }
-                              onChange={(e) =>
-                                setGradeInputs((prev) => ({
-                                  ...prev,
-                                  [s.id]: e.target.value,
-                                }))
-                              }
-                            />
-                          ) : (
-                            <span className="muted-text">—</span>
-                          )}
-                        </td>
+                      <td>
+                        {unclaimed && <span className="status-badge waiting">Unclaimed</span>}
+                        {claimedByMe && (
+                          <span className="status-badge mine">
+                            <FaCheckCircle />
+                            Yours
+                          </span>
+                        )}
+                        {claimedByOther && (
+                          <span className="status-badge locked">
+                            <FaUserLock />
+                            Locked
+                          </span>
+                        )}
+                      </td>
 
-                        <td className="cell-actions">
-                          {unclaimed && (
+                      <td>{s.points ?? "—"}</td>
+
+                      <td className="cell-actions">
+                        {unclaimed && (
+                          <button className="button button-accept" onClick={() => claim(s.id)}>
+                            <FaPlay />
+                            Claim
+                          </button>
+                        )}
+
+                        {claimedByMe && (
+                          <>
                             <button
-                              className="button button-accept"
-                              onClick={() => claim(s.id)}
+                              className="button button-completed"
+                              onClick={() => openModal(s)}
                             >
-                              <FaPlay />
-                              Claim
+                              <FaPen />
+                              Grade
                             </button>
-                          )}
 
-                          {claimedByMe && (
-                            <>
-                              <button
-                                className={`button button-completed ${
-                                  savedGrades[s.id] ? "is-saved" : ""
-                                }`}
-                                onClick={() =>
-                                  grade(s.id, Number(gradeInputs[s.id]))
-                                }
-                                disabled={
-                                  gradeInputs[s.id] === undefined ||
-                                  gradeInputs[s.id] === ""
-                                }
-                              >
-                                <span className="save-content">
-                                  <span
-                                    className={`save-text ${
-                                      savedGrades[s.id] ? "hide" : ""
-                                    }`}
-                                  >
-                                    <FaCheckCircle />
-                                    Save Grade
-                                  </span>
+                            <button
+                              className="button button-warning"
+                              onClick={() => unclaim(s.id)}
+                            >
+                              <FaUndo />
+                              Unclaim
+                            </button>
+                          </>
+                        )}
 
-                                  <span
-                                    className={`save-check ${
-                                      savedGrades[s.id] ? "show" : ""
-                                    }`}
-                                  >
-                                    ✓
-                                  </span>
-                                </span>
-                              </button>
-
-                              <button
-                                className="button button-warning"
-                                onClick={() => unclaim(s.id)}
-                              >
-                                <FaUndo />
-                                Unclaim
-                              </button>
-                            </>
-                          )}
-
-                          {claimedByOther && (
-                            <span className="muted-text">Unavailable</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
+                        {claimedByOther && <span className="muted-text">Unavailable</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
         </div>
+
+        {/* MODAL */}
+        {modalOpen && activeSubmission && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <h2>Grade Submission</h2>
+
+              <label>Points</label>
+              <input
+                type="number"
+                value={pointsInput}
+                onChange={(e) => setPointsInput(e.target.value)}
+              />
+
+              <label>Feedback</label>
+              <textarea
+                value={feedbackInput}
+                onChange={(e) => setFeedbackInput(e.target.value)}
+              />
+
+              <div className="modal-actions">
+                <button
+                  className={`button button-completed ${saved ? "is-saved" : ""}`}
+                  onClick={saveEvaluation}
+                >
+                  {saved ? "✓ Saved" : "Save"}
+                </button>
+
+                <button className="button" onClick={closeModal}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

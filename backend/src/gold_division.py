@@ -61,7 +61,8 @@ def get_all_submissions():
             "link": s.Link,
             "studentId": s.StudentId,
             "submittedAt": s.SubmittedAt,
-            "grade": s.Grade,
+            "points": s.Points,
+            "feedback": s.Feedback,
             "adminGraderId": s.AdminGraderId
         })
 
@@ -94,6 +95,7 @@ def claim_submission(submission_id):
 
     return jsonify({'message': 'Claimed successfully'}), 200
 
+
 # -----------------------------
 # ADMIN: unclaim submission
 # -----------------------------
@@ -117,8 +119,9 @@ def unclaim_submission(submission_id):
 
     return jsonify({'message': 'Unclaimed successfully'}), 200
 
+
 # -----------------------------
-# ADMIN: grade submission
+# ADMIN: grade (points + feedback)
 # -----------------------------
 @gold_division_api.route('/grade/<int:submission_id>', methods=['POST'])
 @jwt_required()
@@ -136,12 +139,15 @@ def grade_submission(submission_id):
         return jsonify({'message': 'You must claim before grading'}), 403
 
     data = request.get_json()
-    grade = data.get("grade")
+    points = data.get("points")
+    feedback = data.get("feedback")
 
-    submission.Grade = grade
+    submission.Points = points
+    submission.Feedback = feedback
+
     db.session.commit()
 
-    return jsonify({'message': 'Grade saved'}), 200
+    return jsonify({'message': 'Points & feedback saved'}), 200
 
 
 # -----------------------------
@@ -162,6 +168,7 @@ def get_my_submission():
     return jsonify({
         "id": submission.Id,
         "link": submission.Link,
-        "grade": submission.Grade,
+        "points": submission.Points,
+        "feedback": submission.Feedback,
         "submittedAt": submission.SubmittedAt
     }), 200

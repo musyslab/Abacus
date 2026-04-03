@@ -99,5 +99,6 @@ class GoldDivision(db.Model):
     Link = Column(String(255), nullable=False)
     StudentId = Column(Integer, ForeignKey('StudentUsers.Id'), nullable=False)
     SubmittedAt = Column(Date)
-    Grade = Column(Integer)
+    Points = Column(Integer)          
+    Feedback = Column(String)         
     AdminGraderId = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=True)
