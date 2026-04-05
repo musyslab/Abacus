@@ -128,7 +128,7 @@ const AdminGoldSubmissions = () => {
     setTimeout(() => {
       setSaved(false);
       closeModal();
-    }, 1500);
+    }, 1200);
 
     fetchSubmissions(false);
   };
@@ -146,13 +146,13 @@ const AdminGoldSubmissions = () => {
 
   const breadcrumbs = isTeacherView
     ? [
-      { label: "Team Manage", to: "/teacher/team-manage" },
-      { label: "Gold Division Projects" },
-    ]
+        { label: "Team Manage", to: "/teacher/team-manage" },
+        { label: "Gold Division Projects" },
+      ]
     : [
-      { label: "Admin Menu", to: "/admin" },
-      { label: "Gold Submissions" },
-    ];
+        { label: "Admin Menu", to: "/admin" },
+        { label: "Gold Submissions" },
+      ];
 
   return (
     <>
@@ -241,12 +241,11 @@ const AdminGoldSubmissions = () => {
 
                       {!isTeacherView && (
                         <td className="cell-actions">
-                          {!canGrade && (
-                            <span className="muted-text">View only</span>
-                          )}
-
                           {canGrade && unclaimed && (
-                            <button className="button button-accept" onClick={() => claim(s.id)}>
+                            <button
+                              className="button button-accept"
+                              onClick={() => claim(s.id)}
+                            >
                               <FaPlay />
                               Claim
                             </button>
@@ -271,10 +270,6 @@ const AdminGoldSubmissions = () => {
                               </button>
                             </>
                           )}
-
-                          {canGrade && claimedByOther && (
-                            <span className="muted-text">Unavailable</span>
-                          )}
                         </td>
                       )}
                     </tr>
@@ -288,30 +283,36 @@ const AdminGoldSubmissions = () => {
         {canGrade && modalOpen && activeSubmission && (
           <div className="modal-overlay">
             <div className="modal">
-              <h2>Grade Submission</h2>
+              <h2 className="modal-title">Grade Submission</h2>
 
-              <label>Points</label>
-              <input
-                type="number"
-                value={pointsInput}
-                onChange={(e) => setPointsInput(e.target.value)}
-              />
+              <div className="form-group">
+                <label>Points</label>
+                <input
+                  type="number"
+                  value={pointsInput}
+                  onChange={(e) => setPointsInput(e.target.value)}
+                  placeholder="Enter score"
+                />
+              </div>
 
-              <label>Feedback</label>
-              <textarea
-                value={feedbackInput}
-                onChange={(e) => setFeedbackInput(e.target.value)}
-              />
+              <div className="form-group">
+                <label>Feedback</label>
+                <textarea
+                  value={feedbackInput}
+                  onChange={(e) => setFeedbackInput(e.target.value)}
+                  placeholder="Write helpful feedback..."
+                />
+              </div>
 
               <div className="modal-actions">
                 <button
-                  className={`button button-completed ${saved ? "is-saved" : ""}`}
+                  className={`button button-completed primary ${saved ? "is-saved" : ""}`}
                   onClick={saveEvaluation}
                 >
-                  {saved ? "✓ Saved" : "Save"}
+                  {saved ? "✓ Saved" : "Save Grade"}
                 </button>
 
-                <button className="button" onClick={closeModal}>
+                <button className="button secondary" onClick={closeModal}>
                   Cancel
                 </button>
               </div>
