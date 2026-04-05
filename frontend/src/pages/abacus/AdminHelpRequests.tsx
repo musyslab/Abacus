@@ -10,6 +10,7 @@ import {
     FaPlay,
     FaUndo,
     FaTimesCircle,
+    FaSync,
 } from 'react-icons/fa'
 
 interface HelpRequestsState {
@@ -99,7 +100,14 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                 this.fetchRequests() 
             })
             .catch((err) => {
-                console.error("Failed to update status:", err)
+
+                if (err.response && err.response.status === 409) {
+                    alert("Another admin or the student has already updated this request!")
+                    this.fetchRequests() 
+                } else {
+                    console.error("Failed to update status:", err)
+                    alert("Failed to update status. Please try again.")
+                }
             })
     }
 
@@ -134,7 +142,7 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
 
     startFetchingInterval() {
         this.fetchRequests()
-        this.fetchIntervalId = window.setInterval(this.fetchRequests, 30000) // Fetch every 30 seconds 
+        this.fetchIntervalId = window.setInterval(this.fetchRequests, 500000) // Fetch every 5 minutes 
     }
     
     formatWaitTimeDisplay = (timestampStr: string) => {
@@ -185,12 +193,37 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
 
                     <DirectoryBreadcrumbs
                         items={[
+                            { label: "Admin Menu", to: "/admin" },
                             { label: "Help Requests" },
                         ]}
                     />
 
-                    <div className="pageTitle">Help Requests</div>
-
+                    <div 
+                        className="pageTitle" 
+                        style={{ 
+                            position: 'relative', 
+                            display: 'flex', 
+                            justifyContent: 'center', 
+                            alignItems: 'center' 
+                        }}
+                    >
+                        <span>Help Requests</span>
+                        <button 
+                            className="button" 
+                            onClick={this.fetchRequests}
+                            title="Refresh requests manually"
+                            style={{ 
+                                position: 'absolute', 
+                                right: '15px', /* Adjust this to match your inner padding */
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '8px',
+                                margin: 0 /* Ensures the button doesn't inherit unwanted margins */
+                            }}
+                        >
+                            <FaSync aria-hidden="true" /> Refresh
+                        </button>
+                    </div>
                     {/* ======================= STUDENT QUEUE ======================= */}
                     <div className="table-section">
                         <div className="tableTitle">Student Queue</div>
@@ -302,17 +335,15 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                                             key={item.id}
                                             className={`data-row ${item.status === 1 ? 'is-in-oh' : ''}`}
                                         >
-                                            <td className="cell-status" aria-label="Outcome">
-                                                {item.status === 3 ? (
-                                                    <span className="status" style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '5px' }} title="Canceled by Student">
-                                                        <FaTimesCircle /> Canceled
+                                            <td className="cell-status" aria-label={item.status === 1 ? 'In Progress' : 'Waiting'}>
+                                                {item.status === 1 ? (
+                                                    <span className="status in-oh" aria-hidden="true" title={`Being helped by ${item.adminName || 'an Admin'}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <FaHandshake /> 
+                                                        <span style={{ fontSize: '0.85em', fontWeight: 'bold' }}>{item.adminName}</span>
                                                     </span>
                                                 ) : (
-                                                    <span className="status outcome-accepted" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} title={`Resolved by ${item.adminName || 'Admin'}`}>
-                                                        <FaCheckCircle /> 
-                                                        <span>
-                                                            Resolved {item.adminName && <span style={{ fontSize: '0.85em', opacity: 0.8 }}><br/>by {item.adminName}</span>}
-                                                        </span>
+                                                    <span className="status waiting" aria-hidden="true" title="Waiting in queue">
+                                                        <FaRegClock />
                                                     </span>
                                                 )}
                                             </td>

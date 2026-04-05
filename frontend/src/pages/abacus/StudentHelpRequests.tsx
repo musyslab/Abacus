@@ -57,7 +57,7 @@ const StudentHelpRequests: React.FC = () => {
 
     useEffect(() => {
         fetchRequests();
-        const intervalId = setInterval(fetchRequests, 30000); // Poll every 30s
+        const intervalId = setInterval(fetchRequests, 500000); // Poll every 5 minutes
         
 
         axios.get(`${import.meta.env.VITE_API_URL}/projects/all_projects`, authConfig())
@@ -182,7 +182,7 @@ const StudentHelpRequests: React.FC = () => {
                                 disabled={isSubmitting}
                             >
                                 <option value="" disabled>Select the problem...</option>
-                                <option value="general">General System / Environment Issue</option>
+                                <option value="general">General Issue</option>
                                 {availableProblems.map((p) => (
                                     <option key={p.Id} value={p.Id.toString()}>{p.Name}</option>
                                 ))}
