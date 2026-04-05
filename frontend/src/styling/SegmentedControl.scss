@@ -1,43 +1,130 @@
 // src/styling/SegmentedControl.scss
 
 .segment-btn {
+    position: relative;
     display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    width: 100%;
-    align-items: center;
+    grid-template-columns: repeat(var(--segment-count), minmax(0, 1fr));
+    gap: 0;
+    padding: 3px;
     border-radius: 999px;
-    background: #f3f4f6;
-    border: 1px solid #ccc;
+    background: #e5e7eb;
+    overflow: hidden;
+    border: 1px solid #d1d5db;
+
+    .segment-slider {
+        position: absolute;
+        top: 3px;
+        bottom: 3px;
+        left: 3px;
+        width: calc((100% - 6px) / var(--segment-count));
+        border-radius: 999px;
+        background: #ffffff;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+        transform: translateX(calc(var(--segment-index) * 100%));
+        transition: transform 220ms ease;
+        z-index: 0;
+    }
 
     .segment-option {
-        min-width: 0;
-        border: none;
+        position: relative;
+        z-index: 1;
+        border: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         background: transparent;
+        padding: 0.3rem 0.8rem;
+        border-radius: 999px;
+        cursor: pointer;
         font-size: 15px;
         font-weight: 500;
-        padding: 8px 12px;
-        border-radius: 999px;
         color: #374151;
-        cursor: pointer;
-        white-space: nowrap;
-
-        transition:
-            background 0.2s ease,
-            color 0.2s ease,
-            transform 0.05s ease,
-            box-shadow 0.2s ease;
+        transition: color 160ms ease;
 
         &:not(.selected):hover {
             background: rgba(17, 24, 39, 0.06);
         }
+
         &:active {
             transform: scale(0.98);
         }
     }
-    .selected {
-        background: #fff;
-        color: #111827;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.segment-division {
+    .segment-slider.blue {
+        background: #dbeafe;
+        border: 1px solid #1e40af;
+    }
+
+    .segment-option.selected.blue {
+        color: #1e40af;
+    }
+
+    .segment-slider.gold {
+        background: #fef3c7;
+        border: 1px solid #d97706;
+    }
+
+    .segment-option.selected.gold {
+        color: #b45309;
+    }
+
+    .segment-slider.eagle {
+        background: #dff7f5;
+        border: 1px solid #0f766e;
+    }
+
+    .segment-option.selected.eagle {
+        color: #0f766e;
+    }
+}
+
+.segment-attendance {
+    .segment-slider.inperson {
+        background: #dcfce7;
+        border: 1px solid #15803d;
+    }
+
+    .segment-option.selected.inperson {
+        color: #166534;
+    }
+
+    .segment-slider.virtual {
+        background: #ede9fe;
+        border: 1px solid #7c3aed;
+    }
+
+    .segment-option.selected.virtual {
+        color: #6d28d9;
+    }
+}
+
+.segment-project-type {
+    .segment-slider.competition {
+        background: #e8f1ff;
+        border: 1px solid #b7ccff;
+    }
+
+    .segment-option.selected.competition {
+        color: #1d4ed8;
+    }
+
+    .segment-slider.practice {
+        background: #f2e8ff;
+        border: 1px solid #d1b2ff;
+    }
+
+    .segment-option.selected.practice {
+        color: #7c3aed;
+    }
+
+    .segment-slider.none {
+        background: #f3f4f6;
+        border: 1px solid #9ca3af;
+    }
+
+    .segment-option.selected.none {
+        color: #6b7280;
     }
 }

@@ -24,10 +24,23 @@ export default function SegmentedControl({
     className = "",
     getOptionClassName,
 }: SegmentedControlProps) {
+    const selectedIndex = Math.max(0, options.findIndex((option) => option.value === value));
+    const selectedOption = options[selectedIndex];
+    const selectedClass = selectedOption && getOptionClassName
+        ? getOptionClassName(selectedOption.value)
+        : "";
+
     return (
-        <div className={`segment-btn ${className}`.trim()}>
+        <div 
+            className={`segment-btn ${className}`.trim()}
+            style={{
+                "--segment-count": options.length,
+                "--segment-index": selectedIndex,
+            } as React.CSSProperties}
+        >
+            <span className={`segment-slider ${selectedClass}`.trim()} aria-hidden="true" />
             {options.map((option) => {
-                const isSelected = Object.is(option.value, value);
+                const isSelected = option.value === value;
                 const extraClass = getOptionClassName ? getOptionClassName(option.value) : "";
 
                 return (

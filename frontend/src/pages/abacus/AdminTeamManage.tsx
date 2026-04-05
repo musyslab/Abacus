@@ -978,10 +978,12 @@ export default function AdminTeamManage() {
                                                 <div className="panel__header-update">
                                                     <label className="panel__label">Attendance</label>
                                                     <SegmentedControl
+                                                        className="segment-attendance"
                                                         options={ATTENDANCE.map((o) => ({ label: o.label, value: o.value }))}
                                                         value={team.isOnline}
                                                         disabled={isLoading}
                                                         onChange={(v) => updateTeamAttendance(team.id, v)}
+                                                        getOptionClassName={(v) => v ? "virtual" : "inperson"}
                                                     />
                                                 </div>
                                             </div>
