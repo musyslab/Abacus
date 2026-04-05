@@ -54,6 +54,7 @@ class Testcase {
 
 type SolutionLang = 'java' | 'python'
 type ProjectType = 'competition' | 'practice' | 'none'
+type Division = 'Blue' | 'Gold' | 'Eagle'
 
 const isJavaFileName = (n: string) => /\.java$/i.test(n)
 
@@ -123,6 +124,7 @@ export default function AdminProjectManage() {
     const [removedAdditionalFiles, setRemovedAdditionalFiles] = useState<string[]>([])
     const [mainJavaFileName, setMainJavaFileName] = useState<string>('')
     const [projectType, setProjectType] = useState<ProjectType>('none')
+    const [projectDivision, setProjectDivision] = useState<Division>('Blue')
 
     // Lock page scroll whenever either modal is open
     useEffect(() => {
@@ -361,6 +363,7 @@ export default function AdminProjectManage() {
                     setProjectName(data["name"] || '')
                     setProjectLanguage(data["language"] || '')
                     setProjectType(data["type"] as ProjectType)
+                    setProjectDivision((data["division"] || 'Blue') as Division)
                     setServerProjectLanguageSnapshot(data["language"] || '')
                     setSolutionFileNames([])
                     setSolutionFiles([])
@@ -522,6 +525,7 @@ export default function AdminProjectManage() {
             formData.append('name', ProjectName)
             formData.append('language', ProjectLanguage)
             formData.append('project_type', projectType)
+            formData.append('division', projectDivision)
 
             const res = await axios.post(`${API}/projects/create_project`, formData, authConfig())
             const newId = res.data
@@ -566,6 +570,7 @@ export default function AdminProjectManage() {
             formData.append('name', ProjectName)
             formData.append('language', ProjectLanguage)
             formData.append('project_type', projectType)
+            formData.append('division', projectDivision)
 
             await axios.post(`${API}/projects/edit_project`, formData, authConfig())
 
@@ -967,6 +972,20 @@ export default function AdminProjectManage() {
                                             value={projectType}
                                             onChange={(v) => setProjectType(v as ProjectType)}
                                             getOptionClassName={(v) => v.toLowerCase()}
+                                        />
+                                    </div>
+                                    <div className="form-field input-field">
+                                        <label>Division</label>
+                                        <SegmentedControl
+                                            className="segment-project-division"
+                                            options={[
+                                                { label: "Blue", value: "Blue" },
+                                                { label: "Gold", value: "Gold" },
+                                                { label: "Eagle", value: "Eagle" },
+                                            ]}
+                                            value={projectDivision}
+                                            onChange={(v) => setProjectDivision(v as Division)}
+                                            getOptionClassName={(v) => String(v).toLowerCase()}
                                         />
                                     </div>
 
