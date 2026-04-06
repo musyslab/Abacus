@@ -12,7 +12,6 @@ class Projects(db.Model):
     Name = Column(String, nullable=False)
     Language = Column(String, nullable=False)
     Type = Column(String, nullable=False)
-    Division = Column(String, nullable=True)
     OrderIndex = Column(Integer)
     Submissions = relationship('Submissions')
     solutionpath = Column(String)

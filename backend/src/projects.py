@@ -24,8 +24,7 @@ from injector import inject
 from flask_jwt_extended import jwt_required
 from flask_jwt_extended import current_user
 from src.repositories.project_repository import ProjectRepository
-from src.repositories.models import AdminUsers, StudentUsers, Teams, Submissions, Projects
-from src.repositories.database import db
+from src.repositories.models import AdminUsers, StudentUsers, Teams, Submissions
 from src.services.dataService import all_submissions 
 from src.models.ProjectJson import ProjectJson
 from src.constants import (
@@ -49,31 +48,6 @@ projects_api = Blueprint('projects_api', __name__)
 ALLOWED_SOURCE_EXTS = {'.py', '.c', '.java', '.rkt'}
 TS_DIR_RE = re.compile(r"^\d{8}_\d{6}$")
 PROJECT_TYPES = {'competition', 'practice', 'none'}
-DIVISION_TYPES = {'Blue', 'Gold', 'Eagle'}
-
-
-def normalize_division(value: str | None) -> str:
-    raw = (value or "").strip().lower()
-    if raw == "blue":
-        return "Blue"
-    if raw == "gold":
-        return "Gold"
-    if raw == "eagle":
-        return "Eagle"
-    return ""
-
-
-def get_current_user_division() -> str:
-    if isinstance(current_user, StudentUsers):
-        team_id = int(getattr(current_user, "TeamId", 0) or 0)
-        if team_id <= 0:
-            return ""
-        team = Teams.query.get(team_id)
-        if not team:
-            return ""
-        return normalize_division(getattr(team, "Division", "") or "")
-    return ""
-
 
 def project_root() -> str:
     return "/tabot-files/project-files"
@@ -231,17 +205,6 @@ def all_projects(project_repo: ProjectRepository = Provide[Container.project_rep
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
     data = project_repo.get_all_projects()
-
-    # Students only see problems for their own division.
-    # Legacy projects with no Division set remain visible until they are backfilled.
-    if isinstance(current_user, StudentUsers):
-        user_division = get_current_user_division()
-        if user_division:
-            data = [
-                proj for proj in data
-                if normalize_division(getattr(proj, "Division", "") or "") in ("", user_division)
-            ]
-
     thisdic = submission_repo.get_total_submission_for_all_projects()
     visible_team_ids = get_visible_team_ids_for_project_summary()
     review_counts = build_project_review_counts(data, visible_team_ids)
@@ -251,7 +214,6 @@ def all_projects(project_repo: ProjectRepository = Provide[Container.project_rep
             "Id": proj.Id,
             "Name": proj.Name,
             "Type": proj.Type,
-            "Division": getattr(proj, "Division", None),
             "OrderIndex": proj.OrderIndex,
             "TotalSubmissions": thisdic.get(proj.Id, 0),
             "NotSubmittedCount": review_counts.get(proj.Id, {}).get("NotSubmittedCount", 0),
@@ -314,10 +276,8 @@ def create_project(project_repo: ProjectRepository = Provide[Container.project_r
     name = request.form.get('name', '').strip()
     language = request.form.get('language', '').strip()
     project_type = request.form.get('project_type', '').strip()
-    division = normalize_division(request.form.get('division', ''))
-
-    if name == '' or language == '' or (project_type not in PROJECT_TYPES) or (division not in DIVISION_TYPES):
-        return make_response({'message': 'Error in form'}, HTTPStatus.BAD_REQUEST)
+    if name == '' or language == '' or (project_type not in PROJECT_TYPES):
+        return make_response("Error in form", HTTPStatus.BAD_REQUEST)
 
     base_proj = safe_name(name)
     ts = ts_str()
@@ -357,20 +317,7 @@ def create_project(project_repo: ProjectRepository = Provide[Container.project_r
         if order_index is None:
             return make_response({'message': 'Maximum number of competition projects reached'}, HTTPStatus.BAD_REQUEST)
 
-    new_project_id = project_repo.create_project(
-        name,
-        language,
-        project_type,
-        order_index,
-        selected_path,
-        assignmentdesc_path,
-        json.dumps(add_names),
-    )
-
-    created_project = project_repo.get_selected_project(int(new_project_id))
-    if created_project:
-        created_project.Division = division
-        db.session.commit()
+    new_project_id = project_repo.create_project(name, language, project_type, order_index, selected_path, assignmentdesc_path, json.dumps(add_names))
 
     return make_response(str(new_project_id), HTTPStatus.OK)
 
@@ -389,9 +336,8 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
     name = request.form.get('name', '')
     language = request.form.get('language', '')
     project_type = request.form.get('project_type', '').strip().lower()
-    division = normalize_division(request.form.get('division', ''))
     
-    if name == '' or language == '' or (project_type not in PROJECT_TYPES) or (division not in DIVISION_TYPES):
+    if name == '' or language == '' or (project_type not in PROJECT_TYPES):
         return make_response({'message': 'Error in form'}, HTTPStatus.BAD_REQUEST)
     
     existing_proj = project_repo.get_selected_project(pid)
@@ -562,11 +508,6 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
 
     project_repo.edit_project(name, language, project_type, order_index, pid, path, assignmentdesc_path, json.dumps(add_names))
 
-    saved_project = project_repo.get_selected_project(pid)
-    if saved_project:
-        saved_project.Division = division
-        db.session.commit()
-
     # Recompute testcase outputs **against the path we just wrote**, so we don't depend on
     # any cached ORM objects or delayed reads.
     try:
@@ -622,10 +563,10 @@ def run_solution_for_input(solution_root: str, language: str, input_text: str, p
 
     args = [
         "python", script,
-        "ADMIN",
-        language or "python",
-        input_text or "",
-        solution_root,
+        "ADMIN",              # student_name triggers admin path
+        language or "python", # language as tabot expects
+        input_text or "",     # goes to admin_run(user_input)
+        solution_root,        # file or directory
         add_arg,
         str(project_id or 0),
     ]
@@ -657,14 +598,17 @@ def load_tabot_module():
     if not spec or not spec.loader:
         raise ImportError(f"Cannot load spec for {grading_path}")
 
+    # Ensure sibling imports like `from output import *` work
     sys.path.insert(0, grading_dir)
     try:
         mod = importlib.util.module_from_spec(spec)
-        sys.modules["tabot"] = mod
+        sys.modules["tabot"] = mod  # let subimports see the module name
+        # Optional but helps some relative-import edge cases:
         mod.__package__ = None
         spec.loader.exec_module(mod)
         return mod
     finally:
+        # Avoid permanently polluting sys.path
         try:
             sys.path.remove(grading_dir)
         except ValueError:
@@ -677,9 +621,12 @@ except Exception as e:
     print(f"[projects] Warning: tabot import failed (will use subprocess path): {e}", flush=True)
 
 def recompute_expected_outputs(project_repo, project_id, *, solution_override_path: str = None, language_override: str = None):    
+    
     """
     For each testcase, run the (updated) solution and persist the new output.
     """
+
+    # Always fetch the project once (needed for class id, fallback language, etc.)
     try:
         proj_obj = project_repo.get_selected_project(int(project_id))
     except Exception:
@@ -716,12 +663,14 @@ def recompute_expected_outputs(project_repo, project_id, *, solution_override_pa
                 new_out,
             )
         except Exception:
+            # continue on individual failures
             continue
 
 @projects_api.route('/list_source_files', methods=['GET'])
 @jwt_required()
 @inject
 def list_source_files(project_repo: ProjectRepository = Provide[Container.project_repo], user_repo: UserRepository = Provide[Container.user_repo]):
+    """Return list of previewable source files for a project (relative paths if a directory)."""
     if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
@@ -729,7 +678,7 @@ def list_source_files(project_repo: ProjectRepository = Provide[Container.projec
     if not pid:
         return make_response({'message': 'Missing project_id'}, HTTPStatus.BAD_REQUEST)
 
-    root = project_repo.get_project_path(pid)
+    root = project_repo.get_project_path(pid)  # absolute path previously saved
     if not root or not os.path.exists(root):
         return make_response({'message': 'Project path not found'}, HTTPStatus.NOT_FOUND)
 
@@ -752,6 +701,7 @@ def list_source_files(project_repo: ProjectRepository = Provide[Container.projec
 @jwt_required()
 @inject
 def get_source_file(project_repo: ProjectRepository = Provide[Container.project_repo], user_repo: UserRepository = Provide[Container.user_repo]):
+    """Return the text content of a source file for preview."""
     if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
@@ -764,6 +714,7 @@ def get_source_file(project_repo: ProjectRepository = Provide[Container.project_
     if not root or not os.path.exists(root):
         return make_response({'message': 'Project path not found'}, HTTPStatus.NOT_FOUND)
 
+    # Resolve full path safely using os.path only
     if os.path.isdir(root):
         candidate = os.path.normpath(os.path.join(root, relpath))
         root_abs = os.path.abspath(root)
@@ -772,6 +723,7 @@ def get_source_file(project_repo: ProjectRepository = Provide[Container.project_
             return make_response({'message': 'Invalid path'}, HTTPStatus.BAD_REQUEST)
         full = cand_abs
     else:
+        # Single-file project: only that file is allowed
         if relpath and relpath != os.path.basename(root):
             return make_response({'message': 'Invalid path for single-file project'}, HTTPStatus.BAD_REQUEST)
         full = root
@@ -781,6 +733,7 @@ def get_source_file(project_repo: ProjectRepository = Provide[Container.project_
     if not has_allowed_ext(full):
         return make_response({'message': 'Unsupported file type'}, HTTPStatus.BAD_REQUEST)
 
+    # Limit preview size to 2 MB
     if os.path.getsize(full) > 2 * 1024 * 1024:
         return make_response({'message': 'File too large to preview'}, HTTPStatus.BAD_REQUEST)
 
@@ -801,10 +754,6 @@ def get_project(project_repo: ProjectRepository = Provide[Container.project_repo
 
     project_id = request.args.get('id')
     project_info = project_repo.get_project(project_id)
-
-    if isinstance(project_info, dict):
-        proj_obj = project_repo.get_selected_project(int(project_id))
-        project_info["division"] = getattr(proj_obj, "Division", None) if proj_obj else None
 
     return make_response(jsonify(project_info), HTTPStatus.OK)
     
@@ -858,6 +807,7 @@ def add_or_update_testcase(project_repo: ProjectRepository = Provide[Container.p
     if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
+    # Grab all fields safely (defaults prevent NameError)
     id_val = request.form.get('id', '').strip()
     name = request.form.get('name', '').strip()
     input_data = request.form.get('input', '')
@@ -869,6 +819,7 @@ def add_or_update_testcase(project_repo: ProjectRepository = Provide[Container.p
     if id_val == '' or name == '' or input_data == '' or project_id == '' or description == '':
         return make_response("Error in form", HTTPStatus.BAD_REQUEST)    
 
+    # Coerce types with validation
     try:
         project_id = int(project_id)
         id_val = int(id_val)
@@ -881,6 +832,9 @@ def add_or_update_testcase(project_repo: ProjectRepository = Provide[Container.p
 
     hidden = parse_hidden(hidden_raw)
 
+    # Auto-recompute expected output when editing a testcase.
+    # If the project's language is Python, run the saved solution with the new input
+    # and overwrite the provided `output` with the program's stdout.
     try:
         project = project_repo.get_selected_project(int(project_id))
         language = (getattr(project, "Language", "") or "")
@@ -888,6 +842,7 @@ def add_or_update_testcase(project_repo: ProjectRepository = Provide[Container.p
         add_path = getattr(project, "AdditionalFilePath", "") if project else ""
         output = run_solution_for_input(solution_root, language, input_data, int(project_id), add_path)
     except Exception:
+        # Fall back to the submitted output if recomputation fails
         pass
 
     project_repo.add_or_update_testcase(project_id, id_val, name, description, input_data, output, hidden)
@@ -902,7 +857,7 @@ def remove_testcase(project_repo: ProjectRepository = Provide[Container.project_
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
     if 'id' in request.form:
-        id_val = request.form['id']
+        id_val=request.form['id']
     project_repo.remove_testcase(id_val)
     return make_response("Testcase Removed", HTTPStatus.OK)
 
@@ -930,6 +885,7 @@ def getAssignmentDescription(project_repo: ProjectRepository = Provide[Container
         mime = 'application/octet-stream'
     file_stream = BytesIO(assignmentdesc_contents)
     data = file_stream.getvalue()
+    # Send original filename; expose headers for CORS so frontend can read them
     return Response(
         data,
         content_type=mime,
@@ -973,6 +929,7 @@ def reorder_projects(
 
     id_to_proj = {int(p.Id): p for p in projects}
 
+    # First pass to flush the order
     for idx, proj_id in enumerate(id_order):
         proj = id_to_proj.get(proj_id)
         if proj:
@@ -980,6 +937,8 @@ def reorder_projects(
         else:
             return make_response({'message': f'Project ID {proj_id} not found'}, HTTPStatus.BAD_REQUEST)
 
+    # Second pass to set the correct order.
+    # Avoids duplicate unique values
     for idx, proj_id in enumerate(id_order):
         proj = id_to_proj.get(proj_id)
         if proj:

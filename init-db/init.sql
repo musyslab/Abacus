@@ -184,9 +184,6 @@ ALTER TABLE `Testcases`
   ADD CONSTRAINT `tc_fk`
   FOREIGN KEY (`ProjectId`) REFERENCES `Projects` (`Id`);
 
-ALTER TABLE Projects ADD COLUMN Division VARCHAR(32) NULL;
-UPDATE Projects SET Division = 'Blue' WHERE Division IS NULL;
-
 -- ============================================
 -- Seed Schools data
 -- ============================================
