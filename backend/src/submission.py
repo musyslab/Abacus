@@ -482,6 +482,24 @@ def update_help_request(
     if new_status not in [0, 1, 2, 3]:
         return make_response(jsonify({'message': 'Invalid status code. Must be 0, 1, 2, or 3.'}), HTTPStatus.BAD_REQUEST)
         
+    current_request = submission_repo.get_all_help_requests()
+    current_request = next((req for req in current_request if getattr(req, 'Id') == request_id), None)
+    if not current_request:
+        return make_response(jsonify({'message': 'Help request not found'}), HTTPStatus.NOT_FOUND)
+
+    current_status = getattr(current_request, 'status', current_request.Status if hasattr(current_request, 'Status') else None)
+    if new_status == 1:  # Admin trying to 'Start Helping'
+        if current_status == 3:
+            return make_response(jsonify({'message': 'Conflict: Student already canceled this request.'}), HTTPStatus.CONFLICT)
+        if current_status != 0:
+            return make_response(jsonify({'message': 'Conflict: Another admin has already claimed this.'}), HTTPStatus.CONFLICT)
+    
+    elif new_status == 2:  # Admin trying to 'Resolve'
+        if current_status == 3:
+            return make_response(jsonify({'message': 'Conflict: Student canceled this request.'}), HTTPStatus.CONFLICT)
+        if current_status != 1:
+            return make_response(jsonify({'message': 'Conflict: Cannot resolve a request that is not in progress.'}), HTTPStatus.CONFLICT)
+
     if new_status == 1:
         # If admin is claiming the request, set themselves as the current admin
         submission_repo.set_help_request_admin(request_id, current_user.Id)

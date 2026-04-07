@@ -1,5 +1,5 @@
 import { Helmet } from "react-helmet";
-import { FaPuzzlePiece, FaSchool, FaUpload } from "react-icons/fa";
+import { FaPuzzlePiece, FaSchool, FaUpload, FaClipboard } from "react-icons/fa";
 import { Link } from "react-router-dom";
 
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
@@ -30,6 +30,13 @@ export default function AdminMenu() {
             to: "/admin/upload",
             className: "admin-menu-nav__item admin-menu-nav__item--upload",
             icon: <FaUpload aria-hidden="true" />,
+        },
+        {
+            title: "Help Queue",
+            description: "View and manage help requests.",
+            to: "/admin/help-requests",
+            className: "admin-menu-nav__item admin-menu-nav__item--help-requests",
+            icon: <FaClipboard aria-hidden="true" />,
         },
     ];
 
