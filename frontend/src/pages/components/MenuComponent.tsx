@@ -11,6 +11,7 @@ import {
     FaUserCircle,
     FaQuestionCircle,
     FaClipboardList,
+    FaComments,
 } from "react-icons/fa";
 
 interface MenuComponentProps {
@@ -29,7 +30,8 @@ interface MenuComponentState {
     dashboardPath: string;
     isRoleLoaded: boolean;
     isStudent: boolean;
-    isAdminRole:boolean;
+    isAdminRole: boolean;
+    isEagleStudent: boolean;
 }
 
 class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
@@ -41,6 +43,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
             isRoleLoaded: false,
             isStudent: false,
             isAdminRole: false,
+            isEagleStudent: false,
         };
     }
 
@@ -74,10 +77,35 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
             const status = String(res.data?.status || "");
             const role = Number(res.data?.role);
 
-            // Students
             if (status === "student") {
+                try {
+                    const teamRes = await axios.get(`${import.meta.env.VITE_API_URL}/teams/me`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    const div = String(teamRes.data?.division ?? "").trim();
+                    if (div === "Eagle") {
+                        const info = { label: "Problem Select", path: "/student/problems" };
+                        this.setState({
+                            dashboardLabel: info.label,
+                            dashboardPath: info.path,
+                            isRoleLoaded: true,
+                            isStudent: true,
+                            isAdminRole: false,
+                            isEagleStudent: true,
+                        });
+                        return info;
+                    }
+                } catch {
+                }
                 const info = { label: "Problem Select", path: "/student/problems" };
-                this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true, isStudent: true, isAdminRole: false });
+                this.setState({
+                    dashboardLabel: info.label,
+                    dashboardPath: info.path,
+                    isRoleLoaded: true,
+                    isStudent: true,
+                    isAdminRole: false,
+                    isEagleStudent: false,
+                });
                 return info;
             }
 
@@ -86,22 +114,43 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                 const isAdmin = role === 1;
                 if (isAdmin) {
                     const info = { label: "Admin Menu", path: "/admin" };
-                    this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true, isAdminRole: true });
+                    this.setState({
+                        dashboardLabel: info.label,
+                        dashboardPath: info.path,
+                        isRoleLoaded: true,
+                        isAdminRole: true,
+                        isEagleStudent: false,
+                    });
                     return info;
                 }
 
                 const info = { label: "Team Manage", path: "/teacher/team-manage" };
 
-                this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
+                this.setState({
+                    dashboardLabel: info.label,
+                    dashboardPath: info.path,
+                    isRoleLoaded: true,
+                    isEagleStudent: false,
+                });
                 return info;
             }
 
             const fallback = { label: "Dashboard", path: "/home" };
-            this.setState({ dashboardLabel: fallback.label, dashboardPath: fallback.path, isRoleLoaded: true });
+            this.setState({
+                dashboardLabel: fallback.label,
+                dashboardPath: fallback.path,
+                isRoleLoaded: true,
+                isEagleStudent: false,
+            });
             return fallback;
         } catch {
             const fallback = { label: "Dashboard", path: "/home" };
-            this.setState({ dashboardLabel: fallback.label, dashboardPath: fallback.path, isRoleLoaded: true });
+            this.setState({
+                dashboardLabel: fallback.label,
+                dashboardPath: fallback.path,
+                isRoleLoaded: true,
+                isEagleStudent: false,
+            });
             return fallback;
         }
     };
@@ -288,8 +337,16 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                                         <span className="menu__text">Help Requests</span>
                                     </Link>
                                 )}
-                                
-                                {/* Only show for Admins */}
+                                {this.state.isRoleLoaded && this.state.isEagleStudent && (
+                                    <Link
+                                        to="/student/eagle-home"
+                                        className="menu__item menu__item--link"
+                                        title="Eagle Division home"
+                                    >
+                                        <FaComments className="menu__icon" aria-hidden="true" />
+                                        <span className="menu__text">Eagle Home</span>
+                                    </Link>
+                                )}
                                 {this.state.isRoleLoaded && this.state.isAdminRole && (
                                     <Link
                                         to="/admin/help-requests"

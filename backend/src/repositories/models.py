@@ -109,3 +109,13 @@ class HelpRequests(db.Model):
     
     # Stays null until compelted
     CompletedAt = Column(DateTime, nullable=True)
+
+class EagleTeamMessages(db.Model):
+    __tablename__ = "EagleTeamMessages"
+    Id = Column(Integer, primary_key=True, autoincrement=True)
+    TeamId = Column(Integer, ForeignKey("Teams.Id"), nullable=False)
+    SenderType = Column(String(16), nullable=False)
+    StudentId = Column(Integer, ForeignKey("StudentUsers.Id"), nullable=True)
+    AdminId = Column(Integer, ForeignKey("AdminUsers.Id"), nullable=True)
+    Body = Column(Text, nullable=False)
+    CreatedAt = Column(DateTime, nullable=False, server_default=func.now())

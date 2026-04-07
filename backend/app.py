@@ -15,7 +15,7 @@ from src.schools import school_api
 from src.teams import team_api
 from src.error import error_api
 from src.jwt_manager import jwt
-from src import teams, schools, auth, projects, submission, upload
+from src import teams, schools, auth, projects, submission, upload, eagle_home
 from src.services import timeout_service
 import os
 
@@ -23,7 +23,7 @@ def create_app():
     app = Flask(__name__)
     container = Container()
     app.container = container
-    container.wire(modules=[teams,schools, auth, projects, submission, upload, timeout_service])
+    container.wire(modules=[teams,schools, auth, projects, submission, upload, timeout_service, eagle_home])
     
     TEACHER_DIR = "/tabot-files/project-files/teacher-files"
     STUDENT_DIR = "/tabot-files/project-files/student-files"
@@ -55,6 +55,7 @@ def create_app():
     app.register_blueprint(projects_api,url_prefix='/api/projects')  
     app.register_blueprint(school_api, url_prefix='/api/schools')
     app.register_blueprint(team_api, url_prefix='/api/teams')
+    app.register_blueprint(eagle_home.eagle_api, url_prefix='/api/eagle')
     app.register_blueprint(error_api,url_prefix='/api/error')
     
     # Initialize extensions

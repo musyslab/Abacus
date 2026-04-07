@@ -23,13 +23,12 @@ import AdminTeamSubmissions from './pages/abacus/AdminTeamSubmissions';
 import AdminUpload from './pages/abacus/AdminUpload';
 import StudentProjectSelection from './pages/abacus/StudentProjectSelection';
 import AdminProblemReview from './pages/abacus/AdminProblemSubmissions';
+import StudentEagleHome from './pages/abacus/StudentEagleHome';
+import AdminEagleChat from './pages/abacus/AdminEagleChat';
 
 import SubmissionView from './pages/abacus/SubmissionView';
 
 import ProtectedRoute from './pages/components/ProtectedRoute';
-import AdminHelpRequests from './pages/abacus/AdminHelpRequests';
-import StudentHelpRequests from './pages/abacus/StudentHelpRequests';
-
 
 class App extends Component {
 
@@ -133,6 +132,11 @@ class App extends Component {
                             <AdminUpload />
                         </ProtectedRoute>
                     } />
+                    <Route path="/admin/eagle-chat" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminEagleChat />
+                        </ProtectedRoute>
+                    } />
 
                     <Route path="/teacher/team-manage" element={
                         <ProtectedRoute requiredAdminRole={0}>
@@ -150,19 +154,14 @@ class App extends Component {
                             <StudentProjectSelection />
                         </ProtectedRoute>
                     } />
+                    <Route path="/student/eagle-home" element={
+                        <ProtectedRoute>
+                            <StudentEagleHome />
+                        </ProtectedRoute>
+                    } />
                     <Route path="/student/:projectId/submit" element={
                         <ProtectedRoute>
                             <StudentSubmit />
-                        </ProtectedRoute>
-                    } />
-                    <Route path = "/admin/help-requests" element={
-                        <ProtectedRoute requiredAdminRole={1}>
-                            <AdminHelpRequests />
-                        </ProtectedRoute>
-                    } />
-                    <Route path = "/student/help-requests" element={
-                        <ProtectedRoute>
-                            <StudentHelpRequests />
                         </ProtectedRoute>
                     } />
                     {/* Catch-all for 404 */}
