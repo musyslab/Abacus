@@ -150,6 +150,37 @@ CREATE TABLE HelpRequests (
 )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
+-- Table structure for table `TeamProjectStats`
+-- ============================================
+CREATE TABLE `TeamProjectStats` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `TeamId` int NOT NULL,
+  `ProjectId` int NOT NULL,
+  `Attempts` int NOT NULL DEFAULT 0,
+  `Solved` tinyint(1) NOT NULL DEFAULT 0,
+  `AcceptedTimeMinutes` int DEFAULT NULL,
+  `CurrentSubmissionId` int NOT NULL,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `teamprojectstats_team_project_unique` (`TeamId`,`ProjectId`),
+  KEY `fk_teamprojectstats_team_idx` (`TeamId`),
+  KEY `fk_teamprojectstats_project_idx` (`ProjectId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================
+-- Table structure for table `ScoreboardSnapshots`
+-- ============================================
+CREATE TABLE `ScoreboardSnapshots` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `Division` varchar(5) NOT NULL,
+  `IsOnline` tinyint(1) NOT NULL,
+  `Minute` int NOT NULL,
+  `TimeStamp` datetime NOT NULL,
+  `Payload` text NOT NULL,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `scoreboardsnapshots_division_online_minute_unique` (`Division`,`IsOnline`,`Minute`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================
 -- Foreign keys (added after all tables exist)
 -- ============================================
 
@@ -188,6 +219,16 @@ ALTER TABLE `Submissions`
 ALTER TABLE `Testcases`
   ADD CONSTRAINT `tc_fk`
   FOREIGN KEY (`ProjectId`) REFERENCES `Projects` (`Id`);
+
+ALTER TABLE `TeamProjectStats`
+  ADD CONSTRAINT `fk_teamprojectstats_team`
+  FOREIGN KEY (`TeamId`) REFERENCES `Teams` (`Id`)
+  ON DELETE CASCADE;
+
+ALTER TABLE `TeamProjectStats`
+  ADD CONSTRAINT `fk_teamprojectstats_project`
+  FOREIGN KEY (`ProjectId`) REFERENCES `Projects` (`Id`)
+  ON DELETE CASCADE;
 
 -- ============================================
 -- Seed Schools data

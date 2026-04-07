@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.schema import ForeignKey
 from sqlalchemy.types import Date
@@ -109,3 +109,31 @@ class HelpRequests(db.Model):
     
     # Stays null until compelted
     CompletedAt = Column(DateTime, nullable=True)
+
+
+class TeamProjectStats(db.Model):
+    __tablename__ = "TeamProjectStats"
+    Id = Column(Integer, primary_key=True, autoincrement=True)
+    TeamId = Column(Integer, ForeignKey('Teams.Id'), nullable=False)
+    ProjectId = Column(Integer, ForeignKey('Projects.Id'), nullable=False)
+    Attempts = Column(Integer, nullable=False, default=0)
+    Solved = Column(Boolean, nullable=False, default=False)
+    AcceptedTimeMinutes = Column(Integer, nullable=True)
+    CurrentSubmissionId = Column(Integer, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint('TeamId', 'ProjectId', name='teamprojectstats_team_project_unique'),
+    )
+
+class ScoreboardSnapshots(db.Model):
+    __tablename__ = "ScoreboardSnapshots"
+    Id = Column(Integer, primary_key=True, autoincrement=True)
+    Division = Column(String(5), nullable=False)
+    IsOnline = Column(Boolean, nullable=False)
+    Minute = Column(Integer, nullable=False)
+    TimeStamp = Column(DateTime, nullable=False)
+    Payload = Column(Text, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint('Division', 'IsOnline', 'Minute', name='scoreboardsnapshots_division_online_minute_unique'),
+    )

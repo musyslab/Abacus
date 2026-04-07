@@ -11,6 +11,7 @@ import TeacherResetPasswordPage from './pages/public/TeacherResetPassword';
 import SetPasswordPage from './pages/public/SetPassword';
 import LandingPage from './pages/public/Landing';
 import NotFound from './pages/public/NotFound';
+import Scoreboard from './pages/public/Scoreboard';
 
 import AdminMenu from './pages/abacus/AdminMenu';
 import AdminSchoolRoster from './pages/abacus/AdminSchoolRoster';
@@ -56,6 +57,7 @@ class App extends Component {
                     <Route path="/student-reset-password" element={<StudentResetPasswordPage />} />
                     <Route path="/teacher-reset-password" element={<TeacherResetPasswordPage />} />
                     <Route path="/set-password" element={<SetPasswordPage />} />
+                    <Route path="/scoreboard" element={<Scoreboard />} />
 
                     <Route path="/" element={<LandingPage />} />
 
