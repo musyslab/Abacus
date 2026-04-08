@@ -138,6 +138,7 @@ def create_team(
     data = request.get_json()
 
     school_id = int(getattr(current_user, "SchoolId", 0))
+    role = int(getattr(current_user, "Role", 0) or 0)
     requested_school_id = data.get("school_id")
 
     if requested_school_id:
@@ -149,7 +150,7 @@ def create_team(
     if school_id <= 0:
         return make_response({'message': 'Invalid school ID'}, HTTPStatus.BAD_REQUEST)
     
-    if not is_registration_open():
+    if role != ADMIN_ROLE and not is_registration_open():
         return make_response({'message': 'Registration is closed.'}, HTTPStatus.FORBIDDEN)
 
     if team_repo.school_has_empty_team(school_id):

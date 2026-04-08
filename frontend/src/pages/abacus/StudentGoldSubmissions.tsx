@@ -265,14 +265,14 @@ const StudentGoldSubmissions = () => {
   const statusToneClass = useMemo(() => {
     switch (status) {
       case "graded":
-        return "status-banner--success";
+        return "sgs-status-banner--success";
       case "needs_grading":
-        return "status-banner--info";
+        return "sgs-status-banner--info";
       case "regrade_requested":
-        return "status-banner--warning";
+        return "sgs-status-banner--warning";
       case "not_submitted":
       default:
-        return "status-banner--neutral";
+        return "sgs-status-banner--neutral";
     }
   }, [status]);
 
@@ -309,24 +309,24 @@ const StudentGoldSubmissions = () => {
 
         <div className="student-gold-content">
           {!projectId ? (
-            <div className="callout callout--error">
+            <div className="sgs-callout sgs-callout--error">
               Missing or invalid Gold Division project ID.
             </div>
           ) : (
             <>
               {!pageLoading && (
-                <div className={`status-banner ${statusToneClass}`}>
-                  <div className="status-banner__main">
-                    <div className="status-banner__header">
-                      <div className="status-banner__title">
+                <div className={`sgs-status-banner ${statusToneClass}`}>
+                  <div className="sgs-status-banner__main">
+                    <div className="sgs-status-banner__header">
+                      <div className="sgs-status-banner__title">
                         Team submission status
                       </div>
-                      <span className={`status-pill status-pill--${status}`}>
+                      <span className={`sgs-status-pill sgs-status-pill--${status}`}>
                         {statusLabel}
                       </span>
                     </div>
 
-                    <div className="status-banner__meta">
+                    <div className="sgs-status-banner__meta">
                       <div>
                         <strong>Submitted:</strong> {formatDateTime(submittedAt)}
                       </div>
@@ -349,36 +349,36 @@ const StudentGoldSubmissions = () => {
                     </div>
 
                     {feedback ? (
-                      <div className="status-banner__feedback">
-                        <div className="status-banner__feedback-label">
+                      <div className="sgs-status-banner__feedback">
+                        <div className="sgs-status-banner__feedback-label">
                           Feedback
                         </div>
-                        <div className="status-banner__feedback-body">
+                        <div className="sgs-status-banner__feedback-body">
                           {feedback}
                         </div>
                       </div>
                     ) : status === "needs_grading" ? (
-                      <div className="status-banner__feedback muted">
+                      <div className="sgs-status-banner__feedback sgs-status-banner__feedback--muted">
                         Your team has submitted a project. It is waiting for an
                         admin to grade it.
                       </div>
                     ) : status === "regrade_requested" ? (
-                      <div className="status-banner__feedback muted">
+                      <div className="sgs-status-banner__feedback sgs-status-banner__feedback--muted">
                         Your regrade request has been sent. An admin will review
                         the submission again.
                       </div>
                     ) : status === "not_submitted" ? (
-                      <div className="status-banner__feedback muted">
+                      <div className="sgs-status-banner__feedback sgs-status-banner__feedback--muted">
                         Your team has not submitted a Scratch project for this
                         problem yet.
                       </div>
                     ) : null}
                   </div>
 
-                  <div className="status-banner__actions">
+                  <div className="sgs-status-banner__actions">
                     <button
                       type="button"
-                      className="gold-button gold-button--secondary status-banner__button"
+                      className="sgs-button sgs-button--secondary sgs-status-banner__button"
                       onClick={handleRequestRegrade}
                       disabled={!canRequestRegrade || regradeLoading}
                     >
@@ -392,7 +392,7 @@ const StudentGoldSubmissions = () => {
                 </div>
               )}
 
-              <div className="callout callout--info">
+              <div className="sgs-callout sgs-callout--info">
                 Submit your Scratch project link for this Gold Division problem.
                 Gold Division submissions are shared across your whole team, so
                 all teammates will see the same submission, score, feedback,
@@ -400,13 +400,13 @@ const StudentGoldSubmissions = () => {
                 automatically when a valid Scratch project link is entered.
               </div>
 
-              <div className="gold-panel">
-                <div className="gold-panel__header">
+              <div className="sgs-panel">
+                <div className="sgs-panel__header">
                   <div>
-                    <div className="gold-panel__title">
+                    <div className="sgs-panel__title">
                       Scratch Project Submission
                     </div>
-                    <div className="gold-panel__subtitle">
+                    <div className="sgs-panel__subtitle">
                       {projectName
                         ? `Submitting for: ${projectName}`
                         : `Submitting for Gold problem #${projectId}`}
@@ -414,9 +414,9 @@ const StudentGoldSubmissions = () => {
                   </div>
                 </div>
 
-                <div className="gold-form">
-                  <div className="field">
-                    <label className="field__label" htmlFor="gold-scratch-link">
+                <div className="sgs-form">
+                  <div className="sgs-field">
+                    <label className="sgs-field__label" htmlFor="gold-scratch-link">
                       Scratch project link
                     </label>
                     <input
@@ -425,10 +425,10 @@ const StudentGoldSubmissions = () => {
                       placeholder="https://scratch.mit.edu/projects/..."
                       value={link}
                       onChange={(e) => setLink(e.target.value)}
-                      className="field__input gold-input"
+                      className="sgs-field__input sgs-input"
                       disabled={pageLoading}
                     />
-                    <div className="field__help">
+                    <div className="sgs-field__help">
                       Use a Scratch project URL in the format shown above. Saving
                       this link updates the shared team submission for this
                       problem. If your team had already been graded, submitting a
@@ -437,8 +437,8 @@ const StudentGoldSubmissions = () => {
                   </div>
 
                   {scratchProjectId && (
-                    <div className="preview-container">
-                      <div className="preview-label">Live Preview</div>
+                    <div className="sgs-preview-container">
+                      <div className="sgs-preview-label">Live Preview</div>
                       <iframe
                         src={`https://scratch.mit.edu/projects/${scratchProjectId}/embed`}
                         allowTransparency={true}
@@ -446,15 +446,15 @@ const StudentGoldSubmissions = () => {
                         scrolling="no"
                         allowFullScreen
                         title="Scratch Preview"
-                        className="preview-frame"
+                        className="sgs-preview-frame"
                       />
                     </div>
                   )}
 
-                  <div className="gold-actions">
+                  <div className="sgs-actions">
                     <button
                       onClick={() => navigate("/student/gold/problems")}
-                      className="gold-button gold-button--secondary"
+                      className="sgs-button sgs-button--secondary"
                       type="button"
                       disabled={loading || pageLoading || regradeLoading}
                     >
@@ -463,7 +463,7 @@ const StudentGoldSubmissions = () => {
 
                     <button
                       onClick={handleSubmit}
-                      className="btn btn--primary gold-button"
+                      className="sgs-button sgs-button--primary"
                       disabled={loading || pageLoading || regradeLoading || !link}
                       type="button"
                     >
@@ -473,11 +473,10 @@ const StudentGoldSubmissions = () => {
 
                   {message && (
                     <div
-                      className={`gold-message ${
-                        isError
-                          ? "gold-message--error"
-                          : "gold-message--success"
-                      }`}
+                      className={`sgs-message ${isError
+                          ? "sgs-message--error"
+                          : "sgs-message--success"
+                        }`}
                     >
                       {message}
                     </div>
