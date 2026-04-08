@@ -24,7 +24,7 @@ from injector import inject
 from flask_jwt_extended import jwt_required
 from flask_jwt_extended import current_user
 from src.repositories.project_repository import ProjectRepository
-from src.repositories.models import AdminUsers, StudentUsers, Teams, Submissions, Projects
+from src.repositories.models import AdminUsers, StudentUsers, Teams, Submissions, Projects, GoldDivision
 from src.repositories.database import db
 from src.services.dataService import all_submissions 
 from src.models.ProjectJson import ProjectJson
@@ -175,6 +175,25 @@ def get_visible_team_ids_for_project_summary() -> list[int]:
 
     return []
 
+def get_visible_student_ids_for_gold_summary() -> list[int]:
+    if isinstance(current_user, AdminUsers):
+        if int(getattr(current_user, "Role", 0) or 0) == ADMIN_ROLE:
+            students = StudentUsers.query.order_by(StudentUsers.Id.asc()).all()
+        else:
+            school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+            students = (
+                StudentUsers.query
+                .filter(StudentUsers.SchoolId == school_id)
+                .order_by(StudentUsers.Id.asc())
+                .all()
+            )
+        return [int(student.Id) for student in students]
+
+    if isinstance(current_user, StudentUsers):
+        return [int(current_user.Id)] if int(getattr(current_user, "Id", 0) or 0) > 0 else []
+
+    return []
+
 def build_project_review_counts(projects, visible_team_ids: list[int]) -> dict[int, dict[str, int]]:
     project_ids = [int(proj.Id) for proj in (projects or [])]
     total_visible_teams = len(visible_team_ids)
@@ -233,6 +252,66 @@ def build_project_review_counts(projects, visible_team_ids: list[int]) -> dict[i
 
     return counts_by_project
 
+def build_gold_project_review_counts(projects, visible_team_ids: list[int]) -> dict[int, dict[str, int]]:
+    project_ids = [int(proj.Id) for proj in (projects or [])]
+    total_visible_teams = len(visible_team_ids)
+
+    counts_by_project: dict[int, dict[str, int]] = {
+        pid: {
+            "NotSubmittedCount": total_visible_teams,
+            "SubmittedAtLeastOnceCount": 0,
+            "PassingAllTestcasesCount": 0,
+        }
+        for pid in project_ids
+    }
+
+    if not project_ids or not visible_team_ids:
+        return counts_by_project
+
+    seen_pairs: set[tuple[int, int]] = set()
+    submissions = (
+        GoldDivision.query
+        .join(StudentUsers, StudentUsers.Id == GoldDivision.StudentId)
+        .filter(
+            GoldDivision.ProjectId.in_(project_ids),
+            StudentUsers.TeamId.in_(visible_team_ids),
+        )
+        .order_by(
+            GoldDivision.ProjectId.asc(),
+            StudentUsers.TeamId.asc(),
+            GoldDivision.SubmittedAt.desc(),
+            GoldDivision.Id.desc(),
+        )
+        .all()
+    )
+
+    for submission in submissions:
+        project_id = int(getattr(submission, "ProjectId", 0) or 0)
+        student_id = int(getattr(submission, "StudentId", 0) or 0)
+
+        student = StudentUsers.query.get(student_id)
+        team_id = int(getattr(student, "TeamId", 0) or 0) if student else 0
+        key = (project_id, team_id)
+
+        if team_id <= 0 or key in seen_pairs:
+            continue
+
+        seen_pairs.add(key)
+
+        project_counts = counts_by_project.get(project_id)
+        if not project_counts:
+            continue
+
+        project_counts["SubmittedAtLeastOnceCount"] += 1
+
+    for project_counts in counts_by_project.values():
+        project_counts["NotSubmittedCount"] = max(
+            0,
+            total_visible_teams - project_counts["SubmittedAtLeastOnceCount"],
+        )
+
+    return counts_by_project
+
 @projects_api.route('/all_projects', methods=['GET'])
 @jwt_required()
 @inject
@@ -249,8 +328,13 @@ def all_projects(project_repo: ProjectRepository = Provide[Container.project_rep
     ]
 
     thisdic = submission_repo.get_total_submission_for_all_projects()
-    visible_team_ids = get_visible_team_ids_for_project_summary()
-    review_counts = build_project_review_counts(data, visible_team_ids)
+
+    if division_filter == "gold":
+        visible_team_ids = get_visible_team_ids_for_project_summary()
+        review_counts = build_gold_project_review_counts(data, visible_team_ids)
+    else:
+        visible_team_ids = get_visible_team_ids_for_project_summary()
+        review_counts = build_project_review_counts(data, visible_team_ids)
     
     new_projects = [
         {

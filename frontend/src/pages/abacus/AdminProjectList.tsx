@@ -33,7 +33,6 @@ type ProjectObject = {
     OrderIndex: number | null;
     NotSubmittedCount: number;
     SubmittedAtLeastOnceCount: number;
-    PassingAllTestcasesCount: number;
 };
 
 type ProjectSection = {
@@ -263,6 +262,13 @@ export default function AdminProjectList({
         setOrderModal({ ...orderModal, projects: newProjects });
     }
 
+    function getReviewPath(project: ProjectObject) {
+        if (division === 'gold') {
+            return `/admin/gold-submissions/${project.Id}`;
+        }
+        return `/admin/problem/${project.Id}/review`;
+    }
+
     function renderProjectSection(section: ProjectSection) {
         const showOrderColumn =
             section.type === 'competition' || section.type === 'practice';
@@ -272,7 +278,7 @@ export default function AdminProjectList({
         const isActiveTable = showTableStatus && activeTableType === section.type;
         const reorderableType: ReorderableProjectType | null =
             section.type === 'none' ? null : section.type;
-        const colSpan = showOrderColumn ? 7 : 6;
+        const colSpan = showOrderColumn ? 6 : 5;
 
         return (
             <section
@@ -334,9 +340,6 @@ export default function AdminProjectList({
                             <th className="projects-table-header project-metric">
                                 Submitted
                             </th>
-                            <th className="projects-table-header project-metric">
-                                Passing All Testcases
-                            </th>
                             <th className="projects-table-header project-review">Review</th>
                             <th className="projects-table-header project-edit">Edit</th>
                         </tr>
@@ -372,16 +375,10 @@ export default function AdminProjectList({
                                         </span>
                                     </td>
 
-                                    <td className="project-metric">
-                                        <span className="project-metric__value">
-                                            {project.PassingAllTestcasesCount}
-                                        </span>
-                                    </td>
-
                                     <td className="project-review">
                                         <Link
                                             className="button button-review"
-                                            to={`/admin/problem/${project.Id}/review`}
+                                            to={getReviewPath(project)}
                                             aria-label={`Review submissions for ${project.Name}`}
                                         >
                                             <FaEye aria-hidden="true" />

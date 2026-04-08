@@ -24,6 +24,8 @@ import AdminTeamManage from './pages/abacus/AdminTeamManage';
 import AdminTeamSubmissions from './pages/abacus/AdminTeamSubmissions';
 import AdminUpload from './pages/abacus/AdminUpload';
 import StudentProjectSelection from './pages/abacus/StudentProjectSelection';
+import StudentBlueProjectSelection from './pages/abacus/StudentBlueProjectSelection';
+import StudentGoldProjectSelection from './pages/abacus/StudentGoldProjectSelection';
 import AdminProblemReview from './pages/abacus/AdminProblemSubmissions';
 
 import StudentGoldSubmissions from './pages/abacus/StudentGoldSubmissions';
@@ -117,7 +119,7 @@ class App extends Component {
                     />
 
                     <Route
-                        path="/student/gold-submissions"
+                        path="/student/gold-submissions/:projectId"
                         element={
                             <ProtectedRoute>
                                 <StudentGoldSubmissions />
@@ -133,7 +135,23 @@ class App extends Component {
                         }
                     />
                     <Route
+                        path="/teacher/gold-submissions/:projectId"
+                        element={
+                            <ProtectedRoute requiredAdminRole={0}>
+                                <AdminGoldSubmissions />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
                         path="/admin/gold-submissions"
+                        element={
+                            <ProtectedRoute requiredAdminRole={1}>
+                                <AdminGoldSubmissions />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/admin/gold-submissions/:projectId"
                         element={
                             <ProtectedRoute requiredAdminRole={1}>
                                 <AdminGoldSubmissions />
@@ -263,6 +281,22 @@ class App extends Component {
                         element={
                             <ProtectedRoute>
                                 <StudentProjectSelection />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/student/blue/problems"
+                        element={
+                            <ProtectedRoute>
+                                <StudentBlueProjectSelection />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/student/gold/problems"
+                        element={
+                            <ProtectedRoute>
+                                <StudentGoldProjectSelection />
                             </ProtectedRoute>
                         }
                     />

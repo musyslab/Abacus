@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Column, Integer, String, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.schema import ForeignKey
 from sqlalchemy.types import Date
@@ -97,10 +97,21 @@ class StudentUsers(db.Model):
 
 class GoldDivision(db.Model):
     __tablename__ = "GoldDivision"
+    __table_args__ = (
+        UniqueConstraint('StudentId', 'ProjectId', name='uq_golddivision_student_project'),
+    )
+
     Id = Column(Integer, primary_key=True, autoincrement=True)
     Link = Column(String(255), nullable=False)
     StudentId = Column(Integer, ForeignKey('StudentUsers.Id'), nullable=False)
+    ProjectId = Column(Integer, ForeignKey('Projects.Id'), nullable=False)
     SubmittedAt = Column(Date)
     Points = Column(Integer)
     Feedback = Column(String)
     AdminGraderId = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=True)
+    RegradeRequestedAt = Column(Date, nullable=True)
+    RegradeRequestedByStudentId = Column(
+        Integer,
+        ForeignKey('StudentUsers.Id'),
+        nullable=True,
+    )
