@@ -368,16 +368,6 @@ class App extends Component {
                             <StudentSubmissions />
                         </ProtectedRoute>
                     } />
-                    <Route path="/admin/problems" element={
-                        <ProtectedRoute requiredAdminRole={1}>
-                            <AdminProjectList />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/problem/manage/:id" element={
-                        <ProtectedRoute requiredAdminRole={1}>
-                            <AdminProjectManage />
-                        </ProtectedRoute>
-                    } />
                     <Route path="/admin/problem/:id/review" element={
                         <ProtectedRoute requiredAdminRole={1}>
                             <AdminProblemReview />
