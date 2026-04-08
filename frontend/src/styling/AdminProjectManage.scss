@@ -152,6 +152,10 @@ body {
               box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.15);
             }
           }
+
+          .segment-project-type {
+            .segment-option {padding: 0.45rem 0.8rem;}
+          }
         }
       }
 
@@ -1418,11 +1422,4 @@ body:has(.testcase-modal) {
   font-size: 0.95rem;
   margin-top: -0.75rem;
   margin-bottom: 0.5rem;
-}
-
-.segment-project-type {
-  .segment-option.selected { color: #fff; font-weight: 600; }
-  .segment-option.selected.none { background: #9ca3af; }
-  .segment-option.selected.competition { background: #1d63c1; }
-  .segment-option.selected.practice { background: #7e3ff2; }
 }

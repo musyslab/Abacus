@@ -1,3 +1,4 @@
+from src.repositories.team_repository import TeamRepository
 from flask.json import jsonify
 import json
 import os
@@ -18,6 +19,14 @@ from src.repositories.project_repository import ProjectRepository
 from src.repositories.user_repository import UserRepository
 from dependency_injector.wiring import inject, Provide
 from container import Container
+
+from src.constants import (
+    PRACTICE_START,
+    PRACTICE_END,
+    COMPETITION_START,
+    COMPETITION_END,
+    get_minute_index,
+)
 
 upload_api = Blueprint('upload_api', __name__)
 
@@ -86,20 +95,37 @@ def file_upload(
     user_repo: UserRepository = Provide[Container.user_repo],
     submission_repo: SubmissionRepository = Provide[Container.submission_repo],
     project_repo: ProjectRepository = Provide[Container.project_repo],
+    team_repo: TeamRepository = Provide[Container.team_repo],
 ):
     user_id = request.form.get("student_id", current_user.Id, type=int)
     user_id_str = str(user_id)
+    user_is_admin = user_repo.is_admin()
 
     project_id = request.form.get('project_id', None)
     project = project_repo.get_selected_project(int(project_id)) if project_id else None
     if project is None:
         return make_response({'message': 'No active project'}, HTTPStatus.NOT_ACCEPTABLE)
 
+    now = datetime.now()
+    if not user_is_admin:
+        if project.Type == "competition":
+            if now < COMPETITION_START:
+                return make_response({'message': 'Competition has not started yet.'}, HTTPStatus.FORBIDDEN)
+            elif now > COMPETITION_END:
+                return make_response({'message': 'Competition has ended. Submissions are closed.'}, HTTPStatus.FORBIDDEN)
+        elif project.Type == "practice":
+            if now < PRACTICE_START:
+                return make_response({'message': 'Practice has not started yet.'}, HTTPStatus.FORBIDDEN)
+            elif now > PRACTICE_END:
+                return make_response({'message': 'Practice has ended. Submissions are closed.'}, HTTPStatus.FORBIDDEN)
+        else:
+            return make_response({'message': 'Invalid project type.'}, HTTPStatus.INTERNAL_SERVER_ERROR)
+
     team_id = user_repo.get_team_id_for_student(user_id)
     if team_id is None:
         return make_response({'message': 'Student is not assigned to a team.'}, HTTPStatus.NOT_ACCEPTABLE)
 
-    if not user_repo.is_admin():
+    if not user_is_admin:
         remaining_seconds = submission_repo.get_team_cooldown_remaining_seconds(
             int(team_id),
             120,
@@ -235,6 +261,30 @@ def file_upload(
         status=status,
         testcase_results=TestCaseResults,
     )
+
+    difference = None
+    if status:
+        if project.Type == "competition":
+            difference = get_minute_index(start=COMPETITION_START, now=ts_now)
+        elif project.Type == "practice":
+            difference = get_minute_index(start=PRACTICE_START, now=ts_now)
+
+    if submission_repo.is_first_submission_for_team_and_project(team_id, project.Id):
+        team_repo.create_team_project_stats_entry(
+            team_id=team_id,
+            project_id=project.Id,
+            solved=status,
+            accepted_time_minutes=difference if status else None,
+            current_submission_id=submissionId,
+        )
+    else:
+        team_repo.update_team_project_stats_entry(
+            team_id=team_id,
+            project_id=project.Id,
+            solved=status,
+            accepted_time_minutes=difference if status else None,
+            current_submission_id=submissionId,
+        )
 
     message = {
         'message': 'Success',

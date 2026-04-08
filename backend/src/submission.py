@@ -438,3 +438,160 @@ def get_submission_data(
         "time": getattr(submission, "Time", "").strftime("%x %X") if getattr(submission, "Time", None) else "",
     }
     return make_response(jsonify(data), HTTPStatus.OK)
+
+@submission_api.route('/help-request', methods=['POST'])
+@jwt_required()
+@inject
+def create_help_request(
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo]
+):
+
+    data = request.get_json(silent=True) or {}
+    problem_id = data.get("problemId") 
+    description = data.get("description")
+    reason = data.get("reason")
+    
+    if not reason or not description:
+        return make_response(jsonify({'message': 'Reason, and description are required'}), HTTPStatus.BAD_REQUEST)
+        
+    new_id = submission_repo.create_help_request(
+        student_id=current_user.Id if isinstance(current_user, StudentUsers) else None,
+        teacher_id=current_user.Id if not isinstance(current_user, StudentUsers) else None,
+        problem_id=problem_id if problem_id else None,
+        description=description,
+        reason=reason
+    )
+    
+    return make_response(jsonify({'message': 'Help request submitted!', 'id': new_id}), HTTPStatus.CREATED)
+
+
+@submission_api.route('/help-request/<int:request_id>', methods=['PUT'])
+@jwt_required()
+@inject
+def update_help_request(
+    request_id: int,
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo]
+):
+
+    data = request.get_json(silent=True) or {}
+    new_status = data.get("status")
+
+    if getattr(current_user, "Role", None) != ADMIN_ROLE and isinstance(current_user, StudentUsers) and getattr(data, "StudentId", None) == current_user.Id:
+        return make_response(jsonify({'message': 'Not Authorized'}), HTTPStatus.UNAUTHORIZED)
+    
+    if new_status not in [0, 1, 2, 3]:
+        return make_response(jsonify({'message': 'Invalid status code. Must be 0, 1, 2, or 3.'}), HTTPStatus.BAD_REQUEST)
+        
+    current_request = submission_repo.get_all_help_requests()
+    current_request = next((req for req in current_request if getattr(req, 'Id') == request_id), None)
+    if not current_request:
+        return make_response(jsonify({'message': 'Help request not found'}), HTTPStatus.NOT_FOUND)
+
+    current_status = getattr(current_request, 'status', current_request.Status if hasattr(current_request, 'Status') else None)
+    if new_status == 1:  # Admin trying to 'Start Helping'
+        if current_status == 3:
+            return make_response(jsonify({'message': 'Conflict: Student already canceled this request.'}), HTTPStatus.CONFLICT)
+        if current_status != 0:
+            return make_response(jsonify({'message': 'Conflict: Another admin has already claimed this.'}), HTTPStatus.CONFLICT)
+    
+    elif new_status == 2:  # Admin trying to 'Resolve'
+        if current_status == 3:
+            return make_response(jsonify({'message': 'Conflict: Student canceled this request.'}), HTTPStatus.CONFLICT)
+        if current_status != 1:
+            return make_response(jsonify({'message': 'Conflict: Cannot resolve a request that is not in progress.'}), HTTPStatus.CONFLICT)
+
+    if new_status == 1:
+        # If admin is claiming the request, set themselves as the current admin
+        submission_repo.set_help_request_admin(request_id, current_user.Id)
+    
+    success = submission_repo.update_help_request_status(request_id, new_status)
+    if not success:
+        return make_response(jsonify({'message': 'Help request not found'}), HTTPStatus.NOT_FOUND)
+        
+    return make_response(jsonify({'message': 'Status updated successfully'}), HTTPStatus.OK)
+
+@submission_api.route('/help-requests', methods=['GET'])
+@jwt_required()
+@inject
+def get_all_help_requests(
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+    team_repo: TeamRepository = Provide[Container.team_repo],
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+    school_repo: SchoolRepository = Provide[Container.school_repo],
+):
+    if getattr(current_user, "Role", None) != ADMIN_ROLE:
+        return make_response(jsonify({'message': 'Not Authorized'}), HTTPStatus.UNAUTHORIZED)
+
+    requests = submission_repo.get_all_help_requests()
+    
+    payload = []
+    for req in requests:
+        student_id = int(getattr(req, "StudentId", 0) or 0)
+        teacher_id = int(getattr(req, "TeacherId", 0) or 0)
+
+        teacher = user_repo.get_user(teacher_id) if teacher_id > 0 else None
+        student = user_repo.get_student_by_id(student_id)
+
+        team_id = int(getattr(student, "TeamId", 0) or 0) if student else 0
+        team = team_repo.get_team_by_id(team_id) if team_id > 0 else None
+        project = project_repo.get_selected_project(getattr(req, "ProblemId", None)) if getattr(req, "ProblemId", None) else None
+        teacher_firstname = teacher.Firstname if teacher else None
+        teacher_lastname = teacher.Lastname if teacher else None
+        adminId = getattr(req, "CurrentAdminId", None)
+        admin = user_repo.get_user(adminId) if adminId else None
+        admin_firstname = admin.Firstname if admin else None
+        admin_lastname = admin.Lastname if admin else None
+        schoolId = int(getattr(team, "SchoolId", 0) or 0) if team else teacher.SchoolId if teacher else 0
+        school = school_repo.get_school_by_id(schoolId) if schoolId > 0 else None
+
+        payload.append({
+            "id": getattr(req, "Id", 0),
+            "studentId": student_id,
+            "teacherId": teacher_id,
+            "teamDivision": str(getattr(team, "Division", "") or "").strip(),
+            "teamName": f"{teacher_firstname} {teacher_lastname}" if teacher_firstname and teacher_lastname else str(getattr(team, "Name", "") or f"Team {team_id}").strip(),
+            "teamSchool": str(school.Name if school else "") if school else None,
+            "problemName": getattr(project, "Name", None) if project else None,
+            "reason": str(getattr(req, "Reason", "") or "").strip(),
+            "description": str(getattr(req, "Description", "") or "").strip(),
+            "status": getattr(req, "Status", 0), # 0 = Not Started, 1 = In Progress, 2 = Complete
+            "adminName": f"{admin_firstname} {admin_lastname}" if admin_firstname and admin_lastname else None,
+            "createdAt": req.CreatedAt.isoformat() if getattr(req, "CreatedAt", None) else None,
+            "completedAt": req.CompletedAt.isoformat() if getattr(req, "CompletedAt", None) else None
+        })
+
+    return make_response(jsonify(payload), HTTPStatus.OK)
+
+@submission_api.route('/my-help-requests', methods=['GET'])
+@jwt_required()
+@inject
+def get_my_help_requests(
+    submission_repo: SubmissionRepository = Provide[Container.submission_repo],
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
+
+    requests = submission_repo.get_student_help_requests(current_user.Id if isinstance(current_user, StudentUsers) else None, current_user.Id if not isinstance(current_user, StudentUsers) else None)
+    
+
+    payload = []
+    for req in requests:
+        project = project_repo.get_selected_project(getattr(req, "ProblemId", None)) if getattr(req, "ProblemId", None) else None
+        adminId = getattr(req, "CurrentAdminId", None)
+        admin = user_repo.get_user(adminId) if adminId else None
+        admin_firstname = admin.Firstname if admin else None
+        admin_lastname = admin.Lastname if admin else None
+        payload.append({
+            "id": getattr(req, "Id", 0),
+            "problemName": getattr(project, "Name", None) if project else None,
+            "reason": str(getattr(req, "Reason", "") or "").strip(),
+            "description": str(getattr(req, "Description", "") or "").strip(),
+            "status": getattr(req, "Status", 0), # 0 = Not Started, 1 = In Progress, 2 = Complete
+            "adminName": f"{admin_firstname} {admin_lastname}" if admin_firstname and admin_lastname else None,
+            "createdAt": req.CreatedAt.isoformat() if getattr(req, "CreatedAt", None) else None,
+            "completedAt": req.CompletedAt.isoformat() if getattr(req, "CompletedAt", None) else None
+        })
+
+    return make_response(jsonify(payload), HTTPStatus.OK)
+

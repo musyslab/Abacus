@@ -9,11 +9,16 @@ import {
     FaSignOutAlt,
     FaChalkboardTeacher,
     FaUserCircle,
+    FaQuestionCircle,
+    FaClipboardList,
+    FaTrophy,
 } from "react-icons/fa";
 
 interface MenuComponentProps {
     variant?: "app" | "home" | "public";
     onScrollToSection?: (key: "about" | "event" | "rules") => void;
+    onRequestHelp?: () => void;
+    onUserRole?: (role: "admin" | "teacher" | "student") => void;
 }
 
 type DashboardInfo = {
@@ -25,6 +30,8 @@ interface MenuComponentState {
     dashboardLabel: string;
     dashboardPath: string;
     isRoleLoaded: boolean;
+    isStudent: boolean;
+    isAdminRole:boolean;
 }
 
 class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
@@ -34,6 +41,8 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
             dashboardLabel: "Dashboard",
             dashboardPath: "/home",
             isRoleLoaded: false,
+            isStudent: false,
+            isAdminRole: false,
         };
     }
 
@@ -70,7 +79,8 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
             // Students
             if (status === "student") {
                 const info = { label: "Problem Select", path: "/student/problems" };
-                this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
+                this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true, isStudent: true, isAdminRole: false });
+                this.props.onUserRole?.("student");
                 return info;
             }
 
@@ -79,22 +89,26 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                 const isAdmin = role === 1;
                 if (isAdmin) {
                     const info = { label: "Admin Menu", path: "/admin" };
-                    this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
+                    this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true, isAdminRole: true });
+                    this.props.onUserRole?.("admin");
                     return info;
                 }
 
                 const info = { label: "Team Manage", path: "/teacher/team-manage" };
 
                 this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
+                this.props.onUserRole?.("teacher");
                 return info;
             }
 
             const fallback = { label: "Dashboard", path: "/home" };
             this.setState({ dashboardLabel: fallback.label, dashboardPath: fallback.path, isRoleLoaded: true });
+            this.props.onUserRole?.("student");
             return fallback;
         } catch {
             const fallback = { label: "Dashboard", path: "/home" };
             this.setState({ dashboardLabel: fallback.label, dashboardPath: fallback.path, isRoleLoaded: true });
+            this.props.onUserRole?.("student");
             return fallback;
         }
     };
@@ -111,15 +125,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
             .catch(() => window.location.replace("/home"));
     };
 
-    // Compute dynamic class upload ID (more general: any /class/:id/... path)
-    getClassIdFromUrl(): string | null {
-        const match = window.location.href.match(/\/student\/(\d+)/);
-        return match ? match[1] : null;
-    }
-
     render() {
-        const classId = this.getClassIdFromUrl();
-
         const variant = this.props.variant ?? "app";
         const isPublic = variant === "public";
         const isHome = variant === "home";
@@ -162,8 +168,24 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                             </button>
 
                             <div className="menu__right">
+                                <Link className="menu__item" to="/scoreboard">
+                                    <FaTrophy className="menu__icon" aria-hidden="true" />
+                                    <span className="menu__text">Scoreboard</span>
+                                </Link>
                                 {loggedIn ? (
                                     <>
+                                        {this.state.isRoleLoaded && !this.state.isAdminRole && (
+                                            <Link to="/student/help-requests" className="menu__item menu__item--link" title="My Help Requests">
+                                                <FaQuestionCircle className="menu__icon" aria-hidden="true" />
+                                                <span className="menu__text">Help Requests</span>
+                                            </Link>
+                                        )}
+                                        {this.state.isRoleLoaded && this.state.isAdminRole && (
+                                            <Link to="/admin/help-requests" className="menu__item menu__item--link" title="View Help Queue">
+                                                <FaClipboardList className="menu__icon" aria-hidden="true" />
+                                                <span className="menu__text">Help Queue</span>
+                                            </Link>
+                                        )}
                                         <button type="button" className="menu__item" onClick={this.handleRoleHome}>
                                             <FaHome className="menu__icon" aria-hidden="true" />
                                             <span className="menu__text">{this.state.dashboardLabel}</span>
@@ -201,8 +223,24 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                             <div className="menu__spacer" />
 
                             <div className="menu__right">
+                                <Link className="menu__item" to="/scoreboard">
+                                    <FaTrophy className="menu__icon" aria-hidden="true" />
+                                    <span className="menu__text">Scoreboard</span>
+                                </Link>
                                 {loggedIn ? (
                                     <>
+                                        {this.state.isRoleLoaded && !this.state.isAdminRole && (
+                                            <Link to="/student/help-requests" className="menu__item menu__item--link" title="My Help Requests">
+                                                <FaQuestionCircle className="menu__icon" aria-hidden="true" />
+                                                <span className="menu__text">Help Requests</span>
+                                            </Link>
+                                        )}
+                                        {this.state.isRoleLoaded && this.state.isAdminRole && (
+                                            <Link to="/admin/help-requests" className="menu__item menu__item--link" title="View Help Queue">
+                                                <FaClipboardList className="menu__icon" aria-hidden="true" />
+                                                <span className="menu__text">Help Queue</span>
+                                            </Link>
+                                        )}
                                         <button type="button" className="menu__item" onClick={this.handleRoleHome}>
                                             <FaHome className="menu__icon" aria-hidden="true" />
                                             <span className="menu__text">{this.state.dashboardLabel}</span>
@@ -247,6 +285,32 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                             </button>
 
                             <div className="menu__right">
+                                <Link className="menu__item" to="/scoreboard">
+                                    <FaTrophy className="menu__icon" aria-hidden="true" />
+                                    <span className="menu__text">Scoreboard</span>
+                                </Link>
+                                {this.state.isRoleLoaded && !this.state.isAdminRole && (
+                                    <Link
+                                        to="/student/help-requests"
+                                        className="menu__item menu__item--link"
+                                        title="My Help Requests"
+                                    >
+                                        <FaQuestionCircle className="menu__icon" aria-hidden="true" />
+                                        <span className="menu__text">Help Requests</span>
+                                    </Link>
+                                )}
+                                
+                                {/* Only show for Admins */}
+                                {this.state.isRoleLoaded && this.state.isAdminRole && (
+                                    <Link
+                                        to="/admin/help-requests"
+                                        className="menu__item menu__item--link"
+                                        title="View Help Queue"
+                                    >
+                                        <FaClipboardList className="menu__icon" aria-hidden="true" />
+                                        <span className="menu__text">Help Queue</span>
+                                    </Link>
+                                )}
                                 <button
                                     type="button"
                                     className="menu__item menu__item--link"

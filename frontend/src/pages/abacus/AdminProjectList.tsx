@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Helmet } from 'react-helmet';
-import { Link } from 'react-router-dom';
+// AdminProjectList.tsx
+import { useEffect, useMemo, useRef, useState, useLayoutEffect } from "react";
+import { Helmet } from "react-helmet";
+import { Link } from "react-router-dom";
 import {
     FaPlusCircle,
     FaEdit,
@@ -85,6 +86,8 @@ export default function AdminProjectList({
     } | null>(null);
 
     const bodyOverflowRef = useRef<string | null>(null);
+    const reorderRowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+    const prevRowTopsRef = useRef<Map<number, number>>(new Map());
 
     function authConfig() {
         const token = localStorage.getItem('AUTOTA_AUTH_TOKEN');
@@ -158,6 +161,45 @@ export default function AdminProjectList({
             window.clearInterval(intervalId);
         };
     }, []);
+
+    // Handles reorder modal row animations
+    useEffect(() => {
+        if (!orderModal) {
+            reorderRowRefs.current.clear();
+            prevRowTopsRef.current.clear();
+        }
+    }, [orderModal]);
+
+    useLayoutEffect(() => {
+        if (!orderModal) return;
+
+        const nextTops = new Map<number, number>();
+
+        for (const project of orderModal.projects) {
+            const el = reorderRowRefs.current.get(project.Id);
+            if (!el) continue;
+
+            const newTop = el.getBoundingClientRect().top;
+            nextTops.set(project.Id, newTop);
+
+            const oldTop = prevRowTopsRef.current.get(project.Id);
+            if (oldTop === undefined) continue;
+
+            const difference = oldTop - newTop;
+            if (difference === 0) continue;
+
+            el.style.transition = "none";
+            el.style.transform = `translateY(${difference}px)`;
+            void el.getBoundingClientRect();
+
+            requestAnimationFrame(() => {
+                el.style.transition = "transform 220ms ease";
+                el.style.transform = "translateY(0)";
+            });
+        }
+
+        prevRowTopsRef.current = nextTops;
+    }, [orderModal?.projects]);
 
     const competitionProjects = useMemo(() => {
         return sortProjectsByOrderIndex(
@@ -462,7 +504,14 @@ export default function AdminProjectList({
 
                             <div className="reorder-list callout">
                                 {orderModal.projects.map((project, index) => (
-                                    <div className="reorder__row" key={project.Id}>
+                                    <div
+                                        className="reorder__row"
+                                        key={project.Id}
+                                        ref={(row) => {
+                                            if (row) reorderRowRefs.current.set(project.Id, row);
+                                            else reorderRowRefs.current.delete(project.Id);
+                                        }}
+                                    >
                                         <div className="reorder__index">{index + 1}.</div>
 
                                         <div className="reorder-card">

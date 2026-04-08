@@ -11,6 +11,7 @@ import TeacherResetPasswordPage from './pages/public/TeacherResetPassword';
 import SetPasswordPage from './pages/public/SetPassword';
 import LandingPage from './pages/public/Landing';
 import NotFound from './pages/public/NotFound';
+import Scoreboard from './pages/public/Scoreboard';
 
 import AdminMenu from './pages/abacus/AdminMenu';
 import AdminSchoolRoster from './pages/abacus/AdminSchoolRoster';
@@ -36,6 +37,9 @@ import StudentEagleSubmissions from './pages/abacus/StudentEagleSubmissions';
 import SubmissionView from './pages/abacus/SubmissionView';
 
 import ProtectedRoute from './pages/components/ProtectedRoute';
+import AdminHelpRequests from './pages/abacus/AdminHelpRequests';
+import StudentHelpRequests from './pages/abacus/StudentHelpRequests';
+
 
 class App extends Component {
     render() {
@@ -73,6 +77,7 @@ class App extends Component {
                         element={<TeacherResetPasswordPage />}
                     />
                     <Route path="/set-password" element={<SetPasswordPage />} />
+                    <Route path="/scoreboard" element={<Scoreboard />} />
 
                     <Route path="/" element={<LandingPage />} />
 
@@ -309,6 +314,113 @@ class App extends Component {
                         }
                     />
 
+                    <Route path="/admin" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminMenu />
+                        </ProtectedRoute>
+                    } />
+
+                    <Route path="/admin/upload/submission/:id" element={
+                        <ProtectedRoute>
+                            <SubmissionView />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/problem/:problemId/review/submission/:id" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <SubmissionView />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/:school_id/team-manage/:teamId/submissions/:id" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <SubmissionView />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/teacher/team-manage/:teamId/submissions/:id" element={
+                        <ProtectedRoute requiredAdminRole={0}>
+                            <SubmissionView />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/submission/:id" element={
+                        <ProtectedRoute>
+                            <SubmissionView />
+                        </ProtectedRoute>
+                    } />
+
+                    <Route path="/admin/schools" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminSchoolRoster />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/:school_id/team-manage" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminTeamManage />
+                        </ProtectedRoute>
+                    }
+                    />
+                    <Route path="/admin/:school_id/team-manage/:teamId/submissions" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminTeamSubmissions />
+                        </ProtectedRoute>
+                    }
+                    />
+                    <Route path="/admin/:school_id/student/:student_id" element={
+                        <ProtectedRoute>
+                            <StudentSubmissions />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/problems" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminProjectList />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/problem/manage/:id" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminProjectManage />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/problem/:id/review" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminProblemReview />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/upload" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminUpload />
+                        </ProtectedRoute>
+                    } />
+
+                    <Route path="/teacher/team-manage" element={
+                        <ProtectedRoute requiredAdminRole={0}>
+                            <AdminTeamManage />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/teacher/team-manage/:teamId/submissions" element={
+                        <ProtectedRoute requiredAdminRole={0}>
+                            <AdminTeamSubmissions />
+                        </ProtectedRoute>
+                    } />
+
+                    <Route path="/student/problems" element={
+                        <ProtectedRoute>
+                            <StudentProjectSelection />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/student/:projectId/submit" element={
+                        <ProtectedRoute>
+                            <StudentSubmit />
+                        </ProtectedRoute>
+                    } />
+                    <Route path = "/admin/help-requests" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminHelpRequests />
+                        </ProtectedRoute>
+                    } />
+                    <Route path = "/student/help-requests" element={
+                        <ProtectedRoute>
+                            <StudentHelpRequests />
+                        </ProtectedRoute>
+                    } />
+                    {/* Catch-all for 404 */}
                     <Route path="*" element={<NotFound />} />
                 </Routes>
             </BrowserRouter>

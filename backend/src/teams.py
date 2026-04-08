@@ -4,10 +4,12 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, current_user
 from dependency_injector.wiring import inject, Provide
 from container import Container
-from typing import Dict, List
+from typing import Any, Dict, List
 import ast
 import json
 import os
+import re
+from datetime import datetime
 
 from src.repositories.models import AdminUsers, StudentUsers, Teams
 from src.repositories.team_repository import TeamRepository
@@ -18,12 +20,16 @@ from src.repositories.project_repository import ProjectRepository
 from src.constants import (
     ADMIN_ROLE,
     DIVISION_TEAM_CAPS,
+    COMPETITION_START,
+    COMPETITION_END,
+    SCOREBOARD_FREEZE,
     is_registration_open,
     is_student_submission_locked,
     is_teacher_submission_locked,
+    get_minute_index,
 )
-
-import re
+from src.services.scoreboard_service import build_scoreboard_payload
+from src.extensions import cache
 
 team_api = Blueprint("team_api", __name__)
 
@@ -97,6 +103,29 @@ def count_passed_testcases(rows: List[dict]) -> int:
         if bool(row.get("passed", row.get("State", False))):
             passed += 1
     return passed
+
+def build_scoreboard_now(project_repo, team_repo, division, is_online, project_type, now, status, transition_at=None):
+    payload = build_scoreboard_payload(
+        project_repo=project_repo,
+        team_repo=team_repo,
+        division=division,
+        is_online=is_online,
+        project_type=project_type,
+    )
+    payload["timestamp"] = now.isoformat()
+    payload["status"] = status
+    if transition_at:
+        payload["transitionAt"] = transition_at.isoformat()
+    return payload
+
+def build_snapshot_response(scoreboard, status, transition_at=None):
+    payload = json.loads(scoreboard.Payload) if scoreboard.Payload else {}
+    payload["timestamp"] = scoreboard.TimeStamp.isoformat() if scoreboard.TimeStamp else None
+    payload["status"] = status
+    if transition_at:
+        payload["transitionAt"] = transition_at.isoformat()
+    return payload
+
 
 @team_api.route('/create', methods=['POST'])
 @jwt_required()
@@ -551,5 +580,89 @@ def get_team_submission_summary(
             "latestSubmissionId": int(latest_submission.Id) if latest_submission else None,
             "latestSubmittedAt": latest_submission.Time.isoformat() if latest_submission and latest_submission.Time else None,
         })
+
+    return jsonify(payload)
+
+@team_api.route("/scoreboard", methods=["GET"])
+@jwt_required(optional=True)
+@inject
+def get_scoreboard(
+    team_repo: TeamRepository = Provide[Container.team_repo],
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
+    """
+    Get team rankings (solved count, penalty) for a division/project_type/attendance.
+    Returns list of dicts with team info and stats for the scoreboard.
+    """
+    division = request.args.get("division", type=str)
+    project_type = request.args.get("project_type", type=str)
+    is_online_raw = request.args.get("is_online", type=str)
+
+    if not all([division, project_type, is_online_raw]):
+        return make_response({'message': 'Missing required parameters'}, HTTPStatus.BAD_REQUEST)
+
+    is_online_str = is_online_raw.lower()
+    if is_online_str not in {"true", "false"}:
+        return make_response({'message': 'Invalid is_online value'}, HTTPStatus.BAD_REQUEST)
+    is_online = is_online_str == "true"
+
+    division = division.capitalize()
+    project_type = project_type.lower()
+
+    if division not in {"Blue", "Gold", "Eagle"}:
+        return make_response({'message': 'Invalid division'}, HTTPStatus.BAD_REQUEST)
+    if project_type not in {"competition", "practice"}:
+        return make_response({'message': 'Invalid project_type'}, HTTPStatus.BAD_REQUEST)
+
+    user_is_admin = current_user is not None and user_repo.is_admin()
+    now = datetime.now()
+
+    if project_type == "practice":
+        if not user_is_admin:
+            return make_response({'message': 'Forbidden'}, HTTPStatus.FORBIDDEN)
+        return jsonify(build_scoreboard_now(project_repo, team_repo, division, is_online, project_type, now, "practice"))
+
+    if now < COMPETITION_START:
+        if not user_is_admin:
+            return jsonify({
+                "projects": [],
+                "teams": [],
+                "status": "upcoming",
+                "transitionAt": COMPETITION_START.isoformat()
+            })
+        return jsonify(build_scoreboard_now(
+            project_repo, team_repo, division, is_online, project_type, now, "upcoming",
+            transition_at=COMPETITION_START
+        ))
+
+    transition_at = None
+    if now > COMPETITION_END:
+        minute = get_minute_index(start=COMPETITION_START, now=COMPETITION_END)
+        status = "final"
+    elif now > SCOREBOARD_FREEZE and not user_is_admin:
+        minute = get_minute_index(start=COMPETITION_START, now=SCOREBOARD_FREEZE)
+        status = "frozen"
+        transition_at = COMPETITION_END
+    elif now > SCOREBOARD_FREEZE and user_is_admin:
+        minute = get_minute_index(start=COMPETITION_START, now=now)
+        status = "frozen-admin"
+    else:
+        minute = get_minute_index(start=COMPETITION_START, now=now)
+        status = "live"
+    
+    cache_key = f"scoreboard:{division}:{is_online}:{minute}:{status}"
+
+    cached = cache.get(cache_key)
+    if cached:
+        return jsonify(cached)
+
+    scoreboard = team_repo.get_latest_scoreboard_snapshot(division=division, is_online=is_online, max_minute=minute)
+    if not scoreboard:
+        return make_response({"message": "Scoreboard failed to load."}, HTTPStatus.NOT_FOUND)
+
+    payload = build_snapshot_response(scoreboard, status, transition_at=transition_at)
+
+    cache.set(cache_key, payload, timeout=60)
 
     return jsonify(payload)
