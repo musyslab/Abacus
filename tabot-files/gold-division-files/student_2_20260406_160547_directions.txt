@@ -1,0 +1,23 @@
+
+
+
+
+1) Take a look at links to ensure that only certain roles are allowed to access, reference other files
+
+
+
+
+2) Modify backend code to write links being submitted by students to database table
+	- give other programs as context (models.py, project_repository.py to show how it writes to database, projects.py to show what a	proper file looks like). "output the complete modified tsx file and new gold_submissions.py and added/removed lines from other files"
+[DONE]
+
+
+
+3) Set up admin side for receiving submissions. Could look like a table with the links that can take them to the Scratch site or show a view similar to the student's with the embedded Scratch player.
+
+
+
+
+
+4) when logged in as a student, default submission page is for blue division, no matter what division student is assigned to
+

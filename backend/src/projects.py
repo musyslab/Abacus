@@ -24,7 +24,8 @@ from injector import inject
 from flask_jwt_extended import jwt_required
 from flask_jwt_extended import current_user
 from src.repositories.project_repository import ProjectRepository
-from src.repositories.models import AdminUsers, StudentUsers, Teams, Submissions
+from src.repositories.models import AdminUsers, StudentUsers, Teams, Submissions, Projects, GoldDivision
+from src.repositories.database import db
 from src.services.dataService import all_submissions 
 from src.models.ProjectJson import ProjectJson
 from src.constants import (
@@ -48,6 +49,7 @@ projects_api = Blueprint('projects_api', __name__)
 ALLOWED_SOURCE_EXTS = {'.py', '.c', '.java', '.rkt'}
 TS_DIR_RE = re.compile(r"^\d{8}_\d{6}$")
 PROJECT_TYPES = {'competition', 'practice', 'none'}
+PROJECT_DIVISIONS = {'blue', 'gold'}
 
 def project_root() -> str:
     return "/tabot-files/project-files"
@@ -77,6 +79,40 @@ def pick_latest_version_dir(proj_dir_path: str) -> str | None:
     except Exception:
         pass
     return None
+
+def normalize_division(v: str | None) -> str:
+    raw = (v or "").strip().lower()
+    return raw if raw in PROJECT_DIVISIONS else "blue"
+
+def get_next_order_index_for_division(project_type: str, division: str, exclude_project_id: int | None = None) -> int | None:
+    if project_type not in {"competition", "practice"}:
+        return None
+
+    query = Projects.query.filter(
+        Projects.Type == project_type,
+        Projects.Division == division,
+    )
+
+    if exclude_project_id is not None:
+        query = query.filter(Projects.Id != exclude_project_id)
+
+    existing = query.order_by(
+        Projects.OrderIndex.is_(None),
+        Projects.OrderIndex.desc(),
+    ).all()
+    max_limit = 10 if project_type == "competition" else None
+
+    count = len(existing)
+    if max_limit is not None and count >= max_limit:
+        return None
+
+    max_order = 0
+    for proj in existing:
+        val = int(getattr(proj, "OrderIndex", 0) or 0)
+        if val > max_order:
+            max_order = val
+
+    return max_order + 1
 
 def seed_version_dir(dest_dir: str, *, seed_from_dir: str | None, seed_solution_path: str | None, seed_desc_path: str | None, seed_add_paths: list[str]):
     os.makedirs(dest_dir, exist_ok=True)
@@ -139,6 +175,25 @@ def get_visible_team_ids_for_project_summary() -> list[int]:
 
     return []
 
+def get_visible_student_ids_for_gold_summary() -> list[int]:
+    if isinstance(current_user, AdminUsers):
+        if int(getattr(current_user, "Role", 0) or 0) == ADMIN_ROLE:
+            students = StudentUsers.query.order_by(StudentUsers.Id.asc()).all()
+        else:
+            school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+            students = (
+                StudentUsers.query
+                .filter(StudentUsers.SchoolId == school_id)
+                .order_by(StudentUsers.Id.asc())
+                .all()
+            )
+        return [int(student.Id) for student in students]
+
+    if isinstance(current_user, StudentUsers):
+        return [int(current_user.Id)] if int(getattr(current_user, "Id", 0) or 0) > 0 else []
+
+    return []
+
 def build_project_review_counts(projects, visible_team_ids: list[int]) -> dict[int, dict[str, int]]:
     project_ids = [int(proj.Id) for proj in (projects or [])]
     total_visible_teams = len(visible_team_ids)
@@ -197,6 +252,66 @@ def build_project_review_counts(projects, visible_team_ids: list[int]) -> dict[i
 
     return counts_by_project
 
+def build_gold_project_review_counts(projects, visible_team_ids: list[int]) -> dict[int, dict[str, int]]:
+    project_ids = [int(proj.Id) for proj in (projects or [])]
+    total_visible_teams = len(visible_team_ids)
+
+    counts_by_project: dict[int, dict[str, int]] = {
+        pid: {
+            "NotSubmittedCount": total_visible_teams,
+            "SubmittedAtLeastOnceCount": 0,
+            "PassingAllTestcasesCount": 0,
+        }
+        for pid in project_ids
+    }
+
+    if not project_ids or not visible_team_ids:
+        return counts_by_project
+
+    seen_pairs: set[tuple[int, int]] = set()
+    submissions = (
+        GoldDivision.query
+        .join(StudentUsers, StudentUsers.Id == GoldDivision.StudentId)
+        .filter(
+            GoldDivision.ProjectId.in_(project_ids),
+            StudentUsers.TeamId.in_(visible_team_ids),
+        )
+        .order_by(
+            GoldDivision.ProjectId.asc(),
+            StudentUsers.TeamId.asc(),
+            GoldDivision.SubmittedAt.desc(),
+            GoldDivision.Id.desc(),
+        )
+        .all()
+    )
+
+    for submission in submissions:
+        project_id = int(getattr(submission, "ProjectId", 0) or 0)
+        student_id = int(getattr(submission, "StudentId", 0) or 0)
+
+        student = StudentUsers.query.get(student_id)
+        team_id = int(getattr(student, "TeamId", 0) or 0) if student else 0
+        key = (project_id, team_id)
+
+        if team_id <= 0 or key in seen_pairs:
+            continue
+
+        seen_pairs.add(key)
+
+        project_counts = counts_by_project.get(project_id)
+        if not project_counts:
+            continue
+
+        project_counts["SubmittedAtLeastOnceCount"] += 1
+
+    for project_counts in counts_by_project.values():
+        project_counts["NotSubmittedCount"] = max(
+            0,
+            total_visible_teams - project_counts["SubmittedAtLeastOnceCount"],
+        )
+
+    return counts_by_project
+
 @projects_api.route('/all_projects', methods=['GET'])
 @jwt_required()
 @inject
@@ -204,16 +319,30 @@ def all_projects(project_repo: ProjectRepository = Provide[Container.project_rep
     if not isinstance(current_user, (AdminUsers, StudentUsers)):
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
+    division_filter = normalize_division(request.args.get("division"))
+
     data = project_repo.get_all_projects()
+    data = [
+        proj for proj in data
+        if normalize_division(getattr(proj, "Division", "blue")) == division_filter
+    ]
+
     thisdic = submission_repo.get_total_submission_for_all_projects()
-    visible_team_ids = get_visible_team_ids_for_project_summary()
-    review_counts = build_project_review_counts(data, visible_team_ids)
+
+    if division_filter == "gold":
+        visible_team_ids = get_visible_team_ids_for_project_summary()
+        review_counts = build_gold_project_review_counts(data, visible_team_ids)
+    else:
+        visible_team_ids = get_visible_team_ids_for_project_summary()
+        review_counts = build_project_review_counts(data, visible_team_ids)
     
     new_projects = [
         {
             "Id": proj.Id,
             "Name": proj.Name,
             "Type": proj.Type,
+            "Division": normalize_division(getattr(proj, "Division", "blue")),
+            "DescriptionText": getattr(proj, "DescriptionText", None),
             "OrderIndex": proj.OrderIndex,
             "TotalSubmissions": thisdic.get(proj.Id, 0),
             "NotSubmittedCount": review_counts.get(proj.Id, {}).get("NotSubmittedCount", 0),
@@ -264,60 +393,87 @@ def create_project(project_repo: ProjectRepository = Provide[Container.project_r
     if not user_repo.is_admin():
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
-    # Validate solution files (multi-file)
-    solution_uploads = request.files.getlist('solutionFiles')
-    solution_uploads = [f for f in solution_uploads if f and f.filename]
-    if not solution_uploads:
-        return make_response({'message': 'No selected solution files'}, HTTPStatus.BAD_REQUEST)
-    if 'assignmentdesc' not in request.files or not request.files['assignmentdesc'].filename:
-        return make_response({'message': 'No assignment description file'}, HTTPStatus.BAD_REQUEST)
-
-    # Read form
     name = request.form.get('name', '').strip()
     language = request.form.get('language', '').strip()
     project_type = request.form.get('project_type', '').strip()
-    if name == '' or language == '' or (project_type not in PROJECT_TYPES):
+    division = normalize_division(request.form.get('division'))
+
+    if name == '' or project_type not in PROJECT_TYPES:
         return make_response("Error in form", HTTPStatus.BAD_REQUEST)
+
+    if division == 'gold':
+        language = language or 'none'
+        if 'assignmentdesc' not in request.files or not request.files['assignmentdesc'].filename:
+            return make_response({'message': 'Gold Division problems require a description file.'}, HTTPStatus.BAD_REQUEST)
+    else:
+        solution_uploads = request.files.getlist('solutionFiles')
+        solution_uploads = [f for f in solution_uploads if f and f.filename]
+        if not solution_uploads:
+            return make_response({'message': 'No selected solution files'}, HTTPStatus.BAD_REQUEST)
+        if 'assignmentdesc' not in request.files or not request.files['assignmentdesc'].filename:
+            return make_response({'message': 'No assignment description file'}, HTTPStatus.BAD_REQUEST)
+        if language == '':
+            return make_response("Error in form", HTTPStatus.BAD_REQUEST)
 
     base_proj = safe_name(name)
     ts = ts_str()
     proj_dir_path = project_dir(base_proj, ts)
     os.makedirs(proj_dir_path, exist_ok=True)
 
-    # Save solution + description + additional into a timestamped version directory
-    path = version_dir(proj_dir_path, ts)
-    os.makedirs(path, exist_ok=True)
-    for up in solution_uploads:
-        orig = safe_name(up.filename)
-        ext = os.path.splitext(orig)[1].lower()
-        if ext not in ALLOWED_SOURCE_EXTS:
-            return make_response({'message': f'Unsupported file type: {ext}'}, HTTPStatus.BAD_REQUEST)
-        dst = os.path.join(path, orig)
-        up.save(dst)
-
-    ad = request.files['assignmentdesc']
-    ad_name = safe_name(ad.filename or "assignment.pdf")
-    assignmentdesc_path = os.path.join(path, ad_name)
-    ad.save(assignmentdesc_path)
-
-    # Multiple additional files: save into version folder, but store only basenames in DB (short)
+    path = ""
+    assignmentdesc_path = ""
     add_names = []
-    for add_up in request.files.getlist('additionalFiles'):
-        if add_up and add_up.filename:
-            orig_name = safe_name(add_up.filename)
-            dst = os.path.join(path, orig_name)
-            add_up.save(dst)
-            add_names.append(orig_name)
-    selected_path = path
+
+    if division == 'blue' or division == 'gold':
+        path = version_dir(proj_dir_path, ts)
+        os.makedirs(path, exist_ok=True)
+
+        if division == 'blue':
+            solution_uploads = request.files.getlist('solutionFiles')
+            solution_uploads = [f for f in solution_uploads if f and f.filename]
+
+            for up in solution_uploads:
+                orig = safe_name(up.filename)
+                ext = os.path.splitext(orig)[1].lower()
+                if ext not in ALLOWED_SOURCE_EXTS:
+                    return make_response({'message': f'Unsupported file type: {ext}'}, HTTPStatus.BAD_REQUEST)
+                dst = os.path.join(path, orig)
+                up.save(dst)
+
+            for add_up in request.files.getlist('additionalFiles'):
+                if add_up and add_up.filename:
+                    orig_name = safe_name(add_up.filename)
+                    dst = os.path.join(path, orig_name)
+                    add_up.save(dst)
+                    add_names.append(orig_name)
+
+        ad = request.files['assignmentdesc']
+        ad_name = safe_name(ad.filename or "assignment.pdf")
+        assignmentdesc_path = os.path.join(path, ad_name)
+        ad.save(assignmentdesc_path)
 
     # Find order index for ordered project types
     order_index = None
     if project_type in {"competition", "practice"}:
-        order_index = project_repo.get_next_order_index(project_type)
+        order_index = get_next_order_index_for_division(project_type, division)
         if order_index is None:
-            return make_response({'message': 'Maximum number of competition projects reached'}, HTTPStatus.BAD_REQUEST)
+            return make_response({'message': 'Maximum number of projects reached for this division/type'}, HTTPStatus.BAD_REQUEST)
 
-    new_project_id = project_repo.create_project(name, language, project_type, order_index, selected_path, assignmentdesc_path, json.dumps(add_names))
+    new_project_id = project_repo.create_project(
+        name,
+        language,
+        project_type,
+        order_index,
+        path,
+        assignmentdesc_path,
+        json.dumps(add_names),
+    )
+
+    created = Projects.query.get(int(new_project_id))
+    if created:
+        created.Division = division
+        created.DescriptionText = None
+        db.session.commit()
 
     return make_response(str(new_project_id), HTTPStatus.OK)
 
@@ -336,24 +492,33 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
     name = request.form.get('name', '')
     language = request.form.get('language', '')
     project_type = request.form.get('project_type', '').strip().lower()
+    division = normalize_division(request.form.get('division'))
     
-    if name == '' or language == '' or (project_type not in PROJECT_TYPES):
+    if name == '' or project_type not in PROJECT_TYPES:
         return make_response({'message': 'Error in form'}, HTTPStatus.BAD_REQUEST)
     
     existing_proj = project_repo.get_selected_project(pid)
+    current_division = normalize_division(getattr(existing_proj, "Division", "blue") if existing_proj else "blue")
+    if division == "":
+        division = current_division
 
     # Computes order_index for ordered project types
     if project_type in {"competition", "practice"}:
         current_type = (getattr(existing_proj, "Type", "") or "").strip().lower()
         current_index = project_repo.get_project_order_index(pid) if pid else None
+        same_bucket = (
+            current_type == project_type and
+            normalize_division(getattr(existing_proj, "Division", "blue")) == division and
+            current_index is not None
+        )
         order_index = (
             current_index
-            if current_type == project_type and current_index is not None
-            else project_repo.get_next_order_index(project_type)
+            if same_bucket
+            else get_next_order_index_for_division(project_type, division, exclude_project_id=pid)
         )
 
         if order_index is None:
-            return make_response({'message': 'Maximum number of competition projects reached'}, HTTPStatus.BAD_REQUEST)
+            return make_response({'message': 'Maximum number of projects reached for this division/type'}, HTTPStatus.BAD_REQUEST)
     else:
         order_index = None
 
@@ -377,8 +542,35 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
     os.makedirs(proj_dir, exist_ok=True)
 
     # Default to existing paths if no new files are uploaded
-    path = existing_path
-    assignmentdesc_path = project_repo.get_project_desc_path(pid)
+    path = existing_path or ""
+    assignmentdesc_path = project_repo.get_project_desc_path(pid) or ""
+
+    if division == 'gold':
+        language = language or getattr(existing_proj, "Language", "none") or "none"
+        ad = request.files.get('assignmentdesc')
+        if not (assignmentdesc_path or (ad and ad.filename)):
+            return make_response({'message': 'Gold Division problems require a description file.'}, HTTPStatus.BAD_REQUEST)
+
+        if ad and ad.filename:
+            if not path:
+                path = version_dir(proj_dir, ts)
+                os.makedirs(path, exist_ok=True)
+            ad_name = safe_name(ad.filename or "assignment.pdf")
+            assignmentdesc_path = os.path.join(path, ad_name)
+            ad.save(assignmentdesc_path)
+
+        project_repo.edit_project(name, language, project_type, order_index, pid, path, assignmentdesc_path, json.dumps([]))
+
+        proj_row = Projects.query.get(pid)
+        if proj_row:
+            proj_row.Division = division
+            proj_row.DescriptionText = None
+            db.session.commit()
+
+        return make_response("Project Edited", HTTPStatus.OK)
+
+    if language == '':
+        return make_response({'message': 'Error in form'}, HTTPStatus.BAD_REQUEST)
 
     # Determine whether we need to mint a new version directory
     solution_uploads = request.files.getlist('solutionFiles')
@@ -507,6 +699,12 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
         path = latest_version
 
     project_repo.edit_project(name, language, project_type, order_index, pid, path, assignmentdesc_path, json.dumps(add_names))
+
+    proj_row = Projects.query.get(pid)
+    if proj_row:
+        proj_row.Division = division
+        proj_row.DescriptionText = None
+        db.session.commit()
 
     # Recompute testcase outputs **against the path we just wrote**, so we don't depend on
     # any cached ORM objects or delayed reads.
@@ -754,6 +952,17 @@ def get_project(project_repo: ProjectRepository = Provide[Container.project_repo
 
     project_id = request.args.get('id')
     project_info = project_repo.get_project(project_id)
+    proj_row = Projects.query.get(project_id)
+
+    if isinstance(project_info, dict):
+        project_info["division"] = normalize_division(getattr(proj_row, "Division", "blue") if proj_row else "blue")
+        project_info["descriptionText"] = getattr(proj_row, "DescriptionText", None) if proj_row else None
+        project_info["descriptionFile"] = (
+            project_info.get("descriptionFile")
+            or project_info.get("descriptionFileName")
+            or project_info.get("descriptionFilePath")
+            or (os.path.basename(getattr(proj_row, "AsnDescriptionPath", "") or "") if proj_row else "")
+        )
 
     return make_response(jsonify(project_info), HTTPStatus.OK)
     
@@ -910,6 +1119,7 @@ def reorder_projects(
     data = request.get_json() or {}
     id_order = data.get('id_order', [])
     project_type = (data.get('project_type', '') or '').strip().lower()
+    division = normalize_division(data.get('division'))
 
     if project_type not in {'competition', 'practice'}:
         return make_response({'message': 'Invalid project type'}, HTTPStatus.BAD_REQUEST)
@@ -917,7 +1127,16 @@ def reorder_projects(
     if not isinstance(id_order, list) or not all(isinstance(i, int) for i in id_order):
         return make_response({'message': 'Invalid ID order format'}, HTTPStatus.BAD_REQUEST)
 
-    projects = project_repo.get_projects_by_type(project_type)
+    projects = (
+        Projects.query
+        .filter(Projects.Type == project_type, Projects.Division == division)
+        .order_by(
+            Projects.OrderIndex.is_(None),
+            Projects.OrderIndex.asc(),
+            Projects.Id.asc(),
+        )
+        .all()
+    )
     project_ids = [int(project.Id) for project in projects]
 
     if len(id_order) != len(project_ids):
@@ -925,7 +1144,7 @@ def reorder_projects(
     if len(id_order) != len(set(id_order)):
         return make_response({'message': 'Duplicate IDs in order'}, HTTPStatus.BAD_REQUEST)
     if set(id_order) != set(project_ids):
-        return make_response({'message': 'ID order does not match the selected project type'}, HTTPStatus.BAD_REQUEST)
+        return make_response({'message': 'ID order does not match the selected project type/division'}, HTTPStatus.BAD_REQUEST)
 
     id_to_proj = {int(p.Id): p for p in projects}
 
@@ -933,17 +1152,19 @@ def reorder_projects(
     for idx, proj_id in enumerate(id_order):
         proj = id_to_proj.get(proj_id)
         if proj:
-            project_repo.edit_project_order(proj.Id, -idx - 1)
+            proj.OrderIndex = -idx - 1
         else:
             return make_response({'message': f'Project ID {proj_id} not found'}, HTTPStatus.BAD_REQUEST)
+    db.session.commit()
 
     # Second pass to set the correct order.
     # Avoids duplicate unique values
     for idx, proj_id in enumerate(id_order):
         proj = id_to_proj.get(proj_id)
         if proj:
-            project_repo.edit_project_order(proj.Id, idx + 1)
+            proj.OrderIndex = idx + 1
         else:
             return make_response({'message': f'Project ID {proj_id} not found'}, HTTPStatus.BAD_REQUEST)
+    db.session.commit()
 
     return make_response("Projects Reordered", HTTPStatus.OK)

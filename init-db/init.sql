@@ -39,13 +39,16 @@ CREATE TABLE `Projects` (
   `Name` varchar(1000) NOT NULL,
   `Language` varchar(45) NOT NULL,
   `Type` varchar(20) NOT NULL,
+  `Division` varchar(20) NOT NULL DEFAULT 'blue',
+  `DescriptionText` text,
   `OrderIndex` int DEFAULT NULL,
   `solutionpath` varchar(1000) DEFAULT NULL,
   `AsnDescriptionPath` varchar(1000) DEFAULT NULL,
   `AdditionalFilePath` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `idProjects_UNIQUE` (`Id`),
-  KEY `idx_projects_type_orderindex` (`Type`,`OrderIndex`)
+  KEY `idx_projects_type_orderindex` (`Type`,`OrderIndex`),
+  KEY `idx_projects_type_division_orderindex` (`Type`,`Division`,`OrderIndex`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
@@ -128,6 +131,36 @@ CREATE TABLE `Testcases` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
+-- Table structure for table `GoldDivision`
+-- ============================================
+CREATE TABLE `GoldDivision` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `Link` text NOT NULL,
+  `StudentId` int NOT NULL,
+  `ProjectId` int NOT NULL,
+  `SubmittedAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `Points` int,
+  `Feedback` text,
+  `AdminGraderId` int,
+  `RegradeRequestedAt` datetime DEFAULT NULL,
+  `RegradeRequestedByStudentId` int DEFAULT NULL,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `uq_golddivision_student_project` (`StudentId`,`ProjectId`),
+  KEY `idx_golddivision_studentid` (`StudentId`),
+  KEY `idx_golddivision_projectid` (`ProjectId`),
+  KEY `idx_golddivision_admingraderid` (`AdminGraderId`),
+  KEY `idx_golddivision_regraderequestedat` (`RegradeRequestedAt`),
+  KEY `idx_golddivision_regraderequestedbystudentid` (`RegradeRequestedByStudentId`),
+  CONSTRAINT `fk_golddivision_student`
+    FOREIGN KEY (`StudentId`) REFERENCES `StudentUsers`(`Id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_golddivision_project`
+    FOREIGN KEY (`ProjectId`) REFERENCES `Projects`(`Id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_golddivision_admingrader`
+    FOREIGN KEY (`AdminGraderId`) REFERENCES `AdminUsers`(`Id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_golddivision_regrade_student`
+    FOREIGN KEY (`RegradeRequestedByStudentId`) REFERENCES `StudentUsers`(`Id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 -- Table structure for table `HelpRequests`
 -- ============================================
 CREATE TABLE HelpRequests (

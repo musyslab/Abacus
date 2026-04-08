@@ -2,33 +2,42 @@ import { Helmet } from "react-helmet";
 import { FaPuzzlePiece, FaSchool, FaUpload, FaClipboard } from "react-icons/fa";
 import { Link } from "react-router-dom";
 
-import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
-import MenuComponent from "../components/MenuComponent";
-import CompetitionStageStatus from "../components/CompetitionStageStatus";
+import DirectoryBreadcrumbs from '../components/DirectoryBreadcrumbs';
+import MenuComponent from '../components/MenuComponent';
+import CompetitionStageStatus from '../components/CompetitionStageStatus';
 
-import "../../styling/AdminMenu.scss";
+import '../../styling/AdminMenu.scss';
 
 export default function AdminMenu() {
     const menuItems = [
         {
-            title: "School List",
-            description: "View schools and open team management.",
-            to: "/admin/schools",
-            className: "admin-menu-nav__item admin-menu-nav__item--schools",
+            title: 'School List',
+            description: 'View schools and open team management.',
+            to: '/admin/schools',
+            className: 'admin-menu-nav__item admin-menu-nav__item--schools',
             icon: <FaSchool aria-hidden="true" />,
         },
         {
-            title: "Problem List",
-            description: "Create, edit, reorder, and review problems.",
-            to: "/admin/problems",
-            className: "admin-menu-nav__item admin-menu-nav__item--problems",
+            title: 'Blue Division Problem List',
+            description:
+                'Create, edit, reorder, and review Blue Division problems.',
+            to: '/admin/blue/problems',
+            className: 'admin-menu-nav__item admin-menu-nav__item--problems',
             icon: <FaPuzzlePiece aria-hidden="true" />,
         },
         {
-            title: "Admin Upload",
-            description: "Open the upload workspace for admin submissions.",
-            to: "/admin/upload",
-            className: "admin-menu-nav__item admin-menu-nav__item--upload",
+            title: 'Gold Division Problem List',
+            description:
+                'Create, edit, reorder, and review Gold Division problems.',
+            to: '/admin/gold/problems',
+            className: 'admin-menu-nav__item admin-menu-nav__item--problems',
+            icon: <FaPuzzlePiece aria-hidden="true" />,
+        },
+        {
+            title: 'Admin Upload',
+            description: 'Open the upload workspace for admin submissions.',
+            to: '/admin/upload',
+            className: 'admin-menu-nav__item admin-menu-nav__item--upload',
             icon: <FaUpload aria-hidden="true" />,
         },
         {
@@ -50,14 +59,13 @@ export default function AdminMenu() {
 
             <div className="admin-menu-root">
                 <DirectoryBreadcrumbs
-                    items={[{ label: "Admin Menu" }]}
+                    items={[{ label: 'Admin Menu' }]}
                     trailingSeparator={true}
                 />
 
                 <div className="pageTitle">Admin Menu</div>
 
                 <div className="admin-menu-content">
-
                     <CompetitionStageStatus />
 
                     <div className="admin-menu-intro">

@@ -14,8 +14,9 @@ from src.projects import projects_api
 from src.schools import school_api
 from src.teams import team_api
 from src.error import error_api
+from src.gold_division import gold_division_api
 from src.jwt_manager import jwt
-from src import teams, schools, auth, projects, submission, upload
+from src import teams, schools, auth, projects, submission, upload, gold_division
 from src.services import timeout_service
 import os
 from src.jobs.scoreboard_job import add_scoreboard_job
@@ -25,7 +26,7 @@ def create_app():
     app = Flask(__name__)
     container = Container()
     app.container = container
-    container.wire(modules=[teams,schools, auth, projects, submission, upload, timeout_service])
+    container.wire(modules=[teams, schools, auth, projects, submission, upload, gold_division, timeout_service])
     
     TEACHER_DIR = "/tabot-files/project-files/teacher-files"
     STUDENT_DIR = "/tabot-files/project-files/student-files"
@@ -43,22 +44,28 @@ def create_app():
     )
         
     # App configuration
+
     app.config["JWT_SECRET_KEY"] = "ob1L04WeQ1U0H5Kiybk9rMoQigVhoGJCKBxC6KxF85G89vAK3L903I073JXQ"
     app.config["MAX_FAILED_LOGINS"] = 5
     app.config['MAX_CONTENT_LENGTH'] = 16 * 1000 * 1000
     app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"mysql+pymysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
+    app.config["SQLALCHEMY_DATABASE_URI"] = (
+        f"mysql+pymysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}"
+        f"@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
+    )
     
     # Blueprint registration
     app.register_blueprint(auth_api, url_prefix='/api/auth')
     app.register_blueprint(upload_api, url_prefix='/api/upload')
     app.register_blueprint(submission_api, url_prefix='/api/submissions')
-    app.register_blueprint(projects_api,url_prefix='/api/projects')  
+    app.register_blueprint(projects_api, url_prefix='/api/projects')  
     app.register_blueprint(school_api, url_prefix='/api/schools')
     app.register_blueprint(team_api, url_prefix='/api/teams')
-    app.register_blueprint(error_api,url_prefix='/api/error')
+    app.register_blueprint(error_api, url_prefix='/api/error')
+    app.register_blueprint(gold_division_api, url_prefix='/api/gold-division')
     
+
     # Initialize extensions
     jwt.init_app(app)
     db.init_app(app)

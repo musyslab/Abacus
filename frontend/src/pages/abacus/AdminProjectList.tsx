@@ -9,29 +9,31 @@ import {
     FaChevronUp,
     FaChevronDown,
     FaArrowsAlt,
-} from "react-icons/fa";
-import axios from "axios";
+} from 'react-icons/fa';
+import axios from 'axios';
 
-import "../../styling/AdminProjectList.scss";
-import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
-import MenuComponent from "../components/MenuComponent";
+import '../../styling/AdminProjectList.scss';
+import DirectoryBreadcrumbs from '../components/DirectoryBreadcrumbs';
+import MenuComponent from '../components/MenuComponent';
 import {
     fetchCompetitionSchedule,
     getVisibleProjectType,
     type CompetitionSchedule,
-} from "../components/CompetitionStageStatus";
+} from '../components/CompetitionStageStatus';
 
-type ProjectType = "competition" | "practice" | "none";
-type ReorderableProjectType = Exclude<ProjectType, "none">;
+type ProjectType = 'competition' | 'practice' | 'none';
+type ProjectDivision = 'blue' | 'gold';
+type ReorderableProjectType = Exclude<ProjectType, 'none'>;
 
 type ProjectObject = {
     Id: number;
     Name: string;
     Type: ProjectType;
+    Division: ProjectDivision;
+    DescriptionText?: string | null;
     OrderIndex: number | null;
     NotSubmittedCount: number;
     SubmittedAtLeastOnceCount: number;
-    PassingAllTestcasesCount: number;
 };
 
 type ProjectSection = {
@@ -42,13 +44,13 @@ type ProjectSection = {
 };
 
 const REORDER_BUTTON_LABELS: Record<ReorderableProjectType, string> = {
-    competition: "Reorder Competition Problems",
-    practice: "Reorder Practice Problems",
+    competition: 'Reorder Competition Problems',
+    practice: 'Reorder Practice Problems',
 };
 
 const REORDER_MODAL_TITLES: Record<ReorderableProjectType, string> = {
-    competition: "Reorder Competition Problems",
-    practice: "Reorder Practice Problems",
+    competition: 'Reorder Competition Problems',
+    practice: 'Reorder Practice Problems',
 };
 
 function sortProjectsByOrderIndex(projects: ProjectObject[]) {
@@ -60,8 +62,18 @@ function sortProjectsByOrderIndex(projects: ProjectObject[]) {
     });
 }
 
-export default function AdminProjectList() {
-    const API = (import.meta.env.VITE_API_URL as string) || "";
+type AdminProjectListProps = {
+    division: ProjectDivision;
+    divisionLabel: string;
+    manageBasePath: string;
+};
+
+export default function AdminProjectList({
+    division,
+    divisionLabel,
+    manageBasePath,
+}: AdminProjectListProps) {
+    const API = (import.meta.env.VITE_API_URL as string) || '';
     const [projects, setProjects] = useState<ProjectObject[]>([]);
     const [schedule, setSchedule] = useState<CompetitionSchedule | null>(null);
     const [now, setNow] = useState<Date>(() => new Date());
@@ -78,7 +90,7 @@ export default function AdminProjectList() {
     const prevRowTopsRef = useRef<Map<number, number>>(new Map());
 
     function authConfig() {
-        const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
+        const token = localStorage.getItem('AUTOTA_AUTH_TOKEN');
         return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
     }
 
@@ -89,7 +101,7 @@ export default function AdminProjectList() {
             if (bodyOverflowRef.current === null) {
                 bodyOverflowRef.current = document.body.style.overflow;
             }
-            document.body.style.overflow = "hidden";
+            document.body.style.overflow = 'hidden';
         } else if (bodyOverflowRef.current !== null) {
             document.body.style.overflow = bodyOverflowRef.current;
             bodyOverflowRef.current = null;
@@ -108,7 +120,7 @@ export default function AdminProjectList() {
     async function fetchProjects() {
         try {
             const res = await axios.get<ProjectObject[]>(
-                `${API}/projects/all_projects`,
+                `${API}/projects/all_projects?division=${division}`,
                 authConfig()
             );
             setProjects(Array.isArray(res.data) ? res.data : []);
@@ -119,7 +131,7 @@ export default function AdminProjectList() {
 
     useEffect(() => {
         fetchProjects();
-    }, [API]);
+    }, [API, division]);
 
     useEffect(() => {
         let active = true;
@@ -191,48 +203,53 @@ export default function AdminProjectList() {
 
     const competitionProjects = useMemo(() => {
         return sortProjectsByOrderIndex(
-            projects.filter((project) => project.Type === "competition")
+            projects.filter((project) => project.Type === 'competition')
         );
     }, [projects]);
 
     const practiceProjects = useMemo(() => {
         return sortProjectsByOrderIndex(
-            projects.filter((project) => project.Type === "practice")
+            projects.filter((project) => project.Type === 'practice')
         );
     }, [projects]);
 
     const noneProjects = useMemo(() => {
-        return projects.filter((project) => project.Type === "none");
+        return projects.filter((project) => project.Type === 'none');
     }, [projects]);
 
-    const sections = useMemo<ProjectSection[]>(
-        () => [
+    const sections = useMemo<ProjectSection[]>(() => {
+        const base: ProjectSection[] = [
             {
-                type: "competition",
-                title: "Competition Problems",
-                emptyText: "No competition problems yet.",
+                type: 'competition',
+                title: `${divisionLabel} Competition Problems`,
+                emptyText: `No ${divisionLabel.toLowerCase()} competition problems yet.`,
                 projects: competitionProjects,
             },
-            {
-                type: "practice",
-                title: "Practice Problems",
-                emptyText: "No practice problems yet.",
+        ];
+
+        if (division === 'blue') {
+            base.push({
+                type: 'practice',
+                title: `${divisionLabel} Practice Problems`,
+                emptyText: `No ${divisionLabel.toLowerCase()} practice problems yet.`,
                 projects: practiceProjects,
-            },
-            {
-                type: "none",
-                title: "Other Problems",
-                emptyText: "No uncategorized problems yet.",
-                projects: noneProjects,
-            },
-        ],
-        [competitionProjects, practiceProjects, noneProjects]
-    );
+            });
+        }
+
+        base.push({
+            type: 'none',
+            title: `${divisionLabel} Other Problems`,
+            emptyText: `No ${divisionLabel.toLowerCase()} uncategorized problems yet.`,
+            projects: noneProjects,
+        });
+
+        return base;
+    }, [competitionProjects, practiceProjects, noneProjects, division, divisionLabel]);
 
     const activeTableType = useMemo(() => {
-        if (!schedule) return null;
-        return getVisibleProjectType(schedule, now, "student");
-    }, [schedule, now]);
+        if (!schedule || division !== 'blue') return null;
+        return getVisibleProjectType(schedule, now, 'student');
+    }, [schedule, now, division]);
 
     function openOrderModal(
         projectType: ReorderableProjectType,
@@ -258,23 +275,24 @@ export default function AdminProjectList() {
                 {
                     id_order: order,
                     project_type: orderModal.projectType,
+                    division,
                 },
                 authConfig()
             );
             await fetchProjects();
         } catch (err) {
-            alert("Failed to save project order.");
+            alert('Failed to save project order.');
             console.log(err);
         } finally {
             setOrderModal(null);
         }
     }
 
-    function moveProject(index: number, direction: "up" | "down") {
+    function moveProject(index: number, direction: 'up' | 'down') {
         if (!orderModal) return;
 
         const newProjects = [...orderModal.projects];
-        const targetIndex = direction === "up" ? index - 1 : index + 1;
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
 
         if (targetIndex < 0 || targetIndex >= newProjects.length) return;
 
@@ -286,15 +304,23 @@ export default function AdminProjectList() {
         setOrderModal({ ...orderModal, projects: newProjects });
     }
 
+    function getReviewPath(project: ProjectObject) {
+        if (division === 'gold') {
+            return `/admin/gold-submissions/${project.Id}`;
+        }
+        return `/admin/problem/${project.Id}/review`;
+    }
+
     function renderProjectSection(section: ProjectSection) {
-        const isCompetition = section.type === "competition";
         const showOrderColumn =
-            section.type === "competition" || section.type === "practice";
-        const showTableStatus = section.type === "competition" || section.type === "practice";
+            section.type === 'competition' || section.type === 'practice';
+        const showTableStatus =
+            division === 'blue' &&
+            (section.type === 'competition' || section.type === 'practice');
         const isActiveTable = showTableStatus && activeTableType === section.type;
         const reorderableType: ReorderableProjectType | null =
-            section.type === "none" ? null : section.type;
-        const colSpan = showOrderColumn ? 7 : 6;
+            section.type === 'none' ? null : section.type;
+        const colSpan = showOrderColumn ? 6 : 5;
 
         return (
             <section
@@ -308,28 +334,31 @@ export default function AdminProjectList() {
 
                             {showTableStatus && (
                                 <span
-                                    className={`table-status-badge ${isActiveTable ? "is-active" : "is-inactive"}`}
+                                    className={`table-status-badge ${isActiveTable ? 'is-active' : 'is-inactive'
+                                        }`}
                                     title={
                                         isActiveTable
-                                            ? "This problem table is currently active to students"
-                                            : "This problem table is not currently active to students"
+                                            ? 'This problem table is currently active to students'
+                                            : 'This problem table is not currently active to students'
                                     }
                                 >
-                                    {isActiveTable ? "Active to students" : "Inactive"}
+                                    {isActiveTable ? 'Active to students' : 'Inactive'}
                                 </span>
                             )}
                         </div>
 
                         <div className="problem-section__meta">
                             {section.projects.length} problem
-                            {section.projects.length === 1 ? "" : "s"}
+                            {section.projects.length === 1 ? '' : 's'}
                         </div>
                     </div>
 
                     {reorderableType && (
                         <button
                             className="button button-reorder"
-                            onClick={() => openOrderModal(reorderableType, section.projects)}
+                            onClick={() =>
+                                openOrderModal(reorderableType, section.projects)
+                            }
                             disabled={section.projects.length < 2}
                         >
                             <FaArrowsAlt aria-hidden="true" />
@@ -347,12 +376,11 @@ export default function AdminProjectList() {
                                 <th className="projects-table-header project-order">#</th>
                             )}
                             <th className="projects-table-header project-name">Problem</th>
-                            <th className="projects-table-header project-metric">Not Submitted</th>
                             <th className="projects-table-header project-metric">
-                                Submitted
+                                Not Submitted
                             </th>
                             <th className="projects-table-header project-metric">
-                                Passing All Testcases
+                                Submitted
                             </th>
                             <th className="projects-table-header project-review">Review</th>
                             <th className="projects-table-header project-edit">Edit</th>
@@ -389,16 +417,10 @@ export default function AdminProjectList() {
                                         </span>
                                     </td>
 
-                                    <td className="project-metric">
-                                        <span className="project-metric__value">
-                                            {project.PassingAllTestcasesCount}
-                                        </span>
-                                    </td>
-
                                     <td className="project-review">
                                         <Link
                                             className="button button-review"
-                                            to={`/admin/problem/${project.Id}/review`}
+                                            to={getReviewPath(project)}
                                             aria-label={`Review submissions for ${project.Name}`}
                                         >
                                             <FaEye aria-hidden="true" />
@@ -409,7 +431,7 @@ export default function AdminProjectList() {
                                     <td className="project-edit">
                                         <Link
                                             className="button button-edit"
-                                            to={`/admin/problem/manage/${project.Id}`}
+                                            to={`${manageBasePath}/${project.Id}`}
                                         >
                                             <FaEdit aria-hidden="true" />
                                             <span className="button-text">Edit</span>
@@ -424,6 +446,8 @@ export default function AdminProjectList() {
         );
     }
 
+    const pageTitle = `${divisionLabel} Problem List`;
+
     return (
         <>
             <Helmet>
@@ -435,21 +459,26 @@ export default function AdminProjectList() {
             <div className="admin-project-list-root">
                 <DirectoryBreadcrumbs
                     items={[
-                        { label: "Admin Menu", to: "/admin" },
-                        { label: "Problem List" },
+                        { label: 'Admin Menu', to: '/admin' },
+                        { label: pageTitle },
                     ]}
                 />
 
-                <div className="pageTitle">Problem List</div>
+                <div className="pageTitle">{pageTitle}</div>
 
                 <div className="admin-project-list-content">
                     <div className="projects-sections">
                         {sections.map((section) => renderProjectSection(section))}
                     </div>
 
-                    <Link className="button button-create-assignment" to="/admin/problem/manage/0">
+                    <Link
+                        className="button button-create-assignment"
+                        to={`${manageBasePath}/0`}
+                    >
                         <FaPlusCircle aria-hidden="true" />
-                        <span className="button-text">Create new problem</span>
+                        <span className="button-text">
+                            Create new {divisionLabel} problem
+                        </span>
                     </Link>
                 </div>
             </div>
@@ -462,13 +491,13 @@ export default function AdminProjectList() {
                         <div className="modal__body">
                             <div className="modal__subtitle">
                                 <div className="muted">
-                                    {orderModal.projectType === "competition"
-                                        ? "Click the arrows to reorder the competition problems."
-                                        : "Click the arrows to reorder the practice problems."}
+                                    {orderModal.projectType === 'competition'
+                                        ? 'Click the arrows to reorder the competition problems.'
+                                        : 'Click the arrows to reorder the practice problems.'}
                                 </div>
                                 <div className="muted">
-                                    {orderModal.projectType === "competition"
-                                        ? `${orderModal.projects.length} / 10`
+                                    {orderModal.projectType === 'competition'
+                                        ? `${orderModal.projects.length} total`
                                         : `${orderModal.projects.length} total`}
                                 </div>
                             </div>
@@ -496,7 +525,7 @@ export default function AdminProjectList() {
                                                 <button
                                                     type="button"
                                                     className="reorder-btn"
-                                                    onClick={() => moveProject(index, "up")}
+                                                    onClick={() => moveProject(index, 'up')}
                                                 >
                                                     <FaChevronUp
                                                         className="reorder-btn__icon"
@@ -509,7 +538,7 @@ export default function AdminProjectList() {
                                                 <button
                                                     type="button"
                                                     className="reorder-btn"
-                                                    onClick={() => moveProject(index, "down")}
+                                                    onClick={() => moveProject(index, 'down')}
                                                 >
                                                     <FaChevronDown
                                                         className="reorder-btn__icon"
@@ -532,7 +561,7 @@ export default function AdminProjectList() {
                                 onClick={confirmOrderModal}
                                 disabled={orderModal.isSaving}
                             >
-                                {orderModal.isSaving ? "Saving..." : "Save"}
+                                {orderModal.isSaving ? 'Saving...' : 'Save'}
                             </button>
                         </div>
                     </div>

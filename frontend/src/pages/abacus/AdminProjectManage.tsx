@@ -54,6 +54,7 @@ class Testcase {
 
 type SolutionLang = 'java' | 'python'
 type ProjectType = 'competition' | 'practice' | 'none'
+type ProjectDivision = 'blue' | 'gold'
 
 const isJavaFileName = (n: string) => /\.java$/i.test(n)
 
@@ -76,7 +77,15 @@ function solutionLangFor(name: string): SolutionLang | null {
     return null
 }
 
-export default function AdminProjectManage() {
+type AdminProjectManageProps = {
+    division?: ProjectDivision
+    divisionLabel?: string
+}
+
+export default function AdminProjectManage({
+    division = 'blue',
+    divisionLabel = 'Blue Division',
+}: AdminProjectManageProps) {
     const { id } = useParams()
     const project_id = Number(id)
 
@@ -522,12 +531,13 @@ export default function AdminProjectManage() {
             formData.append('name', ProjectName)
             formData.append('language', ProjectLanguage)
             formData.append('project_type', projectType)
+            formData.append('division', division)
 
             const res = await axios.post(`${API}/projects/create_project`, formData, authConfig())
             const newId = res.data
 
             window.alert('Your project has been created! Next, open the "Test Cases" tab to add test cases.')
-            window.location.href = `/admin/problem/manage/${newId}`
+            window.location.href = `/admin/blue/problem/manage/${newId}`
         } catch (error: any) {
             window.alert(error?.response?.data?.message || 'An error occurred while saving the project.')
             console.log(error)
@@ -566,11 +576,12 @@ export default function AdminProjectManage() {
             formData.append('name', ProjectName)
             formData.append('language', ProjectLanguage)
             formData.append('project_type', projectType)
+            formData.append('division', division)
 
             await axios.post(`${API}/projects/edit_project`, formData, authConfig())
 
             window.alert('Project information saved. Next, go to the "Test Cases" tab to create test cases.')
-            window.location.href = `/admin/problem/manage/${project_id}`
+            window.location.href = `/admin/blue/problem/manage/${project_id}`
         } catch (error: any) {
             window.alert(error?.response?.data?.message || 'An error occurred while saving the project.')
             console.log(error)
@@ -915,13 +926,20 @@ export default function AdminProjectManage() {
             <DirectoryBreadcrumbs
                 items={[
                     { label: 'Admin Menu', to: '/admin' },
-                    { label: 'Problem List', to: '/admin/problems' },
-                    { label: 'Problem Manage' },
+                    {
+                        label: `${divisionLabel} Problem List`,
+                        to: division === 'blue' ? '/admin/blue/problems' : '/admin/gold/problems',
+                    },
+                    { label: `${divisionLabel} Problem Manage` },
                 ]}
             />
 
             <div className={`admin-project-config-container${modalOpen ? ' blurred' : ''}`}>
-                <div className="pageTitle">{edit ? 'Edit Problem' : 'Create Problem'}</div>
+                <div className="pageTitle">
+                    {edit
+                        ? `Edit ${divisionLabel} Problem`
+                        : `Create ${divisionLabel} Problem`}
+                </div>
 
                 <div className="tab-menu">
                     <button

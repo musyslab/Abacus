@@ -823,7 +823,17 @@ export default function AdminTeamManage() {
     function updateTeamDivision(teamId: number, division: Division) { updateTeam(teamId, { division }) }
     function updateTeamAttendance(teamId: number, isOnline: boolean) { updateTeam(teamId, { isOnline }) }
 
-    function goToTeamSubmissions(teamId: number) {
+    function goToTeamSubmissions(teamId: number, division: Division) {
+        if (division === "Gold") {
+            navigate(isAdminMode ? "/admin/gold-submissions" :  "/teacher/gold-submissions");
+            return;
+        }
+        
+        if (division === "Eagle") {
+            navigate(isAdminMode ? "/admin/eagle-submissions" : "/teacher/eagle-submissions");
+            return;
+        }
+
         const path = isAdminMode
             ? `/admin/${managedSchoolId}/team-manage/${teamId}/submissions`
             : `/teacher/team-manage/${teamId}/submissions`;
@@ -1001,10 +1011,11 @@ export default function AdminTeamManage() {
                                             </div>
                                         ) : (
                                             <div className="panel__header-actions">
+
                                                 <button
                                                     className="btn btn--secondary btn--view-submissions"
                                                     type="button"
-                                                    onClick={() => goToTeamSubmissions(team.id)}
+                                                    onClick={() => goToTeamSubmissions(team.id, team.division)}
                                                 >
                                                     View Team Submissions
                                                 </button>

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, Text, DateTime, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, UniqueConstraint, Text, DateTime, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.schema import ForeignKey
 from sqlalchemy.types import Date
@@ -13,6 +13,8 @@ class Projects(db.Model):
     Name = Column(String, nullable=False)
     Language = Column(String, nullable=False)
     Type = Column(String, nullable=False)
+    Division = Column(String, nullable=False, default="blue")
+    DescriptionText = Column(String)
     OrderIndex = Column(Integer)
     Submissions = relationship('Submissions')
     solutionpath = Column(String)
@@ -93,47 +95,24 @@ class StudentUsers(db.Model):
     PasswordHash = Column(String(255))
     IsLocked = Column(Boolean, default=False)
 
-class HelpRequests(db.Model):
-    __tablename__ = "HelpRequests"
 
-    Id = Column(Integer, primary_key=True, autoincrement=True)
-    StudentId = Column(Integer, ForeignKey('StudentUsers.Id'), nullable=True)
-    TeacherId = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=True)
-    ProblemId = Column(Integer, ForeignKey('Projects.Id'), nullable=True)
-    Reason = Column(String(255), nullable=False)
-    Description = Column(Text, nullable=False)
-    Status = Column(Integer, default=0, nullable=False)
-    CurrentAdminId = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=True)
-    # Timestamp
-    CreatedAt = Column(DateTime, default=func.now(), nullable=False)
-    
-    # Stays null until compelted
-    CompletedAt = Column(DateTime, nullable=True)
-
-
-class TeamProjectStats(db.Model):
-    __tablename__ = "TeamProjectStats"
-    Id = Column(Integer, primary_key=True, autoincrement=True)
-    TeamId = Column(Integer, ForeignKey('Teams.Id'), nullable=False)
-    ProjectId = Column(Integer, ForeignKey('Projects.Id'), nullable=False)
-    Attempts = Column(Integer, nullable=False, default=0)
-    Solved = Column(Boolean, nullable=False, default=False)
-    AcceptedTimeMinutes = Column(Integer, nullable=True)
-    CurrentSubmissionId = Column(Integer, nullable=False)
-
+class GoldDivision(db.Model):
+    __tablename__ = "GoldDivision"
     __table_args__ = (
-        UniqueConstraint('TeamId', 'ProjectId', name='teamprojectstats_team_project_unique'),
+        UniqueConstraint('StudentId', 'ProjectId', name='uq_golddivision_student_project'),
     )
 
-class ScoreboardSnapshots(db.Model):
-    __tablename__ = "ScoreboardSnapshots"
     Id = Column(Integer, primary_key=True, autoincrement=True)
-    Division = Column(String(5), nullable=False)
-    IsOnline = Column(Boolean, nullable=False)
-    Minute = Column(Integer, nullable=False)
-    TimeStamp = Column(DateTime, nullable=False)
-    Payload = Column(Text, nullable=False)
-
-    __table_args__ = (
-        UniqueConstraint('Division', 'IsOnline', 'Minute', name='scoreboardsnapshots_division_online_minute_unique'),
+    Link = Column(String(255), nullable=False)
+    StudentId = Column(Integer, ForeignKey('StudentUsers.Id'), nullable=False)
+    ProjectId = Column(Integer, ForeignKey('Projects.Id'), nullable=False)
+    SubmittedAt = Column(Date)
+    Points = Column(Integer)
+    Feedback = Column(String)
+    AdminGraderId = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=True)
+    RegradeRequestedAt = Column(Date, nullable=True)
+    RegradeRequestedByStudentId = Column(
+        Integer,
+        ForeignKey('StudentUsers.Id'),
+        nullable=True,
     )
