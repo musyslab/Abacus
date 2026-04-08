@@ -12,6 +12,12 @@ from src.repositories.models import (
     StudentUsers,
     Teams,
 )
+from src.constants import (
+    COMPETITION_START,
+    COMPETITION_END,
+    PRACTICE_START,
+    PRACTICE_END,
+)
 
 gold_division_api = Blueprint('gold_division_api', __name__)
 
@@ -397,12 +403,19 @@ def create_gold_submission():
     team_id = get_student_team_id(current_user)
     if not team_id:
         return jsonify({'message': 'No team is associated with this account'}), 400
+    
+    now = datetime.now()
+    if project.Type == "competition":
+        if now < COMPETITION_START:
+            return jsonify({'message': 'Competition has not started yet.'}, 403)
+        elif now > COMPETITION_END:
+            return jsonify({'message': 'Competition has ended. Submissions are closed.'}, 403)
 
     new_submission = GoldDivision(
         Link=scratch_link,
         StudentId=current_user.Id,
         ProjectId=project_id,
-        SubmittedAt=datetime.utcnow(),
+        SubmittedAt=now,
         Points=None,
         Feedback=None,
         AdminGraderId=None,

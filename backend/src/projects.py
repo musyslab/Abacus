@@ -15,6 +15,7 @@ import sys
 import requests
 
 from subprocess import Popen
+from src.repositories.team_repository import TeamRepository
 from src.repositories.user_repository import UserRepository
 from src.repositories.submission_repository import SubmissionRepository
 from flask import Blueprint, Response, send_file, current_app
@@ -1110,7 +1111,6 @@ def getAssignmentDescription(project_repo: ProjectRepository = Provide[Container
 @jwt_required()
 @inject
 def reorder_projects(
-    project_repo: ProjectRepository = Provide[Container.project_repo],
     user_repo: UserRepository = Provide[Container.user_repo],
 ):
     if not user_repo.is_admin():
@@ -1168,3 +1168,24 @@ def reorder_projects(
     db.session.commit()
 
     return make_response("Projects Reordered", HTTPStatus.OK)
+
+@projects_api.route('/my_competition', methods=['GET'])
+@jwt_required()
+@inject
+def get_available_projects(
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+    team_repo: TeamRepository = Provide[Container.team_repo]
+):
+    if not isinstance(current_user, StudentUsers):
+        return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
+
+    team = team_repo.get_team_by_id(current_user.TeamId) if current_user.TeamId else None
+    if not team:
+        return make_response({'message': 'Team not found'}, HTTPStatus.NOT_FOUND)
+
+    projects = project_repo.get_projects_by_type_division(
+        project_type='competition',
+        division=team.Division
+    )
+
+    return make_response([{'id': p.Id, 'name': p.Name} for p in projects], HTTPStatus.OK)

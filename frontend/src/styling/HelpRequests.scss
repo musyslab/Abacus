@@ -1,24 +1,13 @@
-.oh-page {
-    width: 100%;
-    margin-top: 15px;
-    padding-top: 0;
-    box-sizing: border-box;
-}
-
-.oh-page .directory,
-.oh-page .pageTitle,
-.oh-page .question-queue-table,
-.oh-page .table-section {
-    width: 95vw;
-    margin-left: auto;
-    margin-right: auto;
-    box-sizing: border-box;
+.oh-page__content {
+    width: 95%;
+    margin: 0 auto;
 }
 
 .table-section {
     margin-top: 12px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    width: 100%;
 }
 
 .tableTitle {
@@ -136,7 +125,7 @@
 }
 
 .question-queue-table {
-    width: 95%;
+    width: 100%;
     min-width: 1200px;
     margin: 15px auto 24px;
     border-collapse: collapse;

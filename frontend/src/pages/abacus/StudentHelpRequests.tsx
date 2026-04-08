@@ -18,8 +18,8 @@ interface HelpRequestItem {
 }
 
 interface Project {
-    Id: number;
-    Name: string;
+    id: number;
+    name: string;
 }
 
 const StudentHelpRequests: React.FC = () => {
@@ -60,8 +60,8 @@ const StudentHelpRequests: React.FC = () => {
         const intervalId = setInterval(fetchRequests, 500000); // Poll every 5 minutes
         
 
-        axios.get(`${import.meta.env.VITE_API_URL}/projects/all_projects`, authConfig())
-            .then(res => setAvailableProblems(res.data))
+        axios.get(`${import.meta.env.VITE_API_URL}/projects/my_competition`, authConfig())
+            .then(res => setAvailableProblems(res.data as Project[]))
             .catch(err => console.error(err));
 
         return () => clearInterval(intervalId);
@@ -184,7 +184,7 @@ const StudentHelpRequests: React.FC = () => {
                                 <option value="" disabled>Select the problem...</option>
                                 <option value="general">General Issue</option>
                                 {availableProblems.map((p) => (
-                                    <option key={p.Id} value={p.Id.toString()}>{p.Name}</option>
+                                    <option key={p.id} value={p.id.toString()}>{p.name}</option>
                                 ))}
                             </select>
                         </div>
