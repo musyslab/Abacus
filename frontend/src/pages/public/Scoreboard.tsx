@@ -438,7 +438,7 @@ export default function Scoreboard() {
                     metaRight: <MetaChip
                         label="Refresh"
                         value=""
-                        status={"action btn"}
+                        status={"action atm-btn"}
                         icon={<FaSync size={14}/>}
                         onClick={() => fetchScoreboard(false)}
                     />,
@@ -564,7 +564,7 @@ export default function Scoreboard() {
         return (
             <>
                 <ErrorMessage message={error} isHidden={false} />
-                <button className="btn" onClick={() => fetchScoreboard(false)}>Retry</button>
+                <button className="atm-btn" onClick={() => fetchScoreboard(false)}>Retry</button>
             </>
         );
     }

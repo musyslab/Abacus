@@ -31,7 +31,7 @@ def build_scoreboard_payload(
     Builds the competition scoreboard payload
     Returns list of dicts with team info and stats for the scoreboard.
     """
-    projects = project_repo.get_projects_by_type(project_type)
+    projects = project_repo.get_projects_by_type_division(project_type, division.lower())
 
     if not projects:
         return team_repo.get_empty_scoreboard(division, is_online)
