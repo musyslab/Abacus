@@ -94,6 +94,18 @@ const SCORE_TOOLTIP_TEXT = (
         Wrong submissions on unsolved problems do not count.
     </>
 );
+const PROJECT_COLORS = [
+    "project--blue",
+    "project--green",
+    "project--lightblue",
+    "project--orange",
+    "project--purple",
+    "project--red",
+    "project--pink",
+    "project--yellow",
+    "project--black",
+    "project--white",
+] as const;
 
 function formatTimestamp(isoString?: string | null): string {
     if (!isoString) return "--";
@@ -142,6 +154,10 @@ function MetaChip({ label, value, status, icon, onClick }: MetaChipProps) {
             </div>
         </div>
     );
+}
+
+function getProjectColor(index: number): string {
+    return PROJECT_COLORS[index % PROJECT_COLORS.length];
 }
 
 export default function Scoreboard() {
@@ -706,13 +722,17 @@ export default function Scoreboard() {
                                             </div>
                                         </div>
                                     </th>
-                                    {projects.map((project) => (
+                                    {projects.map((project, idx) => (
                                         <th 
                                             key={project.id}
                                             className="scoreboard-table-header"
                                             title = {`Problem ${project.orderIndex}`}
                                         >
-                                            <span className="scoreboard-project-number">P{project.orderIndex}</span>
+                                            <span 
+                                                className={`scoreboard-project-number ${getProjectColor(idx)}`}
+                                            >
+                                                P{project.orderIndex}
+                                            </span>
                                         </th>
                                     ))}
                                 </tr>

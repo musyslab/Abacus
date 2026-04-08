@@ -422,6 +422,51 @@
     }
 }
 
+.scoreboard-project-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    padding: 3px 6px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.scoreboard-project-number {
+    &.project--blue {
+        background-color: #1a2bbe;
+    }
+    &.project--green {
+        background-color: #00b336;
+    }
+    &.project--lightblue {
+        background-color: #00aaed;
+    }
+    &.project--orange {
+        background-color: #f47216;
+    }
+    &.project--purple {
+        background-color: #7b2d8e;
+    }
+    &.project--red {
+        background-color: #e01e1e;
+    }
+    &.project--pink {
+        background-color: #e6105d;
+    }
+    &.project--yellow {
+        background-color: #fdd835;
+    }
+    &.project--black {
+        background-color: #1a1a1a;
+    }
+    &.project--white {
+        background-color: #f0f0f5;
+        border-color: #d0d0d0;
+        color: #222222;
+    }
+}
+
 .scoreboard-table-body {
     .scoreboard-table-row {
         background: #ffffff;
