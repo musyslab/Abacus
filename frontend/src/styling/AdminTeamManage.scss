@@ -227,24 +227,6 @@
   gap: 4px;
 }
 
-.segment-division {
-  .segment-option.selected {
-    color: #fff;
-  }
-
-  .segment-option.selected.blue {
-    background: #1e40af;
-  }
-
-  .segment-option.selected.gold {
-    background: #f59e0b;
-  }
-
-  .segment-option.selected.eagle {
-    background: #1CB2A9;
-  }
-}
-
 .panel__header-actions {
   display: flex;
   align-items: center;
@@ -285,7 +267,10 @@
 
 .panel__label {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
 }
 
 .panel__footer {

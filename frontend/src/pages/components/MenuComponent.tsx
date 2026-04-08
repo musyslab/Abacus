@@ -11,12 +11,14 @@ import {
     FaUserCircle,
     FaQuestionCircle,
     FaClipboardList,
+    FaTrophy,
 } from "react-icons/fa";
 
 interface MenuComponentProps {
     variant?: "app" | "home" | "public";
     onScrollToSection?: (key: "about" | "event" | "rules") => void;
     onRequestHelp?: () => void;
+    onUserRole?: (role: "admin" | "teacher" | "student") => void;
 }
 
 type DashboardInfo = {
@@ -78,6 +80,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
             if (status === "student") {
                 const info = { label: "Problem Select", path: "/student/problems" };
                 this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true, isStudent: true, isAdminRole: false });
+                this.props.onUserRole?.("student");
                 return info;
             }
 
@@ -87,21 +90,25 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                 if (isAdmin) {
                     const info = { label: "Admin Menu", path: "/admin" };
                     this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true, isAdminRole: true });
+                    this.props.onUserRole?.("admin");
                     return info;
                 }
 
                 const info = { label: "Team Manage", path: "/teacher/team-manage" };
 
                 this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
+                this.props.onUserRole?.("teacher");
                 return info;
             }
 
             const fallback = { label: "Dashboard", path: "/home" };
             this.setState({ dashboardLabel: fallback.label, dashboardPath: fallback.path, isRoleLoaded: true });
+            this.props.onUserRole?.("student");
             return fallback;
         } catch {
             const fallback = { label: "Dashboard", path: "/home" };
             this.setState({ dashboardLabel: fallback.label, dashboardPath: fallback.path, isRoleLoaded: true });
+            this.props.onUserRole?.("student");
             return fallback;
         }
     };
@@ -118,15 +125,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
             .catch(() => window.location.replace("/home"));
     };
 
-    // Compute dynamic class upload ID (more general: any /class/:id/... path)
-    getClassIdFromUrl(): string | null {
-        const match = window.location.href.match(/\/student\/(\d+)/);
-        return match ? match[1] : null;
-    }
-
     render() {
-        const classId = this.getClassIdFromUrl();
-
         const variant = this.props.variant ?? "app";
         const isPublic = variant === "public";
         const isHome = variant === "home";
@@ -169,6 +168,10 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                             </button>
 
                             <div className="menu__right">
+                                <Link className="menu__item" to="/scoreboard">
+                                    <FaTrophy className="menu__icon" aria-hidden="true" />
+                                    <span className="menu__text">Scoreboard</span>
+                                </Link>
                                 {loggedIn ? (
                                     <>
                                         {this.state.isRoleLoaded && !this.state.isAdminRole && (
@@ -220,6 +223,10 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                             <div className="menu__spacer" />
 
                             <div className="menu__right">
+                                <Link className="menu__item" to="/scoreboard">
+                                    <FaTrophy className="menu__icon" aria-hidden="true" />
+                                    <span className="menu__text">Scoreboard</span>
+                                </Link>
                                 {loggedIn ? (
                                     <>
                                         {this.state.isRoleLoaded && !this.state.isAdminRole && (
@@ -278,6 +285,10 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                             </button>
 
                             <div className="menu__right">
+                                <Link className="menu__item" to="/scoreboard">
+                                    <FaTrophy className="menu__icon" aria-hidden="true" />
+                                    <span className="menu__text">Scoreboard</span>
+                                </Link>
                                 {this.state.isRoleLoaded && !this.state.isAdminRole && (
                                     <Link
                                         to="/student/help-requests"
