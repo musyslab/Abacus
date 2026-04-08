@@ -1,7 +1,8 @@
+import os
 from http import HTTPStatus
 
 from dependency_injector.wiring import Provide, inject
-from flask import Blueprint, jsonify, make_response, request
+from flask import Blueprint, current_app, jsonify, make_response, request, send_file
 from flask_jwt_extended import current_user, jwt_required
 from sqlalchemy import asc
 
@@ -31,6 +32,54 @@ def _student_eagle_team() -> tuple[Teams | None, object | None]:
             HTTPStatus.FORBIDDEN,
         )
     return team, None
+
+
+def _eagle_instructions_path() -> tuple[str | None, str]:
+    """Resolve PDF under tabot-files/eagledivision (dev: repo sibling; prod: /tabot-files mount)."""
+    download_name = "Eagle-Division-2026.pdf"
+    candidates = ("Eagle-Division-2026.pdf", "Eagle-Division-2026.pdf.pdf")
+    bases = [
+        os.path.abspath(
+            os.path.join(current_app.root_path, "..", "tabot-files", "eagledivision")
+        ),
+        "/tabot-files/eagledivision",
+    ]
+    for base in bases:
+        for name in candidates:
+            full = os.path.join(base, name)
+            if os.path.isfile(full):
+                return full, download_name
+    return None, download_name
+
+
+@eagle_api.route("/instructions", methods=["GET"])
+@jwt_required()
+def download_eagle_instructions():
+    if isinstance(current_user, StudentUsers):
+        _, err = _student_eagle_team()
+        if err:
+            return err
+        if is_student_submission_locked():
+            return make_response(
+                {"message": "Problem materials are not available during this phase."},
+                HTTPStatus.FORBIDDEN,
+            )
+    elif not _is_global_admin():
+        return make_response({"message": "Unauthorized"}, HTTPStatus.FORBIDDEN)
+
+    path, download_name = _eagle_instructions_path()
+    if not path:
+        return make_response(
+            {"message": "Eagle instructions PDF is not available on the server."},
+            HTTPStatus.NOT_FOUND,
+        )
+
+    return send_file(
+        path,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=download_name,
+    )
 
 
 @eagle_api.route("/teams", methods=["GET"])
@@ -165,7 +214,7 @@ def eagle_problem(project_repo: ProjectRepository = Provide[Container.project_re
                 "preview": None,
                 "previewKind": "none",
                 "filename": None,
-                "hint": 'Create a competition project, or name one with "Eagle" in the title.',
+                "hint": None,
             }
         )
 

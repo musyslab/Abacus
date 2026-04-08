@@ -11,7 +11,6 @@ import {
     FaUserCircle,
     FaQuestionCircle,
     FaClipboardList,
-    FaComments,
 } from "react-icons/fa";
 
 interface MenuComponentProps {
@@ -84,7 +83,7 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                     });
                     const div = String(teamRes.data?.division ?? "").trim();
                     if (div === "Eagle") {
-                        const info = { label: "Problem Select", path: "/student/problems" };
+                        const info = { label: "Eagle Division home", path: "/student/eagle-home" };
                         this.setState({
                             dashboardLabel: info.label,
                             dashboardPath: info.path,
@@ -337,16 +336,6 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                                         <span className="menu__text">Help Requests</span>
                                     </Link>
                                 )}
-                                {this.state.isRoleLoaded && this.state.isEagleStudent && (
-                                    <Link
-                                        to="/student/eagle-home"
-                                        className="menu__item menu__item--link"
-                                        title="Eagle Division home"
-                                    >
-                                        <FaComments className="menu__icon" aria-hidden="true" />
-                                        <span className="menu__text">Eagle Home</span>
-                                    </Link>
-                                )}
                                 {this.state.isRoleLoaded && this.state.isAdminRole && (
                                     <Link
                                         to="/admin/help-requests"
@@ -357,15 +346,17 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                                         <span className="menu__text">Help Queue</span>
                                     </Link>
                                 )}
-                                <button
-                                    type="button"
-                                    className="menu__item menu__item--link"
-                                    onClick={this.handleRoleHome}
-                                    title="Go to dashboard"
-                                >
-                                    <FaHome className="menu__icon" aria-hidden="true" />
-                                    <span className="menu__text">{this.state.dashboardLabel}</span>
-                                </button>
+                                {!this.state.isEagleStudent && (
+                                    <button
+                                        type="button"
+                                        className="menu__item menu__item--link"
+                                        onClick={this.handleRoleHome}
+                                        title="Go to dashboard"
+                                    >
+                                        <FaHome className="menu__icon" aria-hidden="true" />
+                                        <span className="menu__text">{this.state.dashboardLabel}</span>
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     className="menu__item menu__item--link menu__logout"

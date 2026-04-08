@@ -115,6 +115,12 @@ export default function StudentProjectSelection() {
                             : null,
             };
 
+            if (String(resolvedTeam.division ?? "").trim() === "Eagle") {
+                navigate("/student/eagle-home", { replace: true });
+                setIsLoading(false);
+                return;
+            }
+
             if (!Number.isFinite(resolvedTeam.id) || resolvedTeam.id <= 0) {
                 setTeam(null);
                 setProjects([]);

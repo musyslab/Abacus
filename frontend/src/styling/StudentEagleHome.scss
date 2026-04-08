@@ -1,35 +1,35 @@
-.eagle-home-page {
+.eagle-home-root {
     width: 100%;
-    max-width: 1220px;
-    margin-left: auto;
-    margin-right: auto;
-    margin-top: 15px;
-    padding: 0 1.5rem 3rem;
+}
+
+.eagle-home-content {
+    width: 95%;
+    margin: 18px auto 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
     box-sizing: border-box;
 }
 
-.eagle-home-page .directory,
-.eagle-home-page .eagle-home__title,
-.eagle-home-page .eagle-home__subtitle,
-.eagle-home-page .eagle-home__grid {
+/* Admin Eagle chat only: one column at all breakpoints (full width of 95% shell = pageTitle / breadcrumbs) */
+.eagle-home__grid.eagle-home__grid--admin-solo {
+    grid-template-columns: 1fr;
     width: 100%;
-    max-width: none;
-    margin-left: auto;
-    margin-right: auto;
-    box-sizing: border-box;
+
+    @media (min-width: 960px) {
+        grid-template-columns: 1fr;
+    }
 }
 
-.eagle-home__title {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #111827;
-    margin: 8px 0 4px;
+.eagle-card--admin-solo {
+    width: 100%;
+    max-width: 100%;
 }
 
 .eagle-home__subtitle {
     font-size: 1.05rem;
     color: #6b7280;
-    margin: 0 0 20px;
+    margin: 0;
     line-height: 1.5;
 }
 
@@ -37,24 +37,12 @@
     display: grid;
     gap: 1.25rem;
     grid-template-columns: 1fr;
-    direction: ltr;
+    /* start: problem card stays content-height; chat card may grow with messages */
+    align-items: start;
+    width: 100%;
 
     @media (min-width: 960px) {
-        grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
-        align-items: start;
-    }
-}
-
-@media (min-width: 960px) {
-    .eagle-home__grid .eagle-card--problem {
-        grid-column: 1;
-    }
-
-    .eagle-home__grid .eagle-card--chat {
-        grid-column: 2;
-        position: sticky;
-        top: 1rem;
-        align-self: start;
+        grid-template-columns: 1fr 1fr;
     }
 }
 
@@ -64,14 +52,46 @@
     background: #ffffff;
     box-shadow: 0 1px 6px rgba(80, 95, 126, 0.07);
     padding: 1.35rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: auto;
+    align-self: start;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.eagle-card__main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .eagle-card--problem {
     border-top: 4px solid #1cb2a9;
 }
 
+.eagle-card--problem .eagle-card__main {
+    flex: 0 1 auto;
+}
+
+.eagle-card--problem .eagle-actions {
+    flex-shrink: 0;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    margin-top: 0;
+    padding-top: 0.5rem;
+}
+
 .eagle-card--chat {
     border-top: 4px solid #2563eb;
+}
+
+.eagle-card--chat .eagle-card__body--chat-intro {
+    flex-shrink: 0;
 }
 
 .eagle-card__eyebrow {
@@ -163,6 +183,16 @@
     }
 }
 
+/* Same footprint for Download instructions (problem card) and Send (chat card) */
+.eagle-home__grid .eagle-card .eagle-btn--primary {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+}
+
 .eagle-btn--secondary {
     background: #e5e7eb;
     color: #111827;
@@ -173,7 +203,8 @@
 }
 
 .eagle-chat-log {
-    max-height: 360px;
+    flex: 0 1 auto;
+    min-height: 220px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -213,6 +244,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 .eagle-chat-input {
@@ -264,6 +296,7 @@
     gap: 10px;
     align-items: center;
     margin-bottom: 14px;
+    flex-shrink: 0;
 }
 
 .eagle-admin-toolbar label {

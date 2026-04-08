@@ -9,14 +9,6 @@ import "../../styling/StudentEagleHome.scss";
 
 type TeamOpt = { id: number; name: string; teamNumber: number; schoolId: number };
 type ChatRow = { id: number; sender: string; body: string; createdAt: string };
-type ProblemPayload = {
-    projectId: number | null;
-    name: string | null;
-    preview: string | null;
-    previewKind: string | null;
-    filename: string | null;
-    hint: string | null;
-};
 
 export default function AdminEagleChat() {
     const apiBase = (import.meta.env.VITE_API_URL as string) || "";
@@ -24,7 +16,6 @@ export default function AdminEagleChat() {
     const [teams, setTeams] = useState<TeamOpt[]>([]);
     const [teamId, setTeamId] = useState<number | "">("");
     const [messages, setMessages] = useState<ChatRow[]>([]);
-    const [problem, setProblem] = useState<ProblemPayload | null>(null);
     const [draft, setDraft] = useState("");
     const [error, setError] = useState("");
     const [sending, setSending] = useState(false);
@@ -48,15 +39,6 @@ export default function AdminEagleChat() {
         }
     }, [apiBase, authConfig]);
 
-    const loadProblem = useCallback(async () => {
-        try {
-            const res = await axios.get<ProblemPayload>(`${apiBase}/eagle/problem`, authConfig());
-            setProblem(res.data);
-        } catch {
-            setProblem(null);
-        }
-    }, [apiBase, authConfig]);
-
     const loadMessages = useCallback(async () => {
         if (!teamId) {
             setMessages([]);
@@ -76,8 +58,7 @@ export default function AdminEagleChat() {
 
     useEffect(() => {
         loadTeams();
-        loadProblem();
-    }, [loadTeams, loadProblem]);
+    }, [loadTeams]);
 
     useEffect(() => {
         loadMessages();
@@ -106,63 +87,46 @@ export default function AdminEagleChat() {
         }
     }
 
-    const showTextPreview = problem?.previewKind === "text" && (problem?.preview || "").length > 0;
-
     return (
         <>
             <Helmet>
                 <title>Eagle Division chat — Admin — Abacus</title>
             </Helmet>
             <MenuComponent />
-            <div className="eagle-home-page">
+            <div className="eagle-home-root">
                 <DirectoryBreadcrumbs
                     items={[{ label: "Admin Menu", to: "/admin" }, { label: "Eagle division chat" }]}
-                    trailingSeparator={false}
+                    trailingSeparator={true}
                 />
-                <h1 className="eagle-home__title">Eagle division — admin chat</h1>
-                <p className="eagle-home__subtitle">
-                    Select a virtual Eagle team, review the published problem summary, and reply in the shared
-                    thread.
-                </p>
+                <div className="pageTitle">Eagle division — admin chat</div>
+                <div className="eagle-home-content eagle-home-content--admin-chat-solo">
+                    <p className="eagle-home__subtitle">
+                        Select a virtual Eagle team and reply in the shared thread.
+                    </p>
 
-                <div className="eagle-home__grid">
-                    <section className="eagle-card eagle-card--problem">
-                        <div className="eagle-card__eyebrow">Reference</div>
-                        <h2 className="eagle-card__heading">{problem?.name || "Eagle competition problem"}</h2>
-                        {problem?.hint ? <p className="eagle-card__body">{problem.hint}</p> : null}
-                        {showTextPreview ? (
-                            <div className="eagle-problem-preview">{problem?.preview}</div>
-                        ) : null}
-                        {!problem?.projectId ? (
-                            <p className="eagle-card__body">
-                                Configure a competition project (name containing &quot;Eagle&quot;) so students see
-                                the correct brief.
-                            </p>
-                        ) : null}
-                    </section>
-
-                    <section className="eagle-card eagle-card--chat">
-                        <div className="eagle-card__eyebrow">Team thread</div>
-                        <h2 className="eagle-card__heading">Messages</h2>
-                        <div className="eagle-admin-toolbar">
-                            <label htmlFor="eagle-team-select">Eagle team</label>
-                            <select
-                                id="eagle-team-select"
-                                className="eagle-team-select"
-                                value={teamId === "" ? "" : String(teamId)}
-                                onChange={(e) => {
-                                    const v = e.target.value;
-                                    setTeamId(v ? parseInt(v, 10) : "");
-                                }}
-                            >
-                                <option value="">Select a team…</option>
-                                {teams.map((t) => (
-                                    <option key={t.id} value={t.id}>
-                                        #{t.teamNumber} — {t.name} (school {t.schoolId})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
+                    <div className="eagle-home__grid eagle-home__grid--admin-solo">
+                        <section className="eagle-card eagle-card--chat eagle-card--admin-solo">
+                            <div className="eagle-card__eyebrow">Team thread</div>
+                            <h2 className="eagle-card__heading">Messages</h2>
+                            <div className="eagle-admin-toolbar">
+                                <label htmlFor="eagle-team-select">Eagle team</label>
+                                <select
+                                    id="eagle-team-select"
+                                    className="eagle-team-select"
+                                    value={teamId === "" ? "" : String(teamId)}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        setTeamId(v ? parseInt(v, 10) : "");
+                                    }}
+                                >
+                                    <option value="">Select a team…</option>
+                                    {teams.map((t) => (
+                                        <option key={t.id} value={t.id}>
+                                            #{t.teamNumber} — {t.name} (school {t.schoolId})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         {error ? (
                             <div className="eagle-alert eagle-alert--error" role="alert">
                                 {error}
@@ -211,7 +175,8 @@ export default function AdminEagleChat() {
                                 {sending ? "Sending…" : "Send reply"}
                             </button>
                         </form>
-                    </section>
+                        </section>
+                    </div>
                 </div>
             </div>
         </>

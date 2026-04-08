@@ -87,19 +87,17 @@ export default function StudentEagleHome() {
         return () => window.clearInterval(id);
     }, [loadMessages]);
 
-    function downloadBrief() {
-        const pid = problem?.projectId;
-        if (!pid) return;
+    function downloadInstructions() {
+        setProblemError("");
         axios
-            .get(`${apiBase}/projects/getAssignmentDescription?project_id=${pid}`, {
+            .get(`${apiBase}/eagle/instructions`, {
                 headers: { Authorization: `Bearer ${localStorage.getItem("AUTOTA_AUTH_TOKEN")}` },
                 responseType: "blob",
             })
             .then((res) => {
-                const type = (res.headers as Record<string, string>)["content-type"] || "application/octet-stream";
+                const type = (res.headers as Record<string, string>)["content-type"] || "application/pdf";
                 const blob = new Blob([res.data], { type });
-                const name =
-                    (res.headers as Record<string, string>)["x-filename"] || problem?.filename || "assignment";
+                const name = "Eagle-Division-2026.pdf";
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
@@ -139,84 +137,73 @@ export default function StudentEagleHome() {
                 <title>Eagle Division — Abacus</title>
             </Helmet>
             <MenuComponent />
-            <div className="eagle-home-page">
+            <div className="eagle-home-root">
                 <DirectoryBreadcrumbs
                     items={[{ label: "Eagle Division", to: "/student/eagle-home" }, { label: "Home" }]}
-                    trailingSeparator={false}
+                    trailingSeparator={true}
                 />
-                <h1 className="eagle-home__title">Eagle Division home</h1>
-                <p className="eagle-home__subtitle">
-                    Your team&apos;s competition brief and a direct line to administrators for virtual
-                    competition support.
-                </p>
+                <div className="pageTitle">Eagle Division</div>
+                <div className="eagle-home-content">
+                    <p className="eagle-home__subtitle">
+                        Your team&apos;s competition brief and a direct line to administrators for virtual
+                        competition support.
+                    </p>
 
-                <div className="eagle-home__grid">
-                    <section className="eagle-card eagle-card--problem" aria-labelledby="eagle-problem-heading">
-                        <div className="eagle-card__eyebrow">Competition problem</div>
-                        <h2 id="eagle-problem-heading" className="eagle-card__heading">
-                            {problem?.name || "Eagle problem"}
-                        </h2>
-                        {problemError ? (
-                            <div className="eagle-alert eagle-alert--error" role="alert">
-                                {problemError}
+                    <div className="eagle-home__grid">
+                        <section className="eagle-card eagle-card--problem" aria-labelledby="eagle-problem-heading">
+                            <div className="eagle-card__eyebrow">Competition problem</div>
+                            <h2 id="eagle-problem-heading" className="eagle-card__heading">
+                                {problem?.name || "Eagle problem"}
+                            </h2>
+                            <div className="eagle-card__main">
+                                {problemError ? (
+                                    <div className="eagle-alert eagle-alert--error" role="alert">
+                                        {problemError}
+                                    </div>
+                                ) : null}
+                                <p className="eagle-card__body">
+                                    Official Eagle Division rules and problem details are in the instructions PDF.
+                                    Use the button below to download it.
+                                </p>
+                                {showTextPreview ? (
+                                    <div className="eagle-problem-preview">{problem?.preview}</div>
+                                ) : null}
+                                {(previewKind === "pdf" || previewKind === "other" || previewKind === "missing") &&
+                                problem?.projectId ? (
+                                    <p className="eagle-card__body">
+                                        Full instructions are in{" "}
+                                        <strong>{problem.filename || "the assignment file"}</strong>. Use download to
+                                        open it.
+                                    </p>
+                                ) : null}
                             </div>
-                        ) : null}
-                        {problem?.hint ? (
-                            <p className="eagle-card__body">{problem.hint}</p>
-                        ) : null}
-                        {!problem?.projectId && !problemError ? (
-                            <p className="eagle-card__body">
-                                No Eagle competition project is configured yet. Your coach or an admin can add
-                                one in the admin problem list (name it with &quot;Eagle&quot; to match this
-                                division).
-                            </p>
-                        ) : null}
-                        {showTextPreview ? (
-                            <div className="eagle-problem-preview">{problem?.preview}</div>
-                        ) : null}
-                        {(previewKind === "pdf" || previewKind === "other" || previewKind === "missing") &&
-                        problem?.projectId ? (
-                            <p className="eagle-card__body">
-                                Full instructions are in{" "}
-                                <strong>{problem.filename || "the assignment file"}</strong>. Use download to open
-                                it.
-                            </p>
-                        ) : null}
-                        <div className="eagle-actions">
-                            <button
-                                type="button"
-                                className="eagle-btn eagle-btn--primary"
-                                disabled={!problem?.projectId}
-                                onClick={downloadBrief}
-                            >
-                                <FaDownload aria-hidden />
-                                Download full brief
-                            </button>
-                            <button
-                                type="button"
-                                className="eagle-btn eagle-btn--secondary"
-                                onClick={() => navigate("/student/problems")}
-                            >
-                                All problems &amp; submissions
-                            </button>
-                        </div>
-                    </section>
+                            <div className="eagle-actions">
+                                <button
+                                    type="button"
+                                    className="eagle-btn eagle-btn--primary"
+                                    onClick={downloadInstructions}
+                                >
+                                    <FaDownload aria-hidden />
+                                    Download instructions
+                                </button>
+                            </div>
+                        </section>
 
-                    <section className="eagle-card eagle-card--chat" aria-labelledby="eagle-chat-heading">
-                        <div className="eagle-card__eyebrow">Admin chat</div>
-                        <h2 id="eagle-chat-heading" className="eagle-card__heading">
-                            Message administrators
-                        </h2>
-                        <p className="eagle-card__body">
-                            Messages here are visible to competition administrators for your team only. Check back
-                            for replies.
-                        </p>
-                        {chatError ? (
-                            <div className="eagle-alert eagle-alert--error" role="alert">
-                                {chatError}
-                            </div>
-                        ) : null}
-                        <div className="eagle-chat-log" role="log" aria-live="polite">
+                        <section className="eagle-card eagle-card--chat" aria-labelledby="eagle-chat-heading">
+                            <div className="eagle-card__eyebrow">Admin chat</div>
+                            <h2 id="eagle-chat-heading" className="eagle-card__heading">
+                                Message administrators
+                            </h2>
+                            <p className="eagle-card__body eagle-card__body--chat-intro">
+                                Messages here are visible to competition administrators for your team only. Check back
+                                for replies.
+                            </p>
+                            {chatError ? (
+                                <div className="eagle-alert eagle-alert--error" role="alert">
+                                    {chatError}
+                                </div>
+                            ) : null}
+                            <div className="eagle-chat-log" role="log" aria-live="polite">
                             {messages.length === 0 ? (
                                 <p className="eagle-empty-chat">No messages yet. Say hello below.</p>
                             ) : (
@@ -256,7 +243,8 @@ export default function StudentEagleHome() {
                                 {sending ? "Sending…" : "Send"}
                             </button>
                         </form>
-                    </section>
+                        </section>
+                    </div>
                 </div>
             </div>
         </>
