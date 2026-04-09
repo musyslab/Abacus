@@ -120,8 +120,6 @@ class EagleTeamMessages(db.Model):
     AdminId = Column(Integer, ForeignKey("AdminUsers.Id"), nullable=True)
     Body = Column(Text, nullable=False)
     CreatedAt = Column(DateTime, nullable=False, server_default=func.now())
-    CompletedAt = Column(DateTime, nullable=True)
-
 
 class TeamProjectStats(db.Model):
     __tablename__ = "TeamProjectStats"

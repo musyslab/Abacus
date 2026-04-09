@@ -42,7 +42,6 @@ import StudentHelpRequests from './pages/abacus/StudentHelpRequests';
 import StudentEagleHome from './pages/abacus/StudentEagleHome';
 import AdminEagleChat from './pages/abacus/AdminEagleChat';
 import StaffEagleTeamChat from './pages/abacus/StaffEagleTeamChat';
-import StudentEagleSubmissions from './pages/abacus/StudentEagleSubmissions';
 
 class App extends Component {
     render() {
@@ -406,14 +405,6 @@ class App extends Component {
                         </ProtectedRoute>
                     } />
 
-                    <Route
-                        path="/student/eagle-submissions"
-                        element={
-                            <ProtectedRoute>
-                                <StudentEagleSubmissions />
-                            </ProtectedRoute>
-                        }
-                    />
                     <Route path="/admin/eagle-chat" element={
                         <ProtectedRoute requiredAdminRole={1}>
                             <AdminEagleChat />

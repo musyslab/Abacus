@@ -89,7 +89,7 @@ export default function StudentEagleHome() {
 
     useEffect(() => {
         loadMessages();
-        const id = window.setInterval(loadMessages, 12000);
+        const id = window.setInterval(loadMessages, 30000);
         return () => window.clearInterval(id);
     }, [loadMessages]);
 
@@ -147,21 +147,22 @@ export default function StudentEagleHome() {
     return (
         <>
             <Helmet>
-                <title>Eagle Division — Abacus</title>
+                <title>Abacus</title>
             </Helmet>
-            <MenuComponent />
-            <div className="eagle-home-root">
-                <DirectoryBreadcrumbs
-                    items={[{ label: "Eagle Division", to: "/student/eagle-home" }, { label: "Home" }]}
-                    trailingSeparator={true}
-                />
-                <div className="pageTitle">Eagle Division</div>
-                <div className="eagle-home-content">
-                    <p className="eagle-home__subtitle">
-                        Your team&apos;s competition brief and a direct line to administrators for virtual
-                        competition support.
-                    </p>
 
+            <MenuComponent />
+
+            <div className="admin-team-manage-root">
+                <DirectoryBreadcrumbs
+                    items={[
+                        { label: "Eagle Submissions" }
+                    ]}
+                    trailingSeparator={false}
+                />
+
+                <div className="pageTitle">Eagle Submissions</div>
+
+                <div className="eagle-home-content">
                     <div className="eagle-home__grid">
                         <section className="eagle-card eagle-card--problem" aria-labelledby="eagle-problem-heading">
                             <div className="eagle-card__eyebrow">Competition problem</div>
@@ -180,14 +181,6 @@ export default function StudentEagleHome() {
                                 </p>
                                 {showTextPreview ? (
                                     <div className="eagle-problem-preview">{problem?.preview}</div>
-                                ) : null}
-                                {(previewKind === "pdf" || previewKind === "other" || previewKind === "missing") &&
-                                problem?.projectId ? (
-                                    <p className="eagle-card__body">
-                                        Full instructions are in{" "}
-                                        <strong>{problem.filename || "the assignment file"}</strong>. Use download to
-                                        open it.
-                                    </p>
                                 ) : null}
                             </div>
                             <div className="eagle-actions">
@@ -228,37 +221,37 @@ export default function StudentEagleHome() {
                                     setIsPinnedToBottom(nearBottom);
                                 }}
                             >
-                            {messages.length === 0 ? (
-                                <p className="eagle-empty-chat">No messages yet. Say hello below.</p>
-                            ) : (
-                                messages.map((m) => (
-                                    <EagleChatMessageRow key={m.id} message={m} audience="student" />
-                                ))
-                            )}
-                        </div>
-                        <form className="eagle-chat-form" onSubmit={sendMessage}>
-                            <textarea
-                                className="eagle-chat-input"
-                                value={draft}
-                                onChange={(e) => setDraft(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key !== "Enter" || e.shiftKey) return;
-                                    e.preventDefault();
-                                    (e.currentTarget.form as HTMLFormElement | null)?.requestSubmit();
-                                }}
-                                placeholder="Type a message to admins…"
-                                maxLength={8000}
-                                aria-label="Message to administrators"
-                            />
-                            <button
-                                type="submit"
-                                className="eagle-btn eagle-btn--primary"
-                                disabled={sending || !draft.trim()}
-                            >
-                                <FaPaperPlane aria-hidden />
-                                {sending ? "Sending…" : "Send"}
-                            </button>
-                        </form>
+                                {messages.length === 0 ? (
+                                    <p className="eagle-empty-chat">No messages yet. Say hello below.</p>
+                                ) : (
+                                    messages.map((m) => (
+                                        <EagleChatMessageRow key={m.id} message={m} audience="student" />
+                                    ))
+                                )}
+                            </div>
+                            <form className="eagle-chat-form" onSubmit={sendMessage}>
+                                <textarea
+                                    className="eagle-chat-input"
+                                    value={draft}
+                                    onChange={(e) => setDraft(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key !== "Enter" || e.shiftKey) return;
+                                        e.preventDefault();
+                                        (e.currentTarget.form as HTMLFormElement | null)?.requestSubmit();
+                                    }}
+                                    placeholder="Type a message to admins…"
+                                    maxLength={8000}
+                                    aria-label="Message to administrators"
+                                />
+                                <button
+                                    type="submit"
+                                    className="eagle-btn eagle-btn--primary"
+                                    disabled={sending || !draft.trim()}
+                                >
+                                    <FaPaperPlane aria-hidden />
+                                    {sending ? "Sending…" : "Send"}
+                                </button>
+                            </form>
                         </section>
                     </div>
                 </div>

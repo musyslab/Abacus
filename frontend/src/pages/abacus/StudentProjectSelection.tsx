@@ -38,7 +38,7 @@ export default function StudentProjectSelection() {
                 }
 
                 if (division === "eagle") {
-                    navigate("/student/eagle-submissions", { replace: true });
+                    navigate("/student/eagle-home", { replace: true });
                     return;
                 }
 
