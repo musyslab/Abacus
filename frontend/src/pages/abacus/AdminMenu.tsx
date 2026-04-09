@@ -1,5 +1,5 @@
 import { Helmet } from "react-helmet";
-import { FaPuzzlePiece, FaSchool, FaUpload, FaClipboard,FaComments } from "react-icons/fa";
+import { FaPuzzlePiece, FaSchool, FaUpload, FaClipboard, FaComments } from "react-icons/fa";
 import { Link } from "react-router-dom";
 
 import DirectoryBreadcrumbs from '../components/DirectoryBreadcrumbs';
@@ -22,7 +22,7 @@ export default function AdminMenu() {
             description:
                 'Create, edit, reorder, and review Blue Division problems.',
             to: '/admin/blue/problems',
-            className: 'admin-menu-nav__item admin-menu-nav__item--problems',
+            className: 'admin-menu-nav__item admin-menu-nav__item--blue-problems',
             icon: <FaPuzzlePiece aria-hidden="true" />,
         },
         {
@@ -30,18 +30,18 @@ export default function AdminMenu() {
             description:
                 'Create, edit, reorder, and review Gold Division problems.',
             to: '/admin/gold/problems',
-            className: 'admin-menu-nav__item admin-menu-nav__item--problems',
+            className: 'admin-menu-nav__item admin-menu-nav__item--gold-problems',
             icon: <FaPuzzlePiece aria-hidden="true" />,
         },
         {
-            title: 'Admin Upload',
-            description: 'Open the upload workspace for admin submissions.',
+            title: 'Blue Division Admin Upload',
+            description: 'Open the upload workspace for Blue Division admin submissions.',
             to: '/admin/upload',
-            className: 'admin-menu-nav__item admin-menu-nav__item--upload',
+            className: 'admin-menu-nav__item admin-menu-nav__item--blue-upload',
             icon: <FaUpload aria-hidden="true" />,
         },
         {
-            title: "Eagle division chat",
+            title: "Eagle Division Chat",
             description: "Message virtual Eagle teams and review the published Eagle problem.",
             to: "/admin/eagle-chat",
             className: "admin-menu-nav__item admin-menu-nav__item--eagle",

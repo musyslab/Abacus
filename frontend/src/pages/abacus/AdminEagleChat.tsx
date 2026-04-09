@@ -132,10 +132,10 @@ export default function AdminEagleChat() {
             <MenuComponent />
             <div className="eagle-home-root">
                 <DirectoryBreadcrumbs
-                    items={[{ label: "Admin Menu", to: "/admin" }, { label: "Eagle division chat" }]}
+                    items={[{ label: "Admin Menu", to: "/admin" }, { label: "Eagle Division Admin Chat" }]}
                     trailingSeparator={true}
                 />
-                <div className="pageTitle">Eagle division — admin chat</div>
+                <div className="pageTitle">Eagle Division Admin Chat</div>
                 <div className="eagle-home-content eagle-home-content--admin-chat-solo">
                     <p className="eagle-home__subtitle">
                         Select a virtual Eagle team and reply in the shared thread.

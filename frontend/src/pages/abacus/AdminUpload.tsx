@@ -89,7 +89,7 @@ const AdminUpload = () => {
                 setSchools([])
             }
         }
-        
+
         fetchData()
     }, []);
 
@@ -133,16 +133,16 @@ const AdminUpload = () => {
 
     useEffect(() => {
         let cancelled = false
-        ; (async () => {
-            if (!(files.length > 1 && files.every(isJavaFile))) {
-            if (!cancelled) setMainJavaFileName('')
-            return
-            }
-            await computeMainJavaFromLocal(files)
-        })()
+            ; (async () => {
+                if (!(files.length > 1 && files.every(isJavaFile))) {
+                    if (!cancelled) setMainJavaFileName('')
+                    return
+                }
+                await computeMainJavaFromLocal(files)
+            })()
 
         return () => {
-        cancelled = true
+            cancelled = true
         }
     }, [files])
 
@@ -167,27 +167,27 @@ const AdminUpload = () => {
     const downloadAssignment = (pid: number) => {
         if (!pid || pid <= 0) return
         axios
-        .get(`${API}/projects/getAssignmentDescription?project_id=${pid}`, {
-            headers: { Authorization: `Bearer ${localStorage.getItem('AUTOTA_AUTH_TOKEN')}` },
-            responseType: 'blob',
-        })
-        .then((res) => {
-            const type = (res.headers as any)['content-type'] || 'application/octet-stream'
-            const blob = new Blob([res.data], { type })
-            let name = (res.headers as any)['x-filename'] || 'assignment_description'
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = name
-            document.body.appendChild(a)
-            a.click()
-            a.remove()
-            URL.revokeObjectURL(url)
-        })
-        .catch((err) => {
-            console.log(err)
-            alert('Download failed.')
-        })
+            .get(`${API}/projects/getAssignmentDescription?project_id=${pid}`, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('AUTOTA_AUTH_TOKEN')}` },
+                responseType: 'blob',
+            })
+            .then((res) => {
+                const type = (res.headers as any)['content-type'] || 'application/octet-stream'
+                const blob = new Blob([res.data], { type })
+                const name = (res.headers as any)['x-filename'] || 'assignment_description'
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = name
+                document.body.appendChild(a)
+                a.click()
+                a.remove()
+                URL.revokeObjectURL(url)
+            })
+            .catch((err) => {
+                console.log(err)
+                alert('Download failed.')
+            })
     }
 
     async function handleSchoolChange(schoolId: number) {
@@ -278,16 +278,16 @@ const AdminUpload = () => {
     const getFileIcon = (filename: string) => {
         if (CODE_ICON_RE.test(filename)) return <FaCode className="file-language-icon" aria-hidden="true" />
         if (TEXT_ICON_RE.test(filename))
-        return <FaAlignJustify className="file-language-icon" aria-hidden="true" />
+            return <FaAlignJustify className="file-language-icon" aria-hidden="true" />
         return <FaTimesCircle className="file-language-icon" aria-hidden="true" />
     }
 
     return (
         <>
             <LoadingAnimation show={isLoading} message="Uploading..." />
-            
+
             <Helmet>
-                <title>[Admin] Abacus</title>
+                <title>[Admin] Blue Division Admin Upload | Abacus</title>
             </Helmet>
 
             <MenuComponent
@@ -298,11 +298,11 @@ const AdminUpload = () => {
             <div className="admin-upload-root">
                 <DirectoryBreadcrumbs
                     items={[
-                        { label: "School List", to: "/admin/schools" },
-                        { label: "Admin Upload" },
+                        { label: "Admin Menu", to: "/admin" },
+                        { label: "Blue Division Admin Upload" },
                     ]}
                 />
-                <div className="pageTitle">Admin Upload</div>
+                <div className="pageTitle">Blue Division Admin Upload</div>
                 <div className="admin-upload-content">
                     <form className={`upload-form ${isLoading ? 'is-loading' : ''}`} onSubmit={handleSubmit}>
                         <div className="select-section">
@@ -360,7 +360,7 @@ const AdminUpload = () => {
                                         onChange={(option) => setSelectedStudent(option ? option.value : -1)}
                                         options={students.map((s) => ({
                                             value: s.Id,
-                                            label: 'Member ' + s.MemberId 
+                                            label: 'Member ' + s.MemberId
                                         }))}
                                         isDisabled={selectedTeam <= 0}
                                         isClearable
@@ -390,7 +390,7 @@ const AdminUpload = () => {
                         </div>
 
                         <div className="upload-section">
-                            <h1 className="info-title">Upload Assignment</h1>
+                            <h1 className="info-title">Blue Division Admin Upload</h1>
                             <button
                                 type="button"
                                 className="assignment-link"
@@ -403,82 +403,82 @@ const AdminUpload = () => {
                             </button>
 
                             <div className="form-field">
-                            <div
-                                className="file-drop-area"
-                                onDragOver={(e) => e.preventDefault()}
-                                onDrop={(e) => {
-                                e.preventDefault()
-                                const dropped = Array.from(e.dataTransfer.files || [])
-                                const valid = dropped.filter((f) => isAllowedFileName(f.name))
+                                <div
+                                    className="file-drop-area"
+                                    onDragOver={(e) => e.preventDefault()}
+                                    onDrop={(e) => {
+                                        e.preventDefault()
+                                        const dropped = Array.from(e.dataTransfer.files || [])
+                                        const valid = dropped.filter((f) => isAllowedFileName(f.name))
 
-                                if (dropped.length && valid.length === 0) {
-                                    alert('Only .py and .java files are allowed.')
-                                    return
-                                }
+                                        if (dropped.length && valid.length === 0) {
+                                            alert('Only .py and .java files are allowed.')
+                                            return
+                                        }
 
-                                // Multi-file is only allowed for Java (.java)
-                                if (valid.length > 1 && !valid.every(isJavaFile)) {
-                                    setFiles([])
-                                    alert('Multi-file upload is only available for Java (.java) files.')
-                                    return
-                                }
+                                        // Multi-file is only allowed for Java (.java)
+                                        if (valid.length > 1 && !valid.every(isJavaFile)) {
+                                            setFiles([])
+                                            alert('Multi-file upload is only available for Java (.java) files.')
+                                            return
+                                        }
 
-                                setFiles(valid)
-                                }}
-                            >
-                                {!files.length ? (
-                                <>
-                                    <input
-                                    type="file"
-                                    className="file-input"
-                                    accept=".py,.java,.c,.rkt"
-                                    multiple
-                                    onChange={handleFileChange}
-                                    />
+                                        setFiles(valid)
+                                    }}
+                                >
+                                    {!files.length ? (
+                                        <>
+                                            <input
+                                                type="file"
+                                                className="file-input"
+                                                accept=".py,.java,.c,.rkt"
+                                                multiple
+                                                onChange={handleFileChange}
+                                            />
 
-                                    <div className="file-drop-message">
-                                    <FaCloudUploadAlt className="file-drop-icon" aria-hidden="true" />
-                                    <p>
-                                        Drag &amp; drop your file(s) here or&nbsp;
-                                        <span className="browse-text">browse</span>
-                                    </p>
-                                    </div>
-                                </>
-                                ) : (
-                                <div className="file-preview">
-                                    <button
-                                    type="button"
-                                    className="exchange-icon"
-                                    aria-label="Clear selected files"
-                                    title="Clear selected files"
-                                    onClick={() => setFiles([])}
-                                    >
-                                    <FaExchangeAlt aria-hidden="true" />
-                                    </button>
+                                            <div className="file-drop-message">
+                                                <FaCloudUploadAlt className="file-drop-icon" aria-hidden="true" />
+                                                <p>
+                                                    Drag &amp; drop your file(s) here or&nbsp;
+                                                    <span className="browse-text">browse</span>
+                                                </p>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="file-preview">
+                                            <button
+                                                type="button"
+                                                className="exchange-icon"
+                                                aria-label="Clear selected files"
+                                                title="Clear selected files"
+                                                onClick={() => setFiles([])}
+                                            >
+                                                <FaExchangeAlt aria-hidden="true" />
+                                            </button>
 
-                                    <div className="file-preview-list" title="Selected files">
-                                    {files.map((f) => (
-                                        <div key={f.name} className="file-preview-row solution-file-card">
-                                        <div className="file-icon-wrapper" aria-hidden="true">
-                                            <FaRegFile className="file-outline-icon" aria-hidden="true" />
-                                            {getFileIcon(f.name)}
+                                            <div className="file-preview-list" title="Selected files">
+                                                {files.map((f) => (
+                                                    <div key={f.name} className="file-preview-row solution-file-card">
+                                                        <div className="file-icon-wrapper" aria-hidden="true">
+                                                            <FaRegFile className="file-outline-icon" aria-hidden="true" />
+                                                            {getFileIcon(f.name)}
+                                                        </div>
+
+                                                        <span className="file-name">
+                                                            {f.name}
+                                                            {files.length > 1 &&
+                                                                files.every(isJavaFile) &&
+                                                                mainJavaFileName &&
+                                                                f.name === mainJavaFileName && (
+                                                                    <span className="main-indicator">Main</span>
+                                                                )}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
-
-                                        <span className="file-name">
-                                            {f.name}
-                                            {files.length > 1 &&
-                                            files.every(isJavaFile) &&
-                                            mainJavaFileName &&
-                                            f.name === mainJavaFileName && (
-                                                <span className="main-indicator">Main</span>
-                                            )}
-                                        </span>
-                                        </div>
-                                    ))}
-                                    </div>
+                                    )}
                                 </div>
-                                )}
-                            </div>
                             </div>
 
                             <button
