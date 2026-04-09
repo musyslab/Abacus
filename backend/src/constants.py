@@ -25,13 +25,16 @@ COMPETITION_PROBLEM_MAX = 10
 # Competition Date Info
 COMPETITION_DATE = (2026, 4, 15)
 
-REGISTRATION_END =  datetime(2026, 3, 27, 23, 59, 59)
+REGISTRATION_END = datetime(2026, 3, 27, 23, 59, 59)
 PRACTICE_START = datetime(2026, 3, 30, 8, 0)
 PRACTICE_END = datetime(*COMPETITION_DATE, 9, 0)
 
 COMPETITION_START = datetime(*COMPETITION_DATE, 9, 0)
 COMPETITION_END = datetime(*COMPETITION_DATE, 12, 0)
 STUDENT_SUBMISSION_UNLOCK = datetime(2026, 4, 16, 12, 0)
+
+SCOREBOARD_FREEZE = datetime(*COMPETITION_DATE, 11, 30)
+SCOREBOARD_RELEASE = datetime(*COMPETITION_DATE, 14, 0)
 
 DIVISION_TEAM_CAPS = {
     "Blue": BLUE_TEAM_MAX,
@@ -79,3 +82,9 @@ def get_competition_schedule() -> dict[str, str]:
         "competitionEnd": serialize_datetime(COMPETITION_END),
         "studentSubmissionUnlock": serialize_datetime(STUDENT_SUBMISSION_UNLOCK),
     }
+
+def get_minute_index(start: datetime, now: datetime | None = None) -> int:
+    current = now or datetime.now()
+    if current < start:
+        return -1
+    return int((current - start).total_seconds() // 60)

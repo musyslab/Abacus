@@ -26,10 +26,10 @@ class ProjectRepository():
         """
         return Projects.query.order_by(asc(Projects.Id)).all()
 
-    def get_projects_by_type(self, project_type: str) -> list[Projects]:
+    def get_projects_by_type_division(self, project_type: str, division: str) -> list[Projects]:
         return (
             Projects.query
-            .filter(Projects.Type == project_type)
+            .filter(Projects.Type == project_type, Projects.Division == division)
             .order_by(asc(Projects.OrderIndex), asc(Projects.Id))
             .all()
         )
@@ -281,7 +281,6 @@ class ProjectRepository():
                 bool(getattr(test, "Hidden", False)),
             ]
         json_object = json.dumps(testcase_holder)
-        print(json_object, flush=True)
         return json_object
 
     def wipe_submissions(self, project_id:int):

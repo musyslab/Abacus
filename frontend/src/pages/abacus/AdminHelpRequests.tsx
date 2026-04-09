@@ -187,43 +187,43 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
         const historySlice = historyQuestions.slice(historyStart, historyStart + pageSize)
 
         return (
-            <div className="oh-page">
-                <>
-                    <MenuComponent/>
+            <>
+                <MenuComponent/>
 
-                    <DirectoryBreadcrumbs
-                        items={[
-                            { label: "Admin Menu", to: "/admin" },
-                            { label: "Help Requests" },
-                        ]}
-                    />
+                <DirectoryBreadcrumbs
+                    items={[
+                        { label: "Admin Menu", to: "/admin" },
+                        { label: "Help Requests" },
+                    ]}
+                />
 
-                    <div 
-                        className="pageTitle" 
+                <div
+                    className="pageTitle" 
+                    style={{ 
+                        position: 'relative', 
+                        display: 'flex', 
+                        justifyContent: 'center', 
+                        alignItems: 'center' 
+                    }}
+                >
+                    <span>Help Requests</span>
+                    <button 
+                        className="button" 
+                        onClick={this.fetchRequests}
+                        title="Refresh requests manually"
                         style={{ 
-                            position: 'relative', 
+                            position: 'absolute', 
+                            right: '15px', /* Adjust this to match your inner padding */
                             display: 'flex', 
-                            justifyContent: 'center', 
-                            alignItems: 'center' 
+                            alignItems: 'center', 
+                            gap: '8px',
+                            margin: 0 /* Ensures the button doesn't inherit unwanted margins */
                         }}
                     >
-                        <span>Help Requests</span>
-                        <button 
-                            className="button" 
-                            onClick={this.fetchRequests}
-                            title="Refresh requests manually"
-                            style={{ 
-                                position: 'absolute', 
-                                right: '15px', /* Adjust this to match your inner padding */
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '8px',
-                                margin: 0 /* Ensures the button doesn't inherit unwanted margins */
-                            }}
-                        >
-                            <FaSync aria-hidden="true" /> Refresh
-                        </button>
-                    </div>
+                        <FaSync aria-hidden="true" /> Refresh
+                    </button>
+                </div>
+                <div className="oh-page__content">
                     {/* ======================= STUDENT QUEUE ======================= */}
                     <div className="table-section">
                         <div className="tableTitle">Student Queue</div>
@@ -483,8 +483,8 @@ class AdminHelpRequests extends Component<{}, HelpRequestsState> {
                             </div>
                         )}
                     </div>
-                </>
-            </div>
+                </div>
+            </>
         )
     }
 }

@@ -21,6 +21,8 @@ from src import teams, schools, auth, projects, submission, upload, timeout_serv
 from sentry_sdk.integrations.flask import FlaskIntegration
 import sentry_sdk
 import os
+from src.jobs.scoreboard_job import add_scoreboard_job
+from src.extensions import cache, scheduler
 
 def create_app():
     app = Flask(__name__)
@@ -66,6 +68,20 @@ def create_app():
 
     jwt.init_app(app)
     db.init_app(app)
+
+    # Cache setup
+    cache.init_app(app, config={
+        'CACHE_TYPE': 'SimpleCache',
+        'CACHE_DEFAULT_TIMEOUT': 60,
+    })
+
+    # Scheduler setup
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        if scheduler.get_job("scoreboard_snapshot_job") is None:
+            add_scoreboard_job(scheduler, app)
+
+        if not scheduler.running:
+            scheduler.start()
 
     return app
 

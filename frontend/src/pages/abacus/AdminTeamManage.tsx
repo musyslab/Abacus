@@ -71,7 +71,10 @@ type DivisionConfigResponse = {
 
 const INVITE_META_KEY = "AUTOTA_TEAM_INVITES_V1";
 const DIVISIONS: Division[] = ["Blue", "Gold", "Eagle"];
-const ATTENDANCE = [{ label: "In-person", value: false }, { label: "Virtual", value: true }];
+const ATTENDANCE = [
+    { label: "In-person", value: false },
+    { label: "Virtual", value: true },
+];
 
 function safeJsonParse<T>(raw: string | null, fallback: T): T {
     if (!raw) return fallback;
@@ -162,8 +165,6 @@ export default function AdminTeamManage() {
         Record<Division, { min: number; max: number }> | null
     >(null);
 
-    // Controls how many member rows are visible per team.
-    // Required behavior: if a team has 0 saved members, show only 1 member row.
     const [teamVisibleCounts, setTeamVisibleCounts] = useState<Record<number, number>>({});
 
     const [resendModal, setResendModal] = useState<{
@@ -194,7 +195,6 @@ export default function AdminTeamManage() {
 
     const bodyOverflowRef = useRef<string | null>(null);
 
-    // Handle body overflow when modals are open, to prevent background scrolling.
     useEffect(() => {
         const hasModal = !!saveConfirmModal || !!deleteConfirmModal || !!resendModal;
         if (hasModal) {
@@ -225,7 +225,6 @@ export default function AdminTeamManage() {
 
         const savedCount = saved.length;
         const maxSize = getDivisionSize(team.division).max;
-        // show 1 row for brand-new team, otherwise show saved + next empty.
         const defaultVisible = Math.min(maxSize, Math.max(1, savedCount + 1));
         const totalVisible = Math.max(teamVisibleCounts[team.id] ?? 0, defaultVisible);
 
@@ -314,7 +313,6 @@ export default function AdminTeamManage() {
                 .map((apiTeam) => buildTeamVm(apiTeam));
 
             setTeams(mapped);
-
         } catch (err: any) {
             const msg = err?.response?.data?.message || "Failed to load teams.";
             setPageError(msg);
@@ -347,10 +345,12 @@ export default function AdminTeamManage() {
         fetchCompetitionWindow();
     }, [apiBase, managedSchoolId]);
 
-    const registrationOpen = useMemo(() => {
+    const teacherRegistrationOpen = useMemo(() => {
         if (!competitionSchedule) return true;
         return isRegistrationOpen(competitionSchedule, registrationCheckTime);
     }, [competitionSchedule, registrationCheckTime]);
+
+    const canCreateTeams = isAdminMode || teacherRegistrationOpen;
 
     async function handleNewTeam() {
         setIsLoading(true);
@@ -364,7 +364,7 @@ export default function AdminTeamManage() {
                 const freshSchedule = await fetchCompetitionSchedule(apiBase);
                 setCompetitionSchedule(freshSchedule);
 
-                if (!isRegistrationOpen(freshSchedule, attemptedAt)) {
+                if (!isAdminMode && !isRegistrationOpen(freshSchedule, attemptedAt)) {
                     setPageError("Registration is closed. The team was not created.");
                     setIsLoading(false);
                     return;
@@ -374,14 +374,17 @@ export default function AdminTeamManage() {
                 // remain the source of truth for whether registration is open.
             }
 
-            const res = await axios.post(`${apiBase}/teams/create`, {
-                ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
-            }, authConfig());
+            const res = await axios.post(
+                `${apiBase}/teams/create`,
+                {
+                    ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
+                },
+                authConfig()
+            );
 
             const newTeam = res.data as ApiTeam;
-            setTeams(prev => addTeamVm(prev, newTeam));
+            setTeams((prev) => addTeamVm(prev, newTeam));
             setTeamVisibleCounts((prev) => ({ ...prev, [newTeam.id]: 1 }));
-
         } catch (err: any) {
             const rawMsg =
                 err?.response?.data?.message ||
@@ -465,12 +468,19 @@ export default function AdminTeamManage() {
     async function confirmSaveFromModal() {
         if (!saveConfirmModal) return;
         if (!saveConfirmModal.acknowledged) {
-            setSaveConfirmModal({ ...saveConfirmModal, error: "Please confirm you wrote the information down." });
+            setSaveConfirmModal({
+                ...saveConfirmModal,
+                error: "Please confirm you wrote the information down.",
+            });
             return;
         }
 
         setSaveConfirmModal({ ...saveConfirmModal, isSaving: true, error: "" });
-        const res = await handleSaveMember(saveConfirmModal.teamId, saveConfirmModal.memberId, saveConfirmModal.email);
+        const res = await handleSaveMember(
+            saveConfirmModal.teamId,
+            saveConfirmModal.memberId,
+            saveConfirmModal.email
+        );
         if (res.ok) {
             setSaveConfirmModal(null);
             return;
@@ -534,8 +544,6 @@ export default function AdminTeamManage() {
                 throw new Error(res?.data?.message || "Save failed.");
             }
 
-            // Attempt to send the invite email immediately while we still have the plaintext email.
-            // If this fails, the member is still saved, but the progress view will show "Not sent yet".
             let inviteSendError: string | undefined = undefined;
             try {
                 await axios.post(
@@ -573,12 +581,11 @@ export default function AdminTeamManage() {
                 error: inviteSendError,
             });
 
-            // After saving one member, ensure the next row is visible (saved + next).
             setTeamVisibleCounts((prev) => {
                 const next = { ...prev };
                 const t = teams.find((x) => x.id === teamId);
                 if (!t) return prev;
-                const savedCount = t.members.filter((m) => !!m.studentId).length + 1; // include newly saved
+                const savedCount = t.members.filter((m) => !!m.studentId).length + 1;
                 const maxSize = getDivisionSize(t.division).max;
                 next[teamId] = Math.max(next[teamId] ?? 0, Math.min(maxSize, savedCount + 1));
                 return next;
@@ -592,12 +599,13 @@ export default function AdminTeamManage() {
         }
     }
 
-    async function handleDeleteMember(teamId: number, memberId: number): Promise<{ ok: boolean; message?: string }> {
+    async function handleDeleteMember(
+        teamId: number,
+        memberId: number
+    ): Promise<{ ok: boolean; message?: string }> {
         const team = teams.find((t) => t.id === teamId);
         const slot = team?.members.find((m) => m.memberId === memberId);
 
-        // Unsaved rows are local-only. "Delete" clears the draft row and collapses
-        // any extra visible member rows that were manually added.
         if (!slot?.studentId) {
             updateMember(teamId, memberId, {
                 studentId: undefined,
@@ -628,7 +636,11 @@ export default function AdminTeamManage() {
         try {
             await axios.delete(`${apiBase}/auth/student/delete`, {
                 ...authConfig(),
-                data: { team_id: teamId, member_id: memberId, ...(managedSchoolId ? { school_id: managedSchoolId } : {}) },
+                data: {
+                    team_id: teamId,
+                    member_id: memberId,
+                    ...(managedSchoolId ? { school_id: managedSchoolId } : {}),
+                },
             });
 
             const teamNow = teams.find((t) => t.id === teamId);
@@ -649,12 +661,11 @@ export default function AdminTeamManage() {
                 error: undefined,
             });
 
-            // If team now has 0 saved members, revert to showing 1 row.
             setTeamVisibleCounts((prev) => {
                 const next = { ...prev };
                 const t = teams.find((x) => x.id === teamId);
                 if (!t) return prev;
-                const savedCount = t.members.filter((m) => !!m.studentId).length - 1; // include deletion
+                const savedCount = t.members.filter((m) => !!m.studentId).length - 1;
                 const maxSize = getDivisionSize(t.division).max;
                 const defaultVisible = Math.min(maxSize, Math.max(1, Math.max(0, savedCount) + 1));
                 next[teamId] = Math.max(1, defaultVisible);
@@ -749,7 +760,9 @@ export default function AdminTeamManage() {
             return "Team name must contain at least one letter or number.";
         }
 
-        const duplicate = teams.find(t => t.name.trim().toLowerCase() === trimmed.toLowerCase() && t.id !== teamId);
+        const duplicate = teams.find(
+            (t) => t.name.trim().toLowerCase() === trimmed.toLowerCase() && t.id !== teamId
+        );
         if (duplicate) {
             return "Team name is already in use.";
         }
@@ -758,13 +771,13 @@ export default function AdminTeamManage() {
     }
 
     async function updateTeam(teamId: number, updates: Partial<TeamVm>) {
-        const original = teams.find(t => t.id === teamId);
+        const original = teams.find((t) => t.id === teamId);
         if (!original) return;
 
         if (updates.name !== undefined) {
             const error = validateTeamName(updates.name, teamId);
-            setTeams(prev =>
-                prev.map(team =>
+            setTeams((prev) =>
+                prev.map((team) =>
                     team.id === teamId
                         ? { ...team, nameError: error || undefined }
                         : team
@@ -776,7 +789,9 @@ export default function AdminTeamManage() {
             const savedCount = getTeamSavedCount(original);
             const newDivisionMax = getDivisionSize(updates.division).max;
             if (savedCount > newDivisionMax) {
-                alert(`Cannot change division. This team has ${savedCount} saved members, but the ${updates.division} division has a max of ${newDivisionMax} members. Please remove some members before changing the division.`);
+                alert(
+                    `Cannot change division. This team has ${savedCount} saved members, but the ${updates.division} division has a max of ${newDivisionMax} members. Please remove some members before changing the division.`
+                );
                 return;
             }
             if (original.division === updates.division) return;
@@ -786,8 +801,8 @@ export default function AdminTeamManage() {
 
         const previousState = { ...original };
 
-        setTeams(prev =>
-            prev.map(team =>
+        setTeams((prev) =>
+            prev.map((team) =>
                 team.id === teamId ? { ...team, ...updates } : team
             )
         );
@@ -805,8 +820,8 @@ export default function AdminTeamManage() {
                 authConfig()
             );
         } catch (err: any) {
-            setTeams(prev =>
-                prev.map(team =>
+            setTeams((prev) =>
+                prev.map((team) =>
                     team.id === teamId ? previousState : team
                 )
             );
@@ -818,10 +833,38 @@ export default function AdminTeamManage() {
         }
     }
 
+    function updateTeamName(teamId: number, name: string) {
+        updateTeam(teamId, { name });
+    }
 
-    function updateTeamName(teamId: number, name: string) { updateTeam(teamId, { name }) }
-    function updateTeamDivision(teamId: number, division: Division) { updateTeam(teamId, { division }) }
-    function updateTeamAttendance(teamId: number, isOnline: boolean) { updateTeam(teamId, { isOnline }) }
+    function updateTeamDivision(teamId: number, division: Division) {
+        updateTeam(teamId, { division });
+    }
+
+    function updateTeamAttendance(teamId: number, isOnline: boolean) {
+        updateTeam(teamId, { isOnline });
+    }
+
+    function goToTeamSubmissions(teamId: number, division: Division) {
+        if (division === "Gold") {
+            const params = new URLSearchParams();
+            params.set("team_id", String(teamId));
+            params.set("from", "team-manage");
+
+            if (isAdminMode && managedSchoolId) {
+                params.set("school_id", String(managedSchoolId));
+                navigate(`/admin/gold-submissions?${params.toString()}`);
+                return;
+            }
+
+            navigate(`/teacher/gold-submissions?${params.toString()}`);
+            return;
+        }
+
+        if (division === "Eagle") {
+            navigate(isAdminMode ? "/admin/eagle-submissions" : "/teacher/eagle-submissions");
+            return;
+        }
 
     function goToTeamSubmissions(teamId: number) {
         const team = teams.find((t) => t.id === teamId) || null;
@@ -851,27 +894,28 @@ export default function AdminTeamManage() {
                 <DirectoryBreadcrumbs
                     items={
                         managedSchoolId
-
                             ? [
                                 { label: "Admin Menu", to: "/admin" },
                                 { label: "School List", to: "/admin/schools" },
-                                { label: "Team Manage" }
+                                { label: "Team Manage" },
                             ]
                             : [{ label: "Team Manage" }]
                     }
                     trailingSeparator={!managedSchoolId}
                 />
+
                 <div className="pageTitle">
                     {schoolName ? schoolName : "Team Manage"}
                     {managedSchoolId ? " (Admin)" : ""}
                 </div>
 
                 <div className="admin-team-manage-content">
-                    <div className="callout callout--warning">
-                        <div className="callout__title">Important: write this down</div>
-                        <div className="callout__body">
-                            After you save a member, Abacus cannot show their email again (emails are stored as hashes). For each
-                            student, you must record:
+                    <div className="atm-callout atm-callout--warning">
+                        <div className="atm-callout__title">Important: write this down</div>
+                        <div className="atm-callout__body">
+                            After you save a member, Abacus cannot show their email again
+                            (emails are stored as hashes). For each student, you must
+                            record:
                             <ul>
                                 <li>
                                     <strong>Team number</strong>
@@ -886,306 +930,465 @@ export default function AdminTeamManage() {
                         </div>
                     </div>
 
-                    {pageError ? <div className="callout callout--error">{pageError}</div> : null}
+                    {pageError ? (
+                        <div className="atm-callout atm-callout--error">{pageError}</div>
+                    ) : null}
 
-                    {!registrationOpen ? (
-                        <div className="callout callout--info">
-                            Registration is closed. New teams can no longer be created.
+                    {!teacherRegistrationOpen ? (
+                        <div className="atm-callout atm-callout--info">
+                            Registration is closed. New teams can no longer be created by
+                            teachers.
                         </div>
                     ) : null}
 
-                    <div className="toolbar">
+                    <div className="atm-toolbar">
                         <div>
-                            <div className="toolbar__title">Teams</div>
-                            <div className="toolbar__subtitle muted">Create teams, then add members for each.</div>
+                            <div className="atm-toolbar__title">Teams</div>
+                            <div className="atm-toolbar__subtitle atm-muted">
+                                Create teams, then add members for each.
+                            </div>
                         </div>
                     </div>
 
-                    <div className="callout callout--info close">
-                        <div className="team-size__label">Team Size Requirements</div>
+                    <div className="atm-callout atm-callout--info atm-callout--compact">
+                        <div className="atm-team-size__label">Team Size Requirements</div>
                         {isDivisionConfigReady ? (
-                            <div className="team-size__pills">
+                            <div className="atm-team-size__pills">
                                 {DIVISIONS.map((division) => (
                                     <span
                                         key={division}
-                                        className={`pill pill--${division.toLowerCase()}`}
+                                        className={`atm-pill atm-pill--${division.toLowerCase()}`}
                                     >
-                                        {division} Division: {getDivisionSize(division).min}–{getDivisionSize(division).max} Members
+                                        {division} Division: {getDivisionSize(division).min}–
+                                        {getDivisionSize(division).max} Members
                                     </span>
                                 ))}
                             </div>
                         ) : (
-                            <div className="muted small">Loading team size requirements...</div>
+                            <div className="atm-muted atm-small">
+                                Loading team size requirements...
+                            </div>
                         )}
                     </div>
 
                     {teams.length === 0 ? (
-                        <div className="callout callout--info">No teams yet. Create one to get started.</div>
+                        <div className="atm-callout atm-callout--info">
+                            No teams yet. Create one to get started.
+                        </div>
                     ) : null}
 
-                    <div className="team-panels">
-                        {isDivisionConfigReady ? teams.map((team) => {
-                            const savedCount = getTeamSavedCount(team);
-                            const membersToShow = getTeamMembersToShow(team);
-                            const showAddMember = canAddMoreMembers(team);
-                            const canDeleteTeam = savedCount === 0;
-                            const divisionSize = getDivisionSize(team.division);
+                    <div className="atm-team-panels">
+                        {isDivisionConfigReady
+                            ? teams.map((team) => {
+                                const savedCount = getTeamSavedCount(team);
+                                const membersToShow = getTeamMembersToShow(team);
+                                const showAddMember = canAddMoreMembers(team);
+                                const canDeleteTeam = savedCount === 0;
+                                const divisionSize = getDivisionSize(team.division);
 
-                            return (
-                                <div key={team.id} className="panel">
-                                    <div className="panel__header">
-                                        <div className="panel__header-options">
-                                            <div className="panel__header-name">
-                                                <div className="panel__title editable-title">
-                                                    <input
-                                                        className={`team-name-input ${team.nameError ? "input-error" : ""}`}
-                                                        type="text"
-                                                        value={team.name}
-                                                        onChange={(e) => {
-                                                            const value = e.target.value;
-                                                            const error = validateTeamName(value, team.id);
+                                return (
+                                    <div key={team.id} className="atm-panel">
+                                        <div className="atm-panel__header">
+                                            <div className="atm-panel__header-options">
+                                                <div className="atm-panel__header-name">
+                                                    <div className="atm-panel__title atm-editable-title">
+                                                        <input
+                                                            className={`atm-team-name-input ${team.nameError ? "atm-input-error" : ""
+                                                                }`}
+                                                            type="text"
+                                                            value={team.name}
+                                                            onChange={(e) => {
+                                                                const value = e.target.value;
+                                                                const error = validateTeamName(
+                                                                    value,
+                                                                    team.id
+                                                                );
 
-                                                            setTeams(prev =>
-                                                                prev.map(t =>
-                                                                    t.id === team.id
-                                                                        ? { ...t, name: value, nameError: error || undefined }
-                                                                        : t
-                                                                )
-                                                            );
-                                                        }}
-                                                        onBlur={() => updateTeamName(team.id, team.name)}
-                                                        disabled={isLoading}
-                                                    />
-                                                    <FaPen className="edit-icon" />
-                                                </div>
-                                                <div className="panel__subtitle">
-                                                    Please exclude student personal information in team names.
-                                                </div>
-                                                {team.nameError && (
-                                                    <div className="callout callout--error small">{team.nameError}</div>
-                                                )}
-                                                <div className="panel__subtitle">
-                                                    Members saved: <strong>{savedCount}</strong> (minimum {divisionSize.min}, maximum {divisionSize.max})
-                                                </div>
-                                            </div>
-                                            <div className="panel__header-controls">
-                                                <div className="panel__header-update">
-                                                    <label className="panel__label">Division</label>
-                                                    <SegmentedControl
-                                                        className="segment-division"
-                                                        options={DIVISIONS.map((d) => ({ label: d, value: d }))}
-                                                        value={team.division}
-                                                        disabled={isLoading}
-                                                        onChange={(v) => updateTeamDivision(team.id, v)}
-                                                        getOptionClassName={(v) => v.toLowerCase()}
-                                                    />
-                                                </div>
-
-                                                <div className="panel__header-update">
-                                                    <label className="panel__label">Attendance</label>
-                                                    <SegmentedControl
-                                                        options={ATTENDANCE.map((o) => ({ label: o.label, value: o.value }))}
-                                                        value={team.isOnline}
-                                                        disabled={isLoading}
-                                                        onChange={(v) => updateTeamAttendance(team.id, v)}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {canDeleteTeam ? (
-                                            <div className="panel__header-actions">
-                                                <button
-                                                    className="btn btn--danger"
-                                                    type="button"
-                                                    disabled={isLoading}
-                                                    onClick={() => handleDeleteTeam(team.id)}
-                                                >
-                                                    Delete team
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <div className="panel__header-actions">
-                                                <button
-                                                    className="btn btn--secondary btn--view-submissions"
-                                                    type="button"
-                                                    onClick={() => goToTeamSubmissions(team.id)}
-                                                >
-                                                    View Team Submissions
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {savedCount < divisionSize.min ? (
-                                        <div className="callout callout--info">
-                                            This team is not complete yet. Save at least <strong>{divisionSize.min}</strong> members before distributing
-                                            team information.
-                                        </div>
-                                    ) : null}
-
-                                    <ol className="member-list">
-                                        {membersToShow.map((m) => {
-                                            const saved = !!m.studentId;
-                                            const invite = getInviteMeta(m.emailHash);
-
-                                            const openedLabel = invite.openedAt
-                                                ? `Invite opened (${new Date(invite.openedAt).toLocaleString()})`
-                                                : "";
-
-                                            return (
-                                                <li key={m.memberId} className="member-row">
-                                                    <div className="member-row__top">
-                                                        <div className="member-row__title">
-                                                            Member <span className="mono">{m.memberId}</span>
-                                                        </div>
-                                                        <div className="member-row__badges">
-                                                            <span className={`badge ${saved ? "badge--success" : "badge--error"}`}>
-                                                                {saved ? "Saved" : "Not saved"}
-                                                            </span>
-
-                                                            {saved ? (
-                                                                <span className={`badge ${m.hasAccount ? "badge--success" : "badge--info"}`}>
-                                                                    {m.hasAccount ? "Account active" : "Account setup pending"}
-                                                                </span>
-                                                            ) : null}
-
-                                                            {invite.openedAt ? (
-                                                                <span className="badge badge--muted">{openedLabel}</span>
-                                                            ) : null}
-
-                                                            {m.isLocked ? <span className="badge badge--error">Locked</span> : null}
-                                                        </div>
+                                                                setTeams((prev) =>
+                                                                    prev.map((t) =>
+                                                                        t.id === team.id
+                                                                            ? {
+                                                                                ...t,
+                                                                                name: value,
+                                                                                nameError:
+                                                                                    error || undefined,
+                                                                            }
+                                                                            : t
+                                                                    )
+                                                                );
+                                                            }}
+                                                            onBlur={() =>
+                                                                updateTeamName(team.id, team.name)
+                                                            }
+                                                            disabled={isLoading}
+                                                        />
+                                                        <FaPen className="atm-edit-icon" />
                                                     </div>
 
-                                                    {saved ? (
-                                                        <div className="member-row__saved">
-                                                            <div className="member-progress">
-                                                                <div className="progress-row">
-                                                                    <div className="progress-row__label">Invite email</div>
-                                                                    <div
-                                                                        className={`progress-row__value ${invite.sentCount > 0 ? "is-ok" : "is-pending"
-                                                                            }`}
-                                                                    >
-                                                                        {invite.sentCount > 0
-                                                                            ? `Sent ${invite.sentCount}x${invite.lastSentAt
-                                                                                ? ` (last: ${new Date(
-                                                                                    invite.lastSentAt
-                                                                                ).toLocaleString()})`
-                                                                                : ""
-                                                                            }`
-                                                                            : "Not sent yet"}
-                                                                    </div>
-                                                                </div>
+                                                    <div className="atm-panel__subtitle">
+                                                        Please exclude student personal
+                                                        information in team names.
+                                                    </div>
 
-                                                                <div className="progress-row">
-                                                                    <div className="progress-row__label">Account setup</div>
-                                                                    <div
-                                                                        className={`progress-row__value ${m.hasAccount ? "is-ok" : "is-pending"
-                                                                            }`}
-                                                                    >
-                                                                        {m.hasAccount ? "Created" : "Not created yet"}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            {m.error ? <div className="inline-error">{m.error}</div> : null}
-
-                                                            <div className="member-row__actions">
-                                                                <button
-                                                                    className="btn btn--secondary"
-                                                                    type="button"
-                                                                    disabled={m.isSaving || !m.emailHash}
-                                                                    onClick={() =>
-                                                                        openResendModal(team.id, m.memberId, m.emailHash || "")
-                                                                    }
-                                                                >
-                                                                    Resend email
-                                                                </button>
-                                                                <button
-                                                                    className="btn btn--danger"
-                                                                    type="button"
-                                                                    disabled={m.isSaving}
-                                                                    onClick={() => openDeleteConfirmModal(team.id, m.memberId, true)}
-                                                                >
-                                                                    Delete member
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="member-row__edit">
-                                                            <div className="field">
-                                                                <label className="field__label" htmlFor={`email-${team.id}-${m.memberId}`}>
-                                                                    Student email (required)
-                                                                </label>
-                                                                <input
-                                                                    id={`email-${team.id}-${m.memberId}`}
-                                                                    className="field__input"
-                                                                    type="email"
-                                                                    placeholder="student@school.edu"
-                                                                    value={m.emailInput}
-                                                                    onChange={(e) =>
-                                                                        updateMember(team.id, m.memberId, {
-                                                                            emailInput: e.target.value,
-                                                                            error: undefined,
-                                                                        })
-                                                                    }
-                                                                    autoComplete="off"
-                                                                />
-                                                                <div className="field__help">After saving, the email will not be displayed again.</div>
-                                                            </div>
-
-                                                            {m.error ? <div className="inline-error">{m.error}</div> : null}
-
-                                                            <div className="member-row__actions">
-                                                                <button
-                                                                    className="btn btn--primary"
-                                                                    type="button"
-                                                                    disabled={m.isSaving}
-                                                                    onClick={() => {
-                                                                        openSaveConfirmModal(team.id, m.memberId, m.emailInput);
-                                                                    }}
-                                                                >
-                                                                    {m.isSaving ? "Saving…" : "Save member"}
-                                                                </button>
-                                                                <button
-                                                                    className="btn btn--danger"
-                                                                    type="button"
-                                                                    disabled={m.isSaving}
-                                                                    onClick={() => openDeleteConfirmModal(team.id, m.memberId, false)}
-                                                                >
-                                                                    Delete member
-                                                                </button>
-                                                            </div>
+                                                    {team.nameError && (
+                                                        <div className="atm-callout atm-callout--error atm-callout--small">
+                                                            {team.nameError}
                                                         </div>
                                                     )}
-                                                </li>
-                                            );
-                                        })}
-                                    </ol>
 
-                                    {showAddMember ? (
-                                        <div className="add-member-row">
-                                            <button className="btn btn--secondary" type="button" onClick={() => addMemberRow(team.id)}>
-                                                Add member
-                                            </button>
+                                                    <div className="atm-panel__subtitle">
+                                                        Members saved:{" "}
+                                                        <strong>{savedCount}</strong> (minimum{" "}
+                                                        {divisionSize.min}, maximum{" "}
+                                                        {divisionSize.max})
+                                                    </div>
+                                                </div>
+
+                                                <div className="atm-panel__header-controls">
+                                                    <div className="atm-panel__header-update">
+                                                        <label className="atm-panel__label">
+                                                            Division
+                                                        </label>
+                                                        <SegmentedControl
+                                                            className="segment-division"
+                                                            options={DIVISIONS.map((d) => ({
+                                                                label: d,
+                                                                value: d,
+                                                            }))}
+                                                            value={team.division}
+                                                            disabled={isLoading}
+                                                            onChange={(v) =>
+                                                                updateTeamDivision(team.id, v)
+                                                            }
+                                                            getOptionClassName={(v) =>
+                                                                v.toLowerCase()
+                                                            }
+                                                        />
+                                                    </div>
+
+                                                    <div className="atm-panel__header-update">
+                                                        <label className="atm-panel__label">
+                                                            Attendance
+                                                        </label>
+                                                        <SegmentedControl
+                                                            className="segment-attendance"
+                                                            options={ATTENDANCE.map((o) => ({
+                                                                label: o.label,
+                                                                value: o.value,
+                                                            }))}
+                                                            value={team.isOnline}
+                                                            disabled={isLoading}
+                                                            onChange={(v) =>
+                                                                updateTeamAttendance(team.id, v)
+                                                            }
+                                                            getOptionClassName={(v) =>
+                                                                v ? "virtual" : "inperson"
+                                                            }
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {canDeleteTeam ? (
+                                                <div className="atm-panel__header-actions">
+                                                    <button
+                                                        className="atm-btn atm-btn--danger"
+                                                        type="button"
+                                                        disabled={isLoading}
+                                                        onClick={() =>
+                                                            handleDeleteTeam(team.id)
+                                                        }
+                                                    >
+                                                        Delete team
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="atm-panel__header-actions">
+                                                    <button
+                                                        className="atm-btn atm-btn--secondary atm-btn--view-submissions"
+                                                        type="button"
+                                                        onClick={() =>
+                                                            goToTeamSubmissions(
+                                                                team.id,
+                                                                team.division
+                                                            )
+                                                        }
+                                                    >
+                                                        View Team Submissions
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
-                                    ) : null}
 
-                                    <div className="footer-note">
-                                        Tip: If you need to resend an invite later, you must re-enter the student email. Abacus stores only
-                                        a hash, so it cannot recover the original email address.
+                                        {savedCount < divisionSize.min ? (
+                                            <div className="atm-callout atm-callout--info">
+                                                This team is not complete yet. Save at least{" "}
+                                                <strong>{divisionSize.min}</strong> members
+                                                before distributing team information.
+                                            </div>
+                                        ) : null}
+
+                                        <ol className="atm-member-list">
+                                            {membersToShow.map((m) => {
+                                                const saved = !!m.studentId;
+                                                const invite = getInviteMeta(m.emailHash);
+
+                                                const openedLabel = invite.openedAt
+                                                    ? `Invite opened (${new Date(
+                                                        invite.openedAt
+                                                    ).toLocaleString()})`
+                                                    : "";
+
+                                                return (
+                                                    <li
+                                                        key={m.memberId}
+                                                        className="atm-member-row"
+                                                    >
+                                                        <div className="atm-member-row__top">
+                                                            <div className="atm-member-row__title">
+                                                                Member{" "}
+                                                                <span className="atm-mono">
+                                                                    {m.memberId}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="atm-member-row__badges">
+                                                                <span
+                                                                    className={`atm-badge ${saved
+                                                                            ? "atm-badge--success"
+                                                                            : "atm-badge--error"
+                                                                        }`}
+                                                                >
+                                                                    {saved
+                                                                        ? "Saved"
+                                                                        : "Not saved"}
+                                                                </span>
+
+                                                                {saved ? (
+                                                                    <span
+                                                                        className={`atm-badge ${m.hasAccount
+                                                                                ? "atm-badge--success"
+                                                                                : "atm-badge--info"
+                                                                            }`}
+                                                                    >
+                                                                        {m.hasAccount
+                                                                            ? "Account active"
+                                                                            : "Account setup pending"}
+                                                                    </span>
+                                                                ) : null}
+
+                                                                {invite.openedAt ? (
+                                                                    <span className="atm-badge atm-badge--muted">
+                                                                        {openedLabel}
+                                                                    </span>
+                                                                ) : null}
+
+                                                                {m.isLocked ? (
+                                                                    <span className="atm-badge atm-badge--error">
+                                                                        Locked
+                                                                    </span>
+                                                                ) : null}
+                                                            </div>
+                                                        </div>
+
+                                                        {saved ? (
+                                                            <div className="atm-member-row__saved">
+                                                                <div className="atm-member-progress">
+                                                                    <div className="atm-progress-row">
+                                                                        <div className="atm-progress-row__label">
+                                                                            Invite email
+                                                                        </div>
+                                                                        <div
+                                                                            className={`atm-progress-row__value ${invite.sentCount > 0
+                                                                                    ? "is-ok"
+                                                                                    : "is-pending"
+                                                                                }`}
+                                                                        >
+                                                                            {invite.sentCount > 0
+                                                                                ? `Sent ${invite.sentCount}x${invite.lastSentAt
+                                                                                    ? ` (last: ${new Date(
+                                                                                        invite.lastSentAt
+                                                                                    ).toLocaleString()})`
+                                                                                    : ""
+                                                                                }`
+                                                                                : "Not sent yet"}
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="atm-progress-row">
+                                                                        <div className="atm-progress-row__label">
+                                                                            Account setup
+                                                                        </div>
+                                                                        <div
+                                                                            className={`atm-progress-row__value ${m.hasAccount
+                                                                                    ? "is-ok"
+                                                                                    : "is-pending"
+                                                                                }`}
+                                                                        >
+                                                                            {m.hasAccount
+                                                                                ? "Created"
+                                                                                : "Not created yet"}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+
+                                                                {m.error ? (
+                                                                    <div className="atm-inline-error">
+                                                                        {m.error}
+                                                                    </div>
+                                                                ) : null}
+
+                                                                <div className="atm-member-row__actions">
+                                                                    <button
+                                                                        className="atm-btn atm-btn--secondary"
+                                                                        type="button"
+                                                                        disabled={
+                                                                            m.isSaving ||
+                                                                            !m.emailHash
+                                                                        }
+                                                                        onClick={() =>
+                                                                            openResendModal(
+                                                                                team.id,
+                                                                                m.memberId,
+                                                                                m.emailHash || ""
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        Resend email
+                                                                    </button>
+                                                                    <button
+                                                                        className="atm-btn atm-btn--danger"
+                                                                        type="button"
+                                                                        disabled={m.isSaving}
+                                                                        onClick={() =>
+                                                                            openDeleteConfirmModal(
+                                                                                team.id,
+                                                                                m.memberId,
+                                                                                true
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        Delete member
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="atm-member-row__edit">
+                                                                <div className="atm-field">
+                                                                    <label
+                                                                        className="atm-field__label"
+                                                                        htmlFor={`email-${team.id}-${m.memberId}`}
+                                                                    >
+                                                                        Student email
+                                                                        (required)
+                                                                    </label>
+                                                                    <input
+                                                                        id={`email-${team.id}-${m.memberId}`}
+                                                                        className="atm-field__input"
+                                                                        type="email"
+                                                                        placeholder="student@school.edu"
+                                                                        value={m.emailInput}
+                                                                        onChange={(e) =>
+                                                                            updateMember(
+                                                                                team.id,
+                                                                                m.memberId,
+                                                                                {
+                                                                                    emailInput:
+                                                                                        e.target
+                                                                                            .value,
+                                                                                    error:
+                                                                                        undefined,
+                                                                                }
+                                                                            )
+                                                                        }
+                                                                        autoComplete="off"
+                                                                    />
+                                                                    <div className="atm-field__help">
+                                                                        After saving, the email
+                                                                        will not be displayed
+                                                                        again.
+                                                                    </div>
+                                                                </div>
+
+                                                                {m.error ? (
+                                                                    <div className="atm-inline-error">
+                                                                        {m.error}
+                                                                    </div>
+                                                                ) : null}
+
+                                                                <div className="atm-member-row__actions">
+                                                                    <button
+                                                                        className="atm-btn atm-btn--primary"
+                                                                        type="button"
+                                                                        disabled={m.isSaving}
+                                                                        onClick={() => {
+                                                                            openSaveConfirmModal(
+                                                                                team.id,
+                                                                                m.memberId,
+                                                                                m.emailInput
+                                                                            );
+                                                                        }}
+                                                                    >
+                                                                        {m.isSaving
+                                                                            ? "Saving…"
+                                                                            : "Save member"}
+                                                                    </button>
+                                                                    <button
+                                                                        className="atm-btn atm-btn--danger"
+                                                                        type="button"
+                                                                        disabled={m.isSaving}
+                                                                        onClick={() =>
+                                                                            openDeleteConfirmModal(
+                                                                                team.id,
+                                                                                m.memberId,
+                                                                                false
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        Delete member
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </li>
+                                                );
+                                            })}
+                                        </ol>
+
+                                        {showAddMember ? (
+                                            <div className="atm-add-member-row">
+                                                <button
+                                                    className="atm-btn atm-btn--secondary"
+                                                    type="button"
+                                                    onClick={() => addMemberRow(team.id)}
+                                                >
+                                                    Add member
+                                                </button>
+                                            </div>
+                                        ) : null}
+
+                                        <div className="atm-footer-note">
+                                            Tip: If you need to resend an invite later, you
+                                            must re-enter the student email. Abacus stores only
+                                            a hash, so it cannot recover the original email
+                                            address.
+                                        </div>
                                     </div>
-                                </div>
-                            );
-                        }) : null}
+                                );
+                            })
+                            : null}
                     </div>
 
-                    {registrationOpen ? (
-                        <div className="new-team-footer">
+                    {canCreateTeams ? (
+                        <div className="atm-new-team-footer">
                             <button
-                                className="btn btn--primary new-team-btn"
+                                className="atm-btn atm-btn--primary atm-new-team-btn"
                                 type="button"
-                                title={emptyTeamExists ? "Please save or delete the existing empty team before creating a new one." : ""}
+                                title={
+                                    emptyTeamExists
+                                        ? "Please save or delete the existing empty team before creating a new one."
+                                        : ""
+                                }
                                 disabled={isLoading || emptyTeamExists}
                                 onClick={() => handleNewTeam()}
                             >
@@ -1197,54 +1400,76 @@ export default function AdminTeamManage() {
             </div>
 
             {saveConfirmModal ? (
-                <div className="modal-overlay" role="dialog" aria-modal="true">
-                    <div className="modal modal--dramatic">
-                        <div className="modal__title">Stop and write this down</div>
-                        <div className="modal__body">
-                            <div className="callout callout--warning">
-                                <div className="callout__title">This information will NOT be stored</div>
-                                <div className="callout__body">
-                                    After saving, Abacus cannot show the student email again and does not store the student name. Record
-                                    these now.
+                <div className="atm-modal-overlay" role="dialog" aria-modal="true">
+                    <div className="atm-modal atm-modal--dramatic">
+                        <div className="atm-modal__title">Stop and write this down</div>
+                        <div className="atm-modal__body">
+                            <div className="atm-callout atm-callout--warning">
+                                <div className="atm-callout__title">
+                                    This information will NOT be stored
+                                </div>
+                                <div className="atm-callout__body">
+                                    After saving, Abacus cannot show the student email again
+                                    and does not store the student name. Record these now.
                                 </div>
                             </div>
 
-                            <div className="kv">
-                                <div className="kv__row">
-                                    <div className="kv__label">Team</div>
-                                    <div className="kv__value mono">{saveConfirmModal.teamId}</div>
+                            <div className="atm-kv">
+                                <div className="atm-kv__row">
+                                    <div className="atm-kv__label">Team</div>
+                                    <div className="atm-kv__value atm-mono">
+                                        {saveConfirmModal.teamId}
+                                    </div>
                                 </div>
-                                <div className="kv__row">
-                                    <div className="kv__label">Member ID</div>
-                                    <div className="kv__value mono">{saveConfirmModal.memberId}</div>
+                                <div className="atm-kv__row">
+                                    <div className="atm-kv__label">Member ID</div>
+                                    <div className="atm-kv__value atm-mono">
+                                        {saveConfirmModal.memberId}
+                                    </div>
                                 </div>
-                                <div className="kv__row">
-                                    <div className="kv__label">Email entered</div>
-                                    <div className="kv__value mono">{saveConfirmModal.email}</div>
+                                <div className="atm-kv__row">
+                                    <div className="atm-kv__label">Email entered</div>
+                                    <div className="atm-kv__value atm-mono">
+                                        {saveConfirmModal.email}
+                                    </div>
                                 </div>
-                                <div className="kv__row">
-                                    <div className="kv__label">Student name</div>
-                                    <div className="kv__value muted">Write this in your notes (not stored in Abacus).</div>
+                                <div className="atm-kv__row">
+                                    <div className="atm-kv__label">Student name</div>
+                                    <div className="atm-kv__value atm-muted">
+                                        Write this in your notes (not stored in Abacus).
+                                    </div>
                                 </div>
                             </div>
 
-                            <label className="ack-row">
+                            <label className="atm-ack-row">
                                 <input
                                     type="checkbox"
                                     checked={saveConfirmModal.acknowledged}
                                     onChange={(e) =>
-                                        setSaveConfirmModal({ ...saveConfirmModal, acknowledged: e.target.checked, error: "" })
+                                        setSaveConfirmModal({
+                                            ...saveConfirmModal,
+                                            acknowledged: e.target.checked,
+                                            error: "",
+                                        })
                                     }
                                     disabled={saveConfirmModal.isSaving}
                                 />
-                                <span>I wrote down the Team number, Member ID, and the student name.</span>
+                                <span>
+                                    I wrote down the Team number, Member ID, and the
+                                    student name.
+                                </span>
                             </label>
 
-                            {saveConfirmModal.error ? <div className="inline-error">{saveConfirmModal.error}</div> : null}
+                            {saveConfirmModal.error ? (
+                                <div className="atm-inline-error">
+                                    {saveConfirmModal.error}
+                                </div>
+                            ) : null}
                         </div>
-                        <div className="modal__actions">
+
+                        <div className="atm-modal__actions">
                             <button
-                                className="btn btn--secondary"
+                                className="atm-btn atm-btn--secondary"
                                 type="button"
                                 onClick={() => setSaveConfirmModal(null)}
                                 disabled={saveConfirmModal.isSaving}
@@ -1252,10 +1477,13 @@ export default function AdminTeamManage() {
                                 Cancel
                             </button>
                             <button
-                                className="btn btn--primary"
+                                className="atm-btn atm-btn--primary"
                                 type="button"
                                 onClick={confirmSaveFromModal}
-                                disabled={saveConfirmModal.isSaving || !saveConfirmModal.acknowledged}
+                                disabled={
+                                    saveConfirmModal.isSaving ||
+                                    !saveConfirmModal.acknowledged
+                                }
                             >
                                 {saveConfirmModal.isSaving ? "Saving…" : "Save member"}
                             </button>
@@ -1265,24 +1493,34 @@ export default function AdminTeamManage() {
             ) : null}
 
             {deleteConfirmModal ? (
-                <div className="modal-overlay" role="dialog" aria-modal="true">
-                    <div className="modal modal--danger">
-                        <div className="modal__title">Confirm delete</div>
-                        <div className="modal__body">
-                            <div className="callout callout--error">
-                                <div className="callout__title">This cannot be undone</div>
-                                <div className="callout__body">
-                                    You are about to delete Team <strong>{deleteConfirmModal.teamId}</strong>, Member{" "}
+                <div className="atm-modal-overlay" role="dialog" aria-modal="true">
+                    <div className="atm-modal atm-modal--danger">
+                        <div className="atm-modal__title">Confirm delete</div>
+                        <div className="atm-modal__body">
+                            <div className="atm-callout atm-callout--error">
+                                <div className="atm-callout__title">
+                                    This cannot be undone
+                                </div>
+                                <div className="atm-callout__body">
+                                    You are about to delete Team{" "}
+                                    <strong>{deleteConfirmModal.teamId}</strong>, Member{" "}
                                     <strong>{deleteConfirmModal.memberId}</strong>.
-                                    {deleteConfirmModal.isSaved ? " This removes the saved member record." : " This clears the unsaved row."}
+                                    {deleteConfirmModal.isSaved
+                                        ? " This removes the saved member record."
+                                        : " This clears the unsaved row."}
                                 </div>
                             </div>
 
-                            {deleteConfirmModal.error ? <div className="inline-error">{deleteConfirmModal.error}</div> : null}
+                            {deleteConfirmModal.error ? (
+                                <div className="atm-inline-error">
+                                    {deleteConfirmModal.error}
+                                </div>
+                            ) : null}
                         </div>
-                        <div className="modal__actions">
+
+                        <div className="atm-modal__actions">
                             <button
-                                className="btn btn--secondary"
+                                className="atm-btn atm-btn--secondary"
                                 type="button"
                                 onClick={() => setDeleteConfirmModal(null)}
                                 disabled={deleteConfirmModal.isDeleting}
@@ -1290,12 +1528,14 @@ export default function AdminTeamManage() {
                                 Cancel
                             </button>
                             <button
-                                className="btn btn--danger"
+                                className="atm-btn atm-btn--danger"
                                 type="button"
                                 onClick={confirmDeleteFromModal}
                                 disabled={deleteConfirmModal.isDeleting}
                             >
-                                {deleteConfirmModal.isDeleting ? "Deleting…" : "Delete member"}
+                                {deleteConfirmModal.isDeleting
+                                    ? "Deleting…"
+                                    : "Delete member"}
                             </button>
                         </div>
                     </div>
@@ -1303,42 +1543,60 @@ export default function AdminTeamManage() {
             ) : null}
 
             {resendModal ? (
-                <div className="modal-overlay" role="dialog" aria-modal="true">
-                    <div className="modal">
-                        <div className="modal__title">
-                            Resend invite for Team {resendModal.teamId}, Member {resendModal.memberId}
+                <div className="atm-modal-overlay" role="dialog" aria-modal="true">
+                    <div className="atm-modal">
+                        <div className="atm-modal__title">
+                            Resend invite for Team {resendModal.teamId}, Member{" "}
+                            {resendModal.memberId}
                         </div>
-                        <div className="modal__body">
-                            <div className="muted">
-                                Because Abacus stores only a hash, you must re-enter the email to resend. We will verify it matches the
-                                saved hash.
+
+                        <div className="atm-modal__body">
+                            <div className="atm-muted">
+                                Because Abacus stores only a hash, you must re-enter the
+                                email to resend. We will verify it matches the saved hash.
                             </div>
 
-                            <label className="field__label" htmlFor="resend-email">
+                            <label className="atm-field__label" htmlFor="resend-email">
                                 Student email
                             </label>
                             <input
                                 id="resend-email"
-                                className="field__input"
+                                className="atm-field__input"
                                 type="email"
                                 placeholder="student@school.edu"
                                 value={resendModal.email}
-                                onChange={(e) => setResendModal({ ...resendModal, email: e.target.value, error: "" })}
+                                onChange={(e) =>
+                                    setResendModal({
+                                        ...resendModal,
+                                        email: e.target.value,
+                                        error: "",
+                                    })
+                                }
                                 autoComplete="off"
                             />
 
-                            {resendModal.error ? <div className="inline-error">{resendModal.error}</div> : null}
+                            {resendModal.error ? (
+                                <div className="atm-inline-error">
+                                    {resendModal.error}
+                                </div>
+                            ) : null}
                         </div>
-                        <div className="modal__actions">
+
+                        <div className="atm-modal__actions">
                             <button
-                                className="btn btn--secondary"
+                                className="atm-btn atm-btn--secondary"
                                 type="button"
                                 onClick={() => setResendModal(null)}
                                 disabled={resendModal.isSending}
                             >
                                 Cancel
                             </button>
-                            <button className="btn btn--primary" type="button" onClick={confirmResendInvite} disabled={resendModal.isSending}>
+                            <button
+                                className="atm-btn atm-btn--primary"
+                                type="button"
+                                onClick={confirmResendInvite}
+                                disabled={resendModal.isSending}
+                            >
                                 {resendModal.isSending ? "Sending…" : "Resend email"}
                             </button>
                         </div>

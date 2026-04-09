@@ -302,7 +302,7 @@ export default function AdminProblemSubmissions() {
                 <DirectoryBreadcrumbs
                     items={[
                         { label: "Admin Menu", to: "/admin" },
-                        { label: "Problem List", to: "/admin/problems" },
+                        { label: "Blue Division Problem List", to: "/admin/blue/problems" },
                         { label: "Submissions" },
                     ]}
                 />

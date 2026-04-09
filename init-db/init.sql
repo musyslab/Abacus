@@ -39,13 +39,17 @@ CREATE TABLE `Projects` (
   `Name` varchar(1000) NOT NULL,
   `Language` varchar(45) NOT NULL,
   `Type` varchar(20) NOT NULL,
+  `Division` varchar(20) NOT NULL DEFAULT 'blue',
+  `GoldProblemType` varchar(20) NOT NULL DEFAULT 'normal',
+  `DescriptionText` text,
   `OrderIndex` int DEFAULT NULL,
   `solutionpath` varchar(1000) DEFAULT NULL,
   `AsnDescriptionPath` varchar(1000) DEFAULT NULL,
   `AdditionalFilePath` varchar(200) DEFAULT NULL,
   PRIMARY KEY (`Id`),
   UNIQUE KEY `idProjects_UNIQUE` (`Id`),
-  KEY `idx_projects_type_orderindex` (`Type`,`OrderIndex`)
+  KEY `idx_projects_type_orderindex` (`Type`,`OrderIndex`),
+  KEY `idx_projects_type_division_orderindex` (`Type`,`Division`,`OrderIndex`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
@@ -128,6 +132,37 @@ CREATE TABLE `Testcases` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- ============================================
+-- Table structure for table `GoldDivision`
+-- ============================================
+CREATE TABLE `GoldDivision` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `Link` text NOT NULL,
+  `DocLink` varchar(1000) DEFAULT NULL,
+  `StudentId` int NOT NULL,
+  `ProjectId` int NOT NULL,
+  `SubmittedAt` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `Points` int,
+  `Feedback` text,
+  `AdminGraderId` int,
+  `RegradeRequestedAt` datetime DEFAULT NULL,
+  `RegradeRequestedByStudentId` int DEFAULT NULL,
+  PRIMARY KEY (`Id`),
+  KEY `idx_golddivision_studentid` (`StudentId`),
+  KEY `idx_golddivision_projectid` (`ProjectId`),
+  KEY `idx_golddivision_team_lookup` (`ProjectId`,`SubmittedAt`,`Id`),
+  KEY `idx_golddivision_admingraderid` (`AdminGraderId`),
+  KEY `idx_golddivision_regraderequestedat` (`RegradeRequestedAt`),
+  KEY `idx_golddivision_regraderequestedbystudentid` (`RegradeRequestedByStudentId`),
+  CONSTRAINT `fk_golddivision_student`
+    FOREIGN KEY (`StudentId`) REFERENCES `StudentUsers`(`Id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_golddivision_project`
+    FOREIGN KEY (`ProjectId`) REFERENCES `Projects`(`Id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_golddivision_admingrader`
+    FOREIGN KEY (`AdminGraderId`) REFERENCES `AdminUsers`(`Id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_golddivision_regrade_student`
+    FOREIGN KEY (`RegradeRequestedByStudentId`) REFERENCES `StudentUsers`(`Id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 -- Table structure for table `HelpRequests`
 -- ============================================
 CREATE TABLE HelpRequests (
@@ -164,6 +199,37 @@ CREATE TABLE IF NOT EXISTS `EagleTeamMessages` (
   CONSTRAINT `fk_eagle_msg_student` FOREIGN KEY (`StudentId`) REFERENCES `StudentUsers` (`Id`) ON DELETE SET NULL,
   CONSTRAINT `fk_eagle_msg_admin` FOREIGN KEY (`AdminId`) REFERENCES `AdminUsers` (`Id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+-- ============================================
+-- Table structure for table `TeamProjectStats`
+-- ============================================
+CREATE TABLE `TeamProjectStats` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `TeamId` int NOT NULL,
+  `ProjectId` int NOT NULL,
+  `Attempts` int NOT NULL DEFAULT 0,
+  `Solved` tinyint(1) NOT NULL DEFAULT 0,
+  `AcceptedTimeMinutes` int DEFAULT NULL,
+  `CurrentSubmissionId` int NOT NULL,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `teamprojectstats_team_project_unique` (`TeamId`,`ProjectId`),
+  KEY `fk_teamprojectstats_team_idx` (`TeamId`),
+  KEY `fk_teamprojectstats_project_idx` (`ProjectId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- ============================================
+-- Table structure for table `ScoreboardSnapshots`
+-- ============================================
+CREATE TABLE `ScoreboardSnapshots` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `Division` varchar(5) NOT NULL,
+  `IsOnline` tinyint(1) NOT NULL,
+  `Minute` int NOT NULL,
+  `TimeStamp` datetime NOT NULL,
+  `Payload` text NOT NULL,
+  PRIMARY KEY (`Id`),
+  UNIQUE KEY `scoreboardsnapshots_division_online_minute_unique` (`Division`,`IsOnline`,`Minute`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 -- ============================================
 -- Foreign keys (added after all tables exist)
 -- ============================================
@@ -203,6 +269,16 @@ ALTER TABLE `Submissions`
 ALTER TABLE `Testcases`
   ADD CONSTRAINT `tc_fk`
   FOREIGN KEY (`ProjectId`) REFERENCES `Projects` (`Id`);
+
+ALTER TABLE `TeamProjectStats`
+  ADD CONSTRAINT `fk_teamprojectstats_team`
+  FOREIGN KEY (`TeamId`) REFERENCES `Teams` (`Id`)
+  ON DELETE CASCADE;
+
+ALTER TABLE `TeamProjectStats`
+  ADD CONSTRAINT `fk_teamprojectstats_project`
+  FOREIGN KEY (`ProjectId`) REFERENCES `Projects` (`Id`)
+  ON DELETE CASCADE;
 
 -- ============================================
 -- Seed Schools data

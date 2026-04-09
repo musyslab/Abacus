@@ -11,6 +11,7 @@ from .models import (
     Projects,
     StudentUsers,
     HelpRequests,
+    TeamProjectStats,
 )
 
 class SubmissionRepository():
@@ -221,3 +222,10 @@ class SubmissionRepository():
         req.CurrentAdminId = admin_id
         db.session.commit()
         return True
+
+    def is_first_submission_for_team_and_project(self, team_id: int, project_id: int) -> bool:
+        submission = TeamProjectStats.query.filter(
+            TeamProjectStats.TeamId == team_id,
+            TeamProjectStats.ProjectId == project_id,
+        ).first()
+        return submission is None
