@@ -216,9 +216,8 @@ const AdminGoldSubmissions = () => {
         params.set("team_id", String(parsedTeamId));
       }
 
-      const url = `${API}/gold-division/visible${
-        params.toString() ? `?${params.toString()}` : ""
-      }`;
+      const url = `${API}/gold-division/visible${params.toString() ? `?${params.toString()}` : ""
+        }`;
 
       const res = await axios.get<VisibleSubmissionsResponse>(url, authConfig());
       const data = res.data;
@@ -255,7 +254,7 @@ const AdminGoldSubmissions = () => {
 
   useEffect(() => {
     fetchSubmissions(true);
-    const interval = setInterval(() => fetchSubmissions(false), 3000);
+    const interval = setInterval(() => fetchSubmissions(false), 30000);
     return () => clearInterval(interval);
   }, [API, parsedProjectId, parsedTeamId, isTeamSpecificView]);
 
@@ -401,9 +400,8 @@ const AdminGoldSubmissions = () => {
 
   const getHistoryItemTitle = (item: SubmissionHistoryItem) => {
     if (item.eventType === "regrade_request") {
-      return `Regrade Request${
-        item.submissionNumber ? ` • Submission #${item.submissionNumber}` : ""
-      }`;
+      return `Regrade Request${item.submissionNumber ? ` • Submission #${item.submissionNumber}` : ""
+        }`;
     }
 
     return `Submission #${item.submissionNumber ?? item.id}`;
@@ -426,32 +424,32 @@ const AdminGoldSubmissions = () => {
   const breadcrumbs = isTeamSpecificView
     ? isTeacherView
       ? [
-          { label: "Team Manage", to: "/teacher/team-manage" },
-          { label: "Team Submissions" },
-        ]
+        { label: "Team Manage", to: "/teacher/team-manage" },
+        { label: "Team Submissions" },
+      ]
       : [
-          { label: "Admin Menu", to: "/admin" },
-          { label: "School List", to: "/admin/schools" },
-          ...(fromTeamManage && parsedSchoolId
-            ? [
-                {
-                  label: "Team Manage",
-                  to: `/admin/${parsedSchoolId}/team-manage`,
-                },
-              ]
-            : []),
-          { label: "Team Submissions" },
-        ]
+        { label: "Admin Menu", to: "/admin" },
+        { label: "School List", to: "/admin/schools" },
+        ...(fromTeamManage && parsedSchoolId
+          ? [
+            {
+              label: "Team Manage",
+              to: `/admin/${parsedSchoolId}/team-manage`,
+            },
+          ]
+          : []),
+        { label: "Team Submissions" },
+      ]
     : isTeacherView
       ? [
-          { label: "Team Manage", to: "/teacher/team-manage" },
-          { label: "Gold Division Projects" },
-        ]
+        { label: "Team Manage", to: "/teacher/team-manage" },
+        { label: "Gold Division Projects" },
+      ]
       : [
-          { label: "Admin Menu", to: "/admin" },
-          { label: "Gold Division Problem List", to: "/admin/gold/problems" },
-          { label: pageTitle },
-        ];
+        { label: "Admin Menu", to: "/admin" },
+        { label: "Gold Division Problem List", to: "/admin/gold/problems" },
+        { label: pageTitle },
+      ];
 
   const summary = useMemo(() => {
     const graded = submissions.filter((s) => s.status === "graded").length;
@@ -542,9 +540,8 @@ const AdminGoldSubmissions = () => {
                   submissions.map((s, index) => (
                     <tr
                       key={`${s.teamId ?? "team"}-${s.projectId ?? "project"}-${s.id ?? "none"}-${index}`}
-                      className={`data-row status-${s.status} ${
-                        s.status === "regrade_requested" ? "status-needs_grading" : ""
-                      }`}
+                      className={`data-row status-${s.status} ${s.status === "regrade_requested" ? "status-needs_grading" : ""
+                        }`}
                     >
                       <td>
                         <div className="team-cell">
