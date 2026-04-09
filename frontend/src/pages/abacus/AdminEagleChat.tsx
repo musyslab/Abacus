@@ -27,6 +27,7 @@ export default function AdminEagleChat() {
     const [error, setError] = useState("");
     const [sending, setSending] = useState(false);
     const [teamDropdownOpen, setTeamDropdownOpen] = useState(false);
+    const teamDropdownRef = useRef<HTMLDivElement | null>(null);
     const chatLogRef = useRef<HTMLDivElement | null>(null);
     const [isPinnedToBottom, setIsPinnedToBottom] = useState(true);
 
@@ -84,6 +85,18 @@ export default function AdminEagleChat() {
     }, [loadMessages]);
 
     useEffect(() => {
+        if (!teamDropdownOpen) return;
+        function onDocMouseDown(e: MouseEvent) {
+            const el = teamDropdownRef.current;
+            if (!el) return;
+            if (e.target instanceof Node && el.contains(e.target)) return;
+            setTeamDropdownOpen(false);
+        }
+        document.addEventListener("mousedown", onDocMouseDown);
+        return () => document.removeEventListener("mousedown", onDocMouseDown);
+    }, [teamDropdownOpen]);
+
+    useEffect(() => {
         if (!isPinnedToBottom) return;
         const el = chatLogRef.current;
         if (!el) return;
@@ -135,9 +148,8 @@ export default function AdminEagleChat() {
                             <div className="eagle-admin-toolbar">
                                 <span className="eagle-team-select-label">Eagle team</span>
                                 <div
+                                    ref={teamDropdownRef}
                                     className="eagle-team-select-wrap"
-                                    tabIndex={0}
-                                    onBlur={() => window.setTimeout(() => setTeamDropdownOpen(false), 0)}
                                 >
                                     <button
                                         type="button"
@@ -153,6 +165,7 @@ export default function AdminEagleChat() {
                                             <button
                                                 type="button"
                                                 className={!teamId ? "eagle-team-select-option is-selected" : "eagle-team-select-option"}
+                                                onMouseDown={(e) => e.preventDefault()}
                                                 onClick={() => {
                                                     setTeamId("");
                                                     setTeamDropdownOpen(false);
@@ -173,6 +186,7 @@ export default function AdminEagleChat() {
                                                                 ? "eagle-team-select-option is-selected"
                                                                 : "eagle-team-select-option"
                                                         }
+                                                        onMouseDown={(e) => e.preventDefault()}
                                                         onClick={() => {
                                                             setTeamId(t.id);
                                                             setTeamDropdownOpen(false);
