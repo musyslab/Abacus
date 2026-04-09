@@ -161,23 +161,33 @@ def can_access_assignment_descriptions() -> bool:
 
     return False
 
-def get_visible_team_ids_for_project_summary() -> list[int]:
+def get_visible_team_ids_for_project_summary(division: str | None = None) -> list[int]:
+    division_name = (division or "").strip().capitalize()
+    division_filter = division_name if division_name in {"Blue", "Gold", "Eagle"} else None
+
     if isinstance(current_user, AdminUsers):
         if int(getattr(current_user, "Role", 0) or 0) == ADMIN_ROLE:
-            teams = Teams.query.order_by(Teams.Id.asc()).all()
+            query = Teams.query
         else:
             school_id = int(getattr(current_user, "SchoolId", 0) or 0)
-            teams = (
-                Teams.query
-                .filter(Teams.SchoolId == school_id)
-                .order_by(Teams.Id.asc())
-                .all()
-            )
+            query = Teams.query.filter(Teams.SchoolId == school_id)
+
+        if division_filter:
+            query = query.filter(Teams.Division == division_filter)
+
+        teams = query.order_by(Teams.Id.asc()).all()
         return [int(team.Id) for team in teams]
 
     if isinstance(current_user, StudentUsers):
         team_id = int(getattr(current_user, "TeamId", 0) or 0)
-        return [team_id] if team_id > 0 else []
+        if team_id <= 0:
+            return []
+
+        team = Teams.query.get(team_id)
+        if division_filter and team and str(getattr(team, "Division", "") or "").strip() != division_filter:
+            return []
+
+        return [team_id]
 
     return []
 
@@ -335,13 +345,13 @@ def all_projects(project_repo: ProjectRepository = Provide[Container.project_rep
 
     thisdic = submission_repo.get_total_submission_for_all_projects()
 
+    visible_team_ids = get_visible_team_ids_for_project_summary(division_filter)
+
     if division_filter == "gold":
-        visible_team_ids = get_visible_team_ids_for_project_summary()
         review_counts = build_gold_project_review_counts(data, visible_team_ids)
     else:
-        visible_team_ids = get_visible_team_ids_for_project_summary()
         review_counts = build_project_review_counts(data, visible_team_ids)
-    
+
     new_projects = [
         {
             "Id": proj.Id,

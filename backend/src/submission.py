@@ -338,8 +338,13 @@ def problem_review(
             continue
         latest_by_team[team_id] = submission
 
+    project_division = str(getattr(project, "Division", "blue") or "blue").strip().capitalize()
+    teams_query = Teams.query
+    if project_division in {"Blue", "Gold", "Eagle"}:
+        teams_query = teams_query.filter(Teams.Division == project_division)
+
     teams_in_class = (
-        Teams.query
+        teams_query
         .order_by(Teams.SchoolId.asc(), Teams.TeamNumber.asc(), Teams.Id.asc())
         .all()
     )
