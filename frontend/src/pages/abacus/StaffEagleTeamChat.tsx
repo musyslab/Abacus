@@ -66,7 +66,7 @@ export default function StaffEagleTeamChat({ viewer }: Props) {
 
     useEffect(() => {
         loadMessages();
-        const id = window.setInterval(loadMessages, 10000);
+        const id = window.setInterval(loadMessages, 30000);
         return () => window.clearInterval(id);
     }, [loadMessages]);
 
