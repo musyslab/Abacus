@@ -847,7 +847,17 @@ export default function AdminTeamManage() {
 
     function goToTeamSubmissions(teamId: number, division: Division) {
         if (division === "Gold") {
-            navigate(isAdminMode ? "/admin/gold-submissions" : "/teacher/gold-submissions");
+            const params = new URLSearchParams();
+            params.set("team_id", String(teamId));
+            params.set("from", "team-manage");
+
+            if (isAdminMode && managedSchoolId) {
+                params.set("school_id", String(managedSchoolId));
+                navigate(`/admin/gold-submissions?${params.toString()}`);
+                return;
+            }
+
+            navigate(`/teacher/gold-submissions?${params.toString()}`);
             return;
         }
 

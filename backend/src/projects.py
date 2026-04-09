@@ -51,6 +51,7 @@ ALLOWED_SOURCE_EXTS = {'.py', '.c', '.java', '.rkt'}
 TS_DIR_RE = re.compile(r"^\d{8}_\d{6}$")
 PROJECT_TYPES = {'competition', 'practice', 'none'}
 PROJECT_DIVISIONS = {'blue', 'gold'}
+GOLD_PROBLEM_TYPES = {'normal', 'creative'}
 
 def project_root() -> str:
     return "/tabot-files/project-files"
@@ -84,6 +85,10 @@ def pick_latest_version_dir(proj_dir_path: str) -> str | None:
 def normalize_division(v: str | None) -> str:
     raw = (v or "").strip().lower()
     return raw if raw in PROJECT_DIVISIONS else "blue"
+
+def normalize_gold_problem_type(v: str | None) -> str:
+    raw = (v or "").strip().lower()
+    return raw if raw in GOLD_PROBLEM_TYPES else "normal"
 
 def get_next_order_index_for_division(project_type: str, division: str, exclude_project_id: int | None = None) -> int | None:
     if project_type not in {"competition", "practice"}:
@@ -343,6 +348,7 @@ def all_projects(project_repo: ProjectRepository = Provide[Container.project_rep
             "Name": proj.Name,
             "Type": proj.Type,
             "Division": normalize_division(getattr(proj, "Division", "blue")),
+            "GoldProblemType": normalize_gold_problem_type(getattr(proj, "GoldProblemType", "normal")),
             "DescriptionText": getattr(proj, "DescriptionText", None),
             "OrderIndex": proj.OrderIndex,
             "TotalSubmissions": thisdic.get(proj.Id, 0),
@@ -398,6 +404,7 @@ def create_project(project_repo: ProjectRepository = Provide[Container.project_r
     language = request.form.get('language', '').strip()
     project_type = request.form.get('project_type', '').strip()
     division = normalize_division(request.form.get('division'))
+    gold_problem_type = normalize_gold_problem_type(request.form.get('gold_problem_type'))
 
     if name == '' or project_type not in PROJECT_TYPES:
         return make_response("Error in form", HTTPStatus.BAD_REQUEST)
@@ -473,6 +480,7 @@ def create_project(project_repo: ProjectRepository = Provide[Container.project_r
     created = Projects.query.get(int(new_project_id))
     if created:
         created.Division = division
+        created.GoldProblemType = gold_problem_type
         created.DescriptionText = None
         db.session.commit()
 
@@ -494,6 +502,7 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
     language = request.form.get('language', '')
     project_type = request.form.get('project_type', '').strip().lower()
     division = normalize_division(request.form.get('division'))
+    gold_problem_type = normalize_gold_problem_type(request.form.get('gold_problem_type'))
     
     if name == '' or project_type not in PROJECT_TYPES:
         return make_response({'message': 'Error in form'}, HTTPStatus.BAD_REQUEST)
@@ -565,6 +574,7 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
         proj_row = Projects.query.get(pid)
         if proj_row:
             proj_row.Division = division
+            proj_row.GoldProblemType = gold_problem_type
             proj_row.DescriptionText = None
             db.session.commit()
 
@@ -704,6 +714,7 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
     proj_row = Projects.query.get(pid)
     if proj_row:
         proj_row.Division = division
+        proj_row.GoldProblemType = gold_problem_type
         proj_row.DescriptionText = None
         db.session.commit()
 
@@ -957,6 +968,7 @@ def get_project(project_repo: ProjectRepository = Provide[Container.project_repo
 
     if isinstance(project_info, dict):
         project_info["division"] = normalize_division(getattr(proj_row, "Division", "blue") if proj_row else "blue")
+        project_info["goldProblemType"] = normalize_gold_problem_type(getattr(proj_row, "GoldProblemType", "normal") if proj_row else "normal")
         project_info["descriptionText"] = getattr(proj_row, "DescriptionText", None) if proj_row else None
         project_info["descriptionFile"] = (
             project_info.get("descriptionFile")

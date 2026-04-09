@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
-import { useParams } from "react-router-dom";
-import { FaExternalLinkAlt, FaHistory, FaPen } from "react-icons/fa";
+import { useLocation, useParams } from "react-router-dom";
+import { FaExternalLinkAlt, FaHistory, FaPen, FaTimes } from "react-icons/fa";
 
 import MenuComponent from "../components/MenuComponent";
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
@@ -15,11 +15,15 @@ type SubmissionStatus =
   | "not_submitted"
   | "regrade_requested";
 
+type GoldProblemType = "normal" | "creative";
+
 type Submission = {
   id: number | null;
   link: string | null;
+  docLink: string | null;
   studentId: number | null;
   projectId: number | null;
+  projectName: string | null;
   teamId: number | null;
   teamName: string | null;
   teamNumber: number | null;
@@ -35,20 +39,19 @@ type Submission = {
   regradeRequestedByStudentId: number | null;
 };
 
-type VisibleSubmissionsResponse = {
-  currentAdminId: number | null;
-  canGrade: boolean;
-  isTeacherView: boolean;
-  projectId: number | null;
-  projectName: string | null;
-  submissions: Submission[];
-};
+type SubmissionHistoryEventType = "submission" | "regrade_request";
 
 type SubmissionHistoryItem = {
+  eventId: string;
+  eventType: SubmissionHistoryEventType;
+  eventTimestamp: string | null;
   id: number;
+  submissionNumber: number | null;
   link: string | null;
+  docLink: string | null;
   studentId: number | null;
   projectId: number | null;
+  projectName: string | null;
   teamId: number | null;
   submittedAt: string | null;
   points: number | null;
@@ -71,12 +74,64 @@ type SubmissionHistoryResponse = {
   history: SubmissionHistoryItem[];
 };
 
+type TeamContext = {
+  teamId: number | null;
+  teamName: string | null;
+  teamNumber: number | null;
+  schoolName: string | null;
+};
+
+type VisibleSubmissionsResponse = {
+  currentAdminId: number | null;
+  canGrade: boolean;
+  isTeacherView: boolean;
+  projectId: number | null;
+  projectName: string | null;
+  teamId: number | null;
+  teamName: string | null;
+  teamNumber: number | null;
+  schoolName: string | null;
+  submissions: Submission[];
+};
+
+type ProjectMetaResponse = {
+  name?: string | null;
+  type?: string | null;
+  division?: string | null;
+  goldProblemType?: GoldProblemType | null;
+};
+
+const getMaxPointsForGoldProblemType = (problemType: GoldProblemType) =>
+  problemType === "creative" ? 15 : 7;
+
+const getGoldProblemTypeLabel = (problemType: GoldProblemType) =>
+  problemType === "creative" ? "Creative" : "Normal";
+
 const AdminGoldSubmissions = () => {
   const API = (import.meta.env.VITE_API_URL as string) || "";
   const { projectId } = useParams<{ projectId?: string }>();
+  const location = useLocation();
+
+  const searchParams = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search]
+  );
 
   const parsedProjectId =
     projectId && !Number.isNaN(Number(projectId)) ? Number(projectId) : null;
+
+  const teamIdParam = searchParams.get("team_id");
+  const parsedTeamId =
+    teamIdParam && !Number.isNaN(Number(teamIdParam)) ? Number(teamIdParam) : null;
+
+  const schoolIdParam = searchParams.get("school_id");
+  const parsedSchoolId =
+    schoolIdParam && !Number.isNaN(Number(schoolIdParam))
+      ? Number(schoolIdParam)
+      : null;
+
+  const fromTeamManage = searchParams.get("from") === "team-manage";
+  const isTeamSpecificView = parsedTeamId !== null && parsedTeamId > 0;
 
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +139,12 @@ const AdminGoldSubmissions = () => {
   const [canGrade, setCanGrade] = useState(false);
   const [isTeacherView, setIsTeacherView] = useState(false);
   const [projectName, setProjectName] = useState<string | null>(null);
+  const [teamContext, setTeamContext] = useState<TeamContext>({
+    teamId: null,
+    teamName: null,
+    teamNumber: null,
+    schoolName: null,
+  });
 
   const [pointsInput, setPointsInput] = useState<string>("");
   const [feedbackInput, setFeedbackInput] = useState<string>("");
@@ -96,6 +157,11 @@ const AdminGoldSubmissions = () => {
   const [activeSubmission, setActiveSubmission] =
     useState<Submission | null>(null);
 
+  const [activeGoldProblemType, setActiveGoldProblemType] =
+    useState<GoldProblemType>("normal");
+  const [activeMaxPoints, setActiveMaxPoints] = useState<number>(7);
+  const [projectMetaLoading, setProjectMetaLoading] = useState(false);
+
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
@@ -107,23 +173,81 @@ const AdminGoldSubmissions = () => {
     return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
   }
 
+  const loadProjectMeta = async (pid: number | null) => {
+    if (!pid) {
+      setActiveGoldProblemType("normal");
+      setActiveMaxPoints(7);
+      return;
+    }
+
+    try {
+      setProjectMetaLoading(true);
+      const res = await axios.get<ProjectMetaResponse>(
+        `${API}/projects/get_project_id?id=${pid}`,
+        authConfig()
+      );
+
+      const rawType = res.data?.goldProblemType;
+      const normalizedType: GoldProblemType =
+        rawType === "creative" ? "creative" : "normal";
+
+      setActiveGoldProblemType(normalizedType);
+      setActiveMaxPoints(getMaxPointsForGoldProblemType(normalizedType));
+    } catch (err) {
+      console.error("Failed to load gold problem metadata", err);
+      setActiveGoldProblemType("normal");
+      setActiveMaxPoints(7);
+    } finally {
+      setProjectMetaLoading(false);
+    }
+  };
+
   const fetchSubmissions = async (showLoader = false) => {
     if (showLoader) setLoading(true);
 
     try {
-      const url = parsedProjectId
-        ? `${API}/gold-division/visible?project_id=${parsedProjectId}`
-        : `${API}/gold-division/visible`;
+      const params = new URLSearchParams();
+
+      if (parsedProjectId) {
+        params.set("project_id", String(parsedProjectId));
+      }
+
+      if (isTeamSpecificView && parsedTeamId) {
+        params.set("team_id", String(parsedTeamId));
+      }
+
+      const url = `${API}/gold-division/visible${
+        params.toString() ? `?${params.toString()}` : ""
+      }`;
 
       const res = await axios.get<VisibleSubmissionsResponse>(url, authConfig());
+      const data = res.data;
 
-      setSubmissions(res.data?.submissions || []);
-      setCurrentAdminId(res.data?.currentAdminId ?? null);
-      setCanGrade(Boolean(res.data?.canGrade));
-      setIsTeacherView(Boolean(res.data?.isTeacherView));
-      setProjectName(res.data?.projectName ?? null);
+      setSubmissions(Array.isArray(data?.submissions) ? data.submissions : []);
+      setCurrentAdminId(data?.currentAdminId ?? null);
+      setCanGrade(Boolean(data?.canGrade));
+      setIsTeacherView(Boolean(data?.isTeacherView));
+      setProjectName(data?.projectName ?? null);
+      setTeamContext({
+        teamId: data?.teamId ?? parsedTeamId ?? null,
+        teamName: data?.teamName ?? null,
+        teamNumber: data?.teamNumber ?? null,
+        schoolName: data?.schoolName ?? null,
+      });
+
+      const singleProjectId = data?.projectId ?? parsedProjectId ?? null;
+      if (singleProjectId) {
+        loadProjectMeta(singleProjectId);
+      }
     } catch (err) {
       console.error("Failed to fetch submissions", err);
+      setSubmissions([]);
+      setTeamContext({
+        teamId: parsedTeamId ?? null,
+        teamName: null,
+        teamNumber: null,
+        schoolName: null,
+      });
     } finally {
       if (showLoader) setLoading(false);
     }
@@ -133,9 +257,9 @@ const AdminGoldSubmissions = () => {
     fetchSubmissions(true);
     const interval = setInterval(() => fetchSubmissions(false), 3000);
     return () => clearInterval(interval);
-  }, [API, parsedProjectId]);
+  }, [API, parsedProjectId, parsedTeamId, isTeamSpecificView]);
 
-  const openModal = (submission: Submission) => {
+  const openModal = async (submission: Submission) => {
     if (!canGrade || !submission.hasSubmission || !submission.id) return;
 
     setActiveSubmission(submission);
@@ -144,6 +268,8 @@ const AdminGoldSubmissions = () => {
     setSaveError("");
     setSaved(false);
     setModalOpen(true);
+
+    await loadProjectMeta(submission.projectId ?? parsedProjectId ?? null);
   };
 
   const closeModal = () => {
@@ -153,6 +279,7 @@ const AdminGoldSubmissions = () => {
     setSaved(false);
     setSaveError("");
     setSaving(false);
+    setProjectMetaLoading(false);
   };
 
   const openHistoryModal = async (submission: Submission) => {
@@ -188,8 +315,21 @@ const AdminGoldSubmissions = () => {
     if (!activeSubmission || !activeSubmission.id || !canGrade) return;
 
     const pointsValue = Number(pointsInput);
+
     if (Number.isNaN(pointsValue)) {
       setSaveError("Points must be a valid number.");
+      return;
+    }
+
+    if (pointsValue < 0) {
+      setSaveError("Points cannot be negative.");
+      return;
+    }
+
+    if (pointsValue > activeMaxPoints) {
+      setSaveError(
+        `${getGoldProblemTypeLabel(activeGoldProblemType)} problems can have at most ${activeMaxPoints} points.`
+      );
       return;
     }
 
@@ -259,28 +399,59 @@ const AdminGoldSubmissions = () => {
     }
   };
 
+  const getHistoryItemTitle = (item: SubmissionHistoryItem) => {
+    if (item.eventType === "regrade_request") {
+      return `Regrade Request${
+        item.submissionNumber ? ` • Submission #${item.submissionNumber}` : ""
+      }`;
+    }
+
+    return `Submission #${item.submissionNumber ?? item.id}`;
+  };
+
   const reviewedProblemLabel = projectName
     ? `: ${projectName}`
     : parsedProjectId
       ? `: Problem ${parsedProjectId}`
       : "";
 
-  const pageTitle = isTeacherView
-    ? `Gold Division Projects${reviewedProblemLabel}`
-    : `Gold Submissions${reviewedProblemLabel}`;
+  const pageTitle = isTeamSpecificView
+    ? `Team Submissions${teamContext.teamName ? `: ${teamContext.teamName}` : ""}`
+    : isTeacherView
+      ? `Gold Division Projects${reviewedProblemLabel}`
+      : `Gold Submissions${reviewedProblemLabel}`;
 
   const tableTitle = "Gold Division Team Submissions";
 
-  const breadcrumbs = isTeacherView
-    ? [
-        { label: "Team Manage", to: "/teacher/team-manage" },
-        { label: "Gold Division Projects" },
-      ]
-    : [
-        { label: "Admin Menu", to: "/admin" },
-        { label: "Gold Division Problem List", to: "/admin/gold/problems" },
-        { label: pageTitle },
-      ];
+  const breadcrumbs = isTeamSpecificView
+    ? isTeacherView
+      ? [
+          { label: "Team Manage", to: "/teacher/team-manage" },
+          { label: "Team Submissions" },
+        ]
+      : [
+          { label: "Admin Menu", to: "/admin" },
+          { label: "School List", to: "/admin/schools" },
+          ...(fromTeamManage && parsedSchoolId
+            ? [
+                {
+                  label: "Team Manage",
+                  to: `/admin/${parsedSchoolId}/team-manage`,
+                },
+              ]
+            : []),
+          { label: "Team Submissions" },
+        ]
+    : isTeacherView
+      ? [
+          { label: "Team Manage", to: "/teacher/team-manage" },
+          { label: "Gold Division Projects" },
+        ]
+      : [
+          { label: "Admin Menu", to: "/admin" },
+          { label: "Gold Division Problem List", to: "/admin/gold/problems" },
+          { label: pageTitle },
+        ];
 
   const summary = useMemo(() => {
     const graded = submissions.filter((s) => s.status === "graded").length;
@@ -322,7 +493,7 @@ const AdminGoldSubmissions = () => {
           {!loading && (
             <div className="gold-summary">
               <div className="summary-pill">
-                <strong>Total teams:</strong> {summary.total}
+                <strong>Total rows:</strong> {summary.total}
               </div>
               <div className="summary-pill graded">
                 <strong>Graded:</strong> {summary.graded}
@@ -349,6 +520,7 @@ const AdminGoldSubmissions = () => {
                   <th>School</th>
                   <th>Submitted By</th>
                   <th>Project</th>
+                  <th>Submission</th>
                   <th>Submitted</th>
                   <th>Status</th>
                   {canGrade && <th>Points</th>}
@@ -357,83 +529,116 @@ const AdminGoldSubmissions = () => {
               </thead>
 
               <tbody className="table-body">
-                {submissions.map((s, index) => (
-                  <tr
-                    key={`${s.teamId ?? "team"}-${s.id ?? "none"}-${index}`}
-                    className={`data-row status-${s.status} ${
-                      s.status === "regrade_requested" ? "status-needs_grading" : ""
-                    }`}
-                  >
-                    <td>
-                      <div className="team-cell">
-                        <strong>{s.teamName || "Unnamed Team"}</strong>
-                        {s.teamNumber ? (
-                          <span className="team-meta">Team #{s.teamNumber}</span>
-                        ) : null}
-                      </div>
+                {submissions.length === 0 ? (
+                  <tr className="data-row">
+                    <td
+                      colSpan={canGrade && !isTeacherView ? 9 : canGrade ? 8 : 7}
+                      className="muted-text"
+                    >
+                      No gold submissions found.
                     </td>
+                  </tr>
+                ) : (
+                  submissions.map((s, index) => (
+                    <tr
+                      key={`${s.teamId ?? "team"}-${s.projectId ?? "project"}-${s.id ?? "none"}-${index}`}
+                      className={`data-row status-${s.status} ${
+                        s.status === "regrade_requested" ? "status-needs_grading" : ""
+                      }`}
+                    >
+                      <td>
+                        <div className="team-cell">
+                          <strong>{s.teamName || "Unnamed Team"}</strong>
+                          {s.teamNumber ? (
+                            <span className="team-meta">Team #{s.teamNumber}</span>
+                          ) : null}
+                        </div>
+                      </td>
 
-                    <td>{s.schoolName || "—"}</td>
+                      <td>{s.schoolName || "—"}</td>
 
-                    <td>{s.studentId ?? "—"}</td>
+                      <td>{s.studentId ?? "—"}</td>
 
-                    <td>
-                      {s.hasSubmission && s.link ? (
-                        <a
-                          className="button button-view-code"
-                          href={s.link}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <FaExternalLinkAlt />
-                          View
-                        </a>
-                      ) : (
-                        <span className="muted-text">No submission yet</span>
-                      )}
-                    </td>
+                      <td>{s.projectName || projectName || "—"}</td>
 
-                    <td>{formatDateTime(s.submittedAt)}</td>
+                      <td>
+                        {s.hasSubmission ? (
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            {s.link ? (
+                              <a
+                                className="button button-view-code"
+                                href={s.link}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <FaExternalLinkAlt />
+                                View Scratch
+                              </a>
+                            ) : null}
 
-                    <td>
-                      <span className={`status-badge ${getStatusClassName(s.status)}`}>
-                        {getStatusLabel(s.status)}
-                      </span>
-                    </td>
+                            {s.docLink ? (
+                              <a
+                                className="button button-view-code"
+                                href={s.docLink}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <FaExternalLinkAlt />
+                                View Doc
+                              </a>
+                            ) : null}
 
-                    {canGrade && <td>{s.hasSubmission ? s.points ?? "—" : "—"}</td>}
-
-                    {!isTeacherView && (
-                      <td className="cell-actions">
-                        {canGrade && s.hasSubmission ? (
-                          <>
-                            <button
-                              className="button button-history"
-                              onClick={() => openHistoryModal(s)}
-                            >
-                              <FaHistory />
-                              History
-                            </button>
-
-                            <button
-                              className="button button-completed"
-                              onClick={() => openModal(s)}
-                            >
-                              <FaPen />
-                              {s.status === "graded"
-                                ? "Edit Grade"
-                                : s.status === "regrade_requested"
-                                  ? "Review Regrade"
-                                  : "Grade"}
-                            </button>
-                          </>
+                            {!s.link && !s.docLink ? (
+                              <span className="muted-text">No submission link</span>
+                            ) : null}
+                          </div>
                         ) : (
-                          <span className="muted-text">—</span>
+                          <span className="muted-text">No submission yet</span>
                         )}
                       </td>
-                    )}
-                  </tr>
-                ))}
+
+                      <td>{formatDateTime(s.submittedAt)}</td>
+
+                      <td>
+                        <span className={`status-badge ${getStatusClassName(s.status)}`}>
+                          {getStatusLabel(s.status)}
+                        </span>
+                      </td>
+
+                      {canGrade && <td>{s.hasSubmission ? s.points ?? "—" : "—"}</td>}
+
+                      {!isTeacherView && (
+                        <td className="cell-actions">
+                          {canGrade && s.hasSubmission ? (
+                            <>
+                              <button
+                                className="button button-history"
+                                onClick={() => openHistoryModal(s)}
+                              >
+                                <FaHistory />
+                                History
+                              </button>
+
+                              <button
+                                className="button button-completed"
+                                onClick={() => openModal(s)}
+                              >
+                                <FaPen />
+                                {s.status === "graded"
+                                  ? "Edit Grade"
+                                  : s.status === "regrade_requested"
+                                    ? "Review Regrade"
+                                    : "Grade"}
+                              </button>
+                            </>
+                          ) : (
+                            <span className="muted-text">—</span>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           )}
@@ -442,25 +647,83 @@ const AdminGoldSubmissions = () => {
         {canGrade && modalOpen && activeSubmission && (
           <div className="modal-overlay">
             <div className="modal">
-              <h2 className="modal-title">
-                Grade Submission
-                {activeSubmission.teamName ? ` — ${activeSubmission.teamName}` : ""}
-              </h2>
+              <div className="modal-header">
+                <div>
+                  <h2 className="modal-title">
+                    Grade Submission
+                    {activeSubmission.teamName ? ` — ${activeSubmission.teamName}` : ""}
+                  </h2>
 
-              <div className="modal-subtitle">
-                {activeSubmission.schoolName || "Gold Division Team"}
-                {activeSubmission.regradeRequested ? " • Regrade requested" : ""}
+                  <div className="modal-subtitle">
+                    {activeSubmission.projectName || projectName || "Gold Division Project"}
+                    {activeSubmission.schoolName ? ` • ${activeSubmission.schoolName}` : ""}
+                    {activeSubmission.regradeRequested ? " • Regrade requested" : ""}
+                  </div>
+
+
+                  {(activeSubmission.link || activeSubmission.docLink) && (
+                    <div
+                      className="modal-subtitle"
+                      style={{
+                        marginTop: 10,
+                        display: "flex",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {activeSubmission.link ? (
+                        <a
+                          className="button button-view-code"
+                          href={activeSubmission.link}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <FaExternalLinkAlt />
+                          Open Scratch
+                        </a>
+                      ) : null}
+
+                      {activeSubmission.docLink ? (
+                        <a
+                          className="button button-view-code"
+                          href={activeSubmission.docLink}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <FaExternalLinkAlt />
+                          Open Doc
+                        </a>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  className="modal-close-button"
+                  onClick={closeModal}
+                  disabled={saving}
+                  aria-label="Close grade modal"
+                >
+                  <FaTimes />
+                </button>
               </div>
 
               <div className="form-group">
                 <label>Points</label>
                 <input
                   type="number"
+                  min={0}
+                  max={activeMaxPoints}
                   value={pointsInput}
                   onChange={(e) => setPointsInput(e.target.value)}
-                  placeholder="Enter score"
-                  disabled={saving}
+                  placeholder={`Enter score (0-${activeMaxPoints})`}
+                  disabled={saving || projectMetaLoading}
                 />
+                <div className="muted-text" style={{ marginTop: 6 }}>
+                  {getGoldProblemTypeLabel(activeGoldProblemType)} problems are capped at{" "}
+                  {activeMaxPoints} points.
+                </div>
               </div>
 
               <div className="form-group">
@@ -479,7 +742,7 @@ const AdminGoldSubmissions = () => {
                 <button
                   className={`button button-completed primary ${saved ? "is-saved" : ""}`}
                   onClick={saveEvaluation}
-                  disabled={saving}
+                  disabled={saving || projectMetaLoading}
                 >
                   {saved ? "✓ Saved" : saving ? "Saving..." : "Save Grade"}
                 </button>
@@ -499,14 +762,28 @@ const AdminGoldSubmissions = () => {
         {canGrade && historyModalOpen && (
           <div className="modal-overlay">
             <div className="modal modal-history">
-              <h2 className="modal-title">
-                Submission History
-                {historyContext?.teamName ? ` — ${historyContext.teamName}` : ""}
-              </h2>
+              <div className="modal-header">
+                <div>
+                  <h2 className="modal-title">
+                    Submission History
+                    {historyContext?.teamName ? ` — ${historyContext.teamName}` : ""}
+                  </h2>
 
-              <div className="modal-subtitle">
-                {historyContext?.projectName || projectName || "Gold Division Project"}
-                {historyContext?.schoolName ? ` • ${historyContext.schoolName}` : ""}
+                  <div className="modal-subtitle">
+                    {historyContext?.projectName || projectName || "Gold Division Project"}
+                    {historyContext?.schoolName ? ` • ${historyContext.schoolName}` : ""}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="modal-close-button"
+                  onClick={closeHistoryModal}
+                  disabled={historyLoading}
+                  aria-label="Close history modal"
+                >
+                  <FaTimes />
+                </button>
               </div>
 
               {historyLoading ? (
@@ -516,10 +793,10 @@ const AdminGoldSubmissions = () => {
               ) : historyContext?.history?.length ? (
                 <div className="history-list">
                   {historyContext.history.map((item) => (
-                    <div key={item.id} className="history-card">
+                    <div key={item.eventId} className="history-card">
                       <div className="history-card__header">
                         <div className="history-card__title">
-                          Submission #{item.id}
+                          {getHistoryItemTitle(item)}
                         </div>
                         <span
                           className={`status-badge ${getStatusClassName(item.status)}`}
@@ -530,13 +807,30 @@ const AdminGoldSubmissions = () => {
 
                       <div className="history-grid">
                         <div>
-                          <span className="history-label">Submitted</span>
-                          <div>{formatDateTime(item.submittedAt)}</div>
+                          <span className="history-label">Project</span>
+                          <div>{item.projectName || historyContext.projectName || "—"}</div>
                         </div>
 
                         <div>
-                          <span className="history-label">Submitted By</span>
-                          <div>{item.studentId ?? "—"}</div>
+                          <span className="history-label">
+                            {item.eventType === "regrade_request"
+                              ? "Requested"
+                              : "Submitted"}
+                          </span>
+                          <div>{formatDateTime(item.eventTimestamp)}</div>
+                        </div>
+
+                        <div>
+                          <span className="history-label">
+                            {item.eventType === "regrade_request"
+                              ? "Requested By"
+                              : "Submitted By"}
+                          </span>
+                          <div>
+                            {item.eventType === "regrade_request"
+                              ? item.regradeRequestedByStudentId ?? "—"
+                              : item.studentId ?? "—"}
+                          </div>
                         </div>
 
                         <div>
@@ -560,7 +854,26 @@ const AdminGoldSubmissions = () => {
                                 rel="noreferrer"
                               >
                                 <FaExternalLinkAlt />
-                                Open Submission
+                                Open Scratch Submission
+                              </a>
+                            ) : (
+                              "—"
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="history-grid__full">
+                          <span className="history-label">Description Doc</span>
+                          <div>
+                            {item.docLink ? (
+                              <a
+                                className="button button-view-code history-link-button"
+                                href={item.docLink}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <FaExternalLinkAlt />
+                                Open Description Doc
                               </a>
                             ) : (
                               "—"
@@ -575,9 +888,9 @@ const AdminGoldSubmissions = () => {
                           </div>
                         </div>
 
-                        {item.regradeRequested && (
+                        {item.eventType === "regrade_request" && (
                           <div className="history-grid__full">
-                            <span className="history-label">Regrade Requested</span>
+                            <span className="history-label">Regrade Request</span>
                             <div>
                               Requested by student {item.regradeRequestedByStudentId ?? "—"}{" "}
                               on {formatDateTime(item.regradeRequestedAt)}
