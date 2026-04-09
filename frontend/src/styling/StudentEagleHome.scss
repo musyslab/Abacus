@@ -1,0 +1,414 @@
+.eagle-home-root {
+    width: 100%;
+}
+
+.eagle-home-content {
+    width: 95%;
+    margin: 18px auto 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    box-sizing: border-box;
+}
+
+/* Admin Eagle chat only: one column at all breakpoints (full width of 95% shell = pageTitle / breadcrumbs) */
+.eagle-home__grid.eagle-home__grid--admin-solo {
+    grid-template-columns: 1fr;
+    width: 100%;
+
+    @media (min-width: 960px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.eagle-card--admin-solo {
+    width: 100%;
+    max-width: 100%;
+}
+
+.eagle-home__subtitle {
+    font-size: 1.05rem;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.eagle-home__grid {
+    display: grid;
+    gap: 1.25rem;
+    grid-template-columns: 1fr;
+    /* start: problem card stays content-height; chat card may grow with messages */
+    align-items: start;
+    width: 100%;
+
+    @media (min-width: 960px) {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.eagle-card {
+    border: 1px solid #e7eaf1;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 1px 6px rgba(80, 95, 126, 0.07);
+    padding: 1.35rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: auto;
+    align-self: start;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.eagle-card__main {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.eagle-card--problem {
+    border-top: 4px solid #1cb2a9;
+}
+
+.eagle-card--problem .eagle-card__main {
+    flex: 0 1 auto;
+}
+
+.eagle-card--problem .eagle-actions {
+    flex-shrink: 0;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    margin-top: 0;
+    padding-top: 0.5rem;
+}
+
+.eagle-card--chat {
+    border-top: 4px solid #2563eb;
+}
+
+.eagle-card--chat .eagle-card__body--chat-intro {
+    flex-shrink: 0;
+}
+
+.eagle-card__eyebrow {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #1cb2a9;
+    margin-bottom: 6px;
+}
+
+.eagle-card--chat .eagle-card__eyebrow {
+    color: #2563eb;
+}
+
+.eagle-card__heading {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 10px;
+}
+
+.eagle-card__body {
+    font-size: 1rem;
+    line-height: 1.65;
+    color: #374151;
+    margin: 0 0 12px;
+}
+
+.eagle-problem-preview {
+    max-height: 320px;
+    overflow: auto;
+    padding: 12px 14px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: #1f2937;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-bottom: 12px;
+}
+
+.eagle-problem-preview--html {
+    white-space: normal;
+}
+
+.eagle-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.eagle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.62rem 1rem;
+    min-height: 40px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        transform 0.05s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+
+    &:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+    }
+
+    &:active:not(:disabled) {
+        transform: translateY(1px);
+    }
+}
+
+.eagle-btn--primary {
+    background: #2563eb;
+    color: #fff;
+
+    &:hover:not(:disabled) {
+        background: #1e40af;
+    }
+}
+
+/* Same footprint for Download instructions (problem card) and Send (chat card) */
+.eagle-home__grid .eagle-card .eagle-btn--primary {
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+}
+
+.eagle-btn--secondary {
+    background: #e5e7eb;
+    color: #111827;
+
+    &:hover:not(:disabled) {
+        background: #d1d5db;
+    }
+}
+
+.eagle-chat-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-width: 92%;
+}
+
+.eagle-chat-row--student {
+    align-self: flex-end;
+    align-items: flex-end;
+}
+
+.eagle-chat-row--staff {
+    align-self: flex-start;
+    align-items: flex-start;
+}
+
+.eagle-chat-sender-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.2;
+}
+
+/* Match existing Eagle UI: admin thread blue + competition teal */
+.eagle-chat-sender-label--admin {
+    color: #2563eb;
+}
+
+.eagle-chat-sender-label--teacher {
+    color: #0d9488;
+}
+
+.eagle-chat-sender-label--student {
+    color: #6b7280;
+}
+
+.eagle-chat-log {
+    flex: 0 1 auto;
+    min-height: 200px;
+    /* Cap height so long threads scroll inside the card instead of stretching the page */
+    max-height: min(42vh, 400px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 4px 2px;
+}
+
+.eagle-chat-bubble {
+    max-width: 100%;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #111827;
+    box-sizing: border-box;
+}
+
+.eagle-chat-bubble--student {
+    background: #dbeafe;
+    border: 1px solid #bfdbfe;
+}
+
+.eagle-chat-bubble--admin {
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+}
+
+.eagle-chat-meta {
+    font-size: 0.72rem;
+    color: #6b7280;
+    margin-top: 4px;
+}
+
+.eagle-chat-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.eagle-chat-input {
+    width: 100%;
+    min-height: 88px;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    resize: vertical;
+    box-sizing: border-box;
+
+    &:focus {
+        outline: 2px solid #93c5fd;
+        outline-offset: 1px;
+        border-color: #93c5fd;
+    }
+}
+
+.eagle-alert {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    margin-bottom: 12px;
+}
+
+.eagle-alert--error {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+}
+
+.eagle-alert--muted {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    color: #4b5563;
+}
+
+.eagle-empty-chat {
+    font-size: 0.95rem;
+    color: #6b7280;
+    padding: 12px 0;
+}
+
+.eagle-admin-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+}
+
+.eagle-admin-toolbar label,
+.eagle-team-select-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.eagle-team-select-wrap {
+    position: relative;
+    min-width: 260px;
+}
+
+.eagle-team-select-trigger {
+    width: 100%;
+    min-width: 260px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    font-size: 0.95rem;
+    background: #fff;
+    text-align: left;
+    cursor: pointer;
+
+    &:focus-visible {
+        outline: 2px solid #93c5fd;
+        outline-offset: 1px;
+        border-color: #93c5fd;
+    }
+}
+
+.eagle-team-select-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: #ffffff;
+    border: 1px solid #dbe4ee;
+    border-radius: 12px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+    max-height: 260px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+.eagle-team-select-option {
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    padding: 10px 12px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #0f172a;
+
+    &:hover {
+        background: #f8fbff;
+    }
+
+    &:focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: -2px;
+    }
+}
+
+.eagle-team-select-option.is-selected {
+    background: linear-gradient(90deg, rgba(37, 99, 235, 0.12) 0%, rgba(255, 255, 255, 0) 58%);
+    font-weight: 700;
+}

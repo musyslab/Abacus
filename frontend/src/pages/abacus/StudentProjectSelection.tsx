@@ -25,6 +25,7 @@ export default function StudentProjectSelection() {
                     `${apiBase}/teams/me`,
                     authConfig()
                 );
+
                 const division = String(res.data?.division || "")
                     .trim()
                     .toLowerCase();

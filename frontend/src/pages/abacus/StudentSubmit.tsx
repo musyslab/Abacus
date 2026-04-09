@@ -37,6 +37,7 @@ import {
 type TeamMeResponse = {
   id: number;
   name: string;
+  division?: string;
 };
 
 type SubmitStatusResponse = {
@@ -70,6 +71,7 @@ const StudentSubmit = () => {
 
   const [pageError, setPageError] = useState<string>("");
   const [pageNotice, setPageNotice] = useState<string>("");
+  const [teamDivision, setTeamDivision] = useState<string | null>(null);
 
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [isErrorMessageHidden, setIsErrorMessageHidden] = useState<boolean>(true);
@@ -206,6 +208,7 @@ const StudentSubmit = () => {
     setIsPageLoading(true);
     setPageError("");
     setPageNotice("");
+    setTeamDivision(null);
 
     try {
       const [projectsRes, teamRes, statusRes] = await Promise.all([
@@ -236,6 +239,8 @@ const StudentSubmit = () => {
         Number(statusRes.data?.cooldownRemainingSeconds ?? 0)
       );
       setCooldownRemainingMs(remainingSeconds * 1000);
+
+      setTeamDivision(String(teamRes.data?.division ?? "").trim() || null);
 
       const teamId = Number(teamRes.data?.id ?? 0);
       if (!Number.isFinite(teamId) || teamId <= 0) {
@@ -422,21 +427,26 @@ const StudentSubmit = () => {
   }, [project]);
 
   const breadcrumbsItems = useMemo(() => {
-    return [
-      { label: "Student Problem Select", to: "/student/problems" },
-      { label: project?.Name || "Student Submit" },
-    ];
-  }, [project]);
+    const homeCrumb =
+      teamDivision === "Eagle"
+        ? { label: "Eagle Division home", to: "/student/eagle-home" }
+        : { label: "Student Problem Select", to: "/student/problems" };
+    return [homeCrumb, { label: project?.Name || "Student Submit" }];
+  }, [project, teamDivision]);
 
   const submissionViewBreadcrumbs = useMemo(() => {
+    const homeCrumb =
+      teamDivision === "Eagle"
+        ? { label: "Eagle Division home", to: "/student/eagle-home" }
+        : { label: "Student Problem Select", to: "/student/problems" };
     return [
-      { label: "Student Problem Select", to: "/student/problems" },
+      homeCrumb,
       {
         label: project?.Name || "Student Submit",
         to: projectId > 0 ? `/student/${projectId}/submit` : undefined,
       },
     ];
-  }, [project, projectId]);
+  }, [project, projectId, teamDivision]);
 
   const latestResultsHref =
     summary.latestSubmissionId !== null ? `/submission/${summary.latestSubmissionId}` : "";
@@ -449,14 +459,7 @@ const StudentSubmit = () => {
         <title>Abacus</title>
       </Helmet>
 
-      <MenuComponent
-        showUpload={false}
-        showAdminUpload={false}
-        showHelp={false}
-        showCreate={false}
-        showLast={false}
-        showReviewButton={false}
-      />
+      <MenuComponent />
 
       <DirectoryBreadcrumbs items={breadcrumbsItems} />
 

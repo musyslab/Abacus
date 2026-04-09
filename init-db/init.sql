@@ -184,6 +184,21 @@ CREATE TABLE HelpRequests (
     FOREIGN KEY (`ProblemId`) REFERENCES Projects(Id) ON DELETE SET NULL                
 )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+CREATE TABLE IF NOT EXISTS `EagleTeamMessages` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `TeamId` int NOT NULL,
+  `SenderType` varchar(16) NOT NULL,
+  `StudentId` int DEFAULT NULL,
+  `AdminId` int DEFAULT NULL,
+  `Body` text NOT NULL,
+  `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`Id`),
+  KEY `idx_eagle_msg_team` (`TeamId`),
+  KEY `idx_eagle_msg_created` (`CreatedAt`),
+  CONSTRAINT `fk_eagle_msg_team` FOREIGN KEY (`TeamId`) REFERENCES `Teams` (`Id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_eagle_msg_student` FOREIGN KEY (`StudentId`) REFERENCES `StudentUsers` (`Id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_eagle_msg_admin` FOREIGN KEY (`AdminId`) REFERENCES `AdminUsers` (`Id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 -- ============================================
 -- Table structure for table `TeamProjectStats`
 -- ============================================

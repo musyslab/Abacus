@@ -9,34 +9,59 @@ import "../../styling/Login.scss";
 import MenuComponent from "../components/MenuComponent";
 
 interface StudentLoginPageState {
-  isLoggedIn: boolean;
+  studentHomePath: string | null;
   isErrorMessageHidden: boolean;
   email: string;
   password: string;
-  role: number;
   error_message: string;
   isLoading: boolean;
   showPassword: boolean;
+  isResolvingHome: boolean;
 }
 
 class StudentLogin extends Component<{}, StudentLoginPageState> {
   constructor(props: {}) {
     super(props);
 
+    const hasToken = localStorage.getItem("AUTOTA_AUTH_TOKEN") !== null;
+
     this.state = {
-      isLoggedIn: localStorage.getItem("AUTOTA_AUTH_TOKEN") !== null,
+      studentHomePath: null,
       isErrorMessageHidden: true,
       email: "",
       password: "",
-      role: -1,
       error_message: "",
       isLoading: false,
       showPassword: false,
+      isResolvingHome: hasToken,
     };
 
     this.handleSubmit = this.handleSubmit.bind(this);
     this.handleEmailChange = this.handleEmailChange.bind(this);
     this.handlePasswordChange = this.handlePasswordChange.bind(this);
+  }
+
+  componentDidMount() {
+    const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
+    if (token) {
+      this.resolveStudentHome(token);
+    }
+  }
+
+  resolveStudentHome(token: string) {
+    const baseUrl = import.meta.env.VITE_API_URL as string | undefined;
+    axios
+      .get(`${baseUrl}/teams/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        const div = String(res.data?.division ?? "").trim();
+        const path = div === "Eagle" ? "/student/eagle-home" : "/student/problems";
+        this.setState({ studentHomePath: path, isResolvingHome: false });
+      })
+      .catch(() => {
+        this.setState({ studentHomePath: "/student/problems", isResolvingHome: false });
+      });
   }
 
   handleEmailChange(ev: React.ChangeEvent<HTMLInputElement>) {
@@ -61,18 +86,42 @@ class StudentLogin extends Component<{}, StudentLoginPageState> {
       })
       .then((res) => {
         localStorage.setItem("AUTOTA_AUTH_TOKEN", res.data.access_token);
-        this.setState({ isLoggedIn: true, role: res.data.role, isLoading: false });
+        return axios.get(`${baseUrl}/teams/me`, {
+          headers: { Authorization: `Bearer ${res.data.access_token}` },
+        });
+      })
+      .then((teamRes) => {
+        const div = String(teamRes.data?.division ?? "").trim();
+        const path = div === "Eagle" ? "/student/eagle-home" : "/student/problems";
+        this.setState({ isLoading: false, studentHomePath: path });
       })
       .catch((err) => {
+        if (localStorage.getItem("AUTOTA_AUTH_TOKEN")) {
+          this.setState({ isLoading: false, studentHomePath: "/student/problems" });
+          return;
+        }
         const msg = err.response?.data?.message || "Login failed.";
         this.setState({ error_message: msg, isErrorMessageHidden: false, isLoading: false });
       });
   }
 
   render() {
-    if (this.state.isLoggedIn) {
-      const redirectPath = "/student/problems";
-      return <Navigate to={redirectPath} replace />;
+    if (this.state.studentHomePath) {
+      return <Navigate to={this.state.studentHomePath} replace />;
+    }
+
+    if (this.state.isResolvingHome) {
+      return (
+        <>
+          <MenuComponent variant="public" />
+          <div className="login-page">
+            <Helmet>
+              <title>Abacus</title>
+            </Helmet>
+            <p className="login-title">Loading…</p>
+          </div>
+        </>
+      );
     }
 
     return (

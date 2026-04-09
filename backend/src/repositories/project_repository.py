@@ -306,3 +306,41 @@ class ProjectRepository():
         with open(filepath, 'rb') as file:
             file_contents = file.read()
         return file_contents  # Return the contents of the PDF file
+
+    def get_eagle_competition_project(self) -> Optional[Projects]:
+        rows = (
+            Projects.query.filter(Projects.Type == "competition")
+            .order_by(asc(Projects.OrderIndex), asc(Projects.Id))
+            .all()
+        )
+        if not rows:
+            return None
+        for p in rows:
+            if "eagle" in (p.Name or "").lower():
+                return p
+        return rows[0]
+
+    def get_assignment_preview_for_ui(self, project_id: int) -> dict:
+        project = Projects.query.filter(Projects.Id == project_id).first()
+        if not project or not project.AsnDescriptionPath:
+            return {"kind": "none", "text": None, "filename": None}
+        filepath = project.AsnDescriptionPath
+        if not os.path.isfile(filepath):
+            return {"kind": "missing", "text": None, "filename": os.path.basename(filepath or "")}
+        fname = os.path.basename(filepath)
+        ext = os.path.splitext(fname)[1].lower()
+        text_exts = {".txt", ".md", ".markdown", ".html", ".htm", ".csv"}
+        if ext in {".pdf"}:
+            return {"kind": "pdf", "text": None, "filename": fname}
+        if ext not in text_exts:
+            return {"kind": "other", "text": None, "filename": fname}
+        try:
+            with open(filepath, "rb") as f:
+                raw = f.read()
+            decoded = raw.decode("utf-8", errors="replace")
+            max_len = 48_000
+            if len(decoded) > max_len:
+                decoded = decoded[:max_len] + "\n\n… (truncated)"
+            return {"kind": "text", "text": decoded, "filename": fname}
+        except OSError:
+            return {"kind": "other", "text": None, "filename": fname}
