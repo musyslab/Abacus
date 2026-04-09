@@ -1,5 +1,5 @@
 import { Helmet } from "react-helmet";
-import { FaComments, FaPuzzlePiece, FaSchool, FaUpload } from "react-icons/fa";
+import { FaPuzzlePiece, FaSchool, FaUpload, FaClipboard,FaComments } from "react-icons/fa";
 import { Link } from "react-router-dom";
 
 import DirectoryBreadcrumbs from '../components/DirectoryBreadcrumbs';
@@ -46,6 +46,13 @@ export default function AdminMenu() {
             to: "/admin/eagle-chat",
             className: "admin-menu-nav__item admin-menu-nav__item--eagle",
             icon: <FaComments aria-hidden="true" />,
+        },
+        {
+            title: "Help Queue",
+            description: "View and manage help requests.",
+            to: "/admin/help-requests",
+            className: "admin-menu-nav__item admin-menu-nav__item--help-requests",
+            icon: <FaClipboard aria-hidden="true" />,
         },
     ];
 

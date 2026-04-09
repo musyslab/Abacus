@@ -28,18 +28,21 @@ import StudentProjectSelection from './pages/abacus/StudentProjectSelection';
 import StudentBlueProjectSelection from './pages/abacus/StudentBlueProjectSelection';
 import StudentGoldProjectSelection from './pages/abacus/StudentGoldProjectSelection';
 import AdminProblemReview from './pages/abacus/AdminProblemSubmissions';
-import StudentEagleHome from './pages/abacus/StudentEagleHome';
-import AdminEagleChat from './pages/abacus/AdminEagleChat';
-import StaffEagleTeamChat from './pages/abacus/StaffEagleTeamChat';
 
 import StudentGoldSubmissions from './pages/abacus/StudentGoldSubmissions';
 import AdminGoldSubmissions from './pages/abacus/AdminGoldSubmissions';
 
-import StudentEagleSubmissions from './pages/abacus/StudentEagleSubmissions';
 
 import SubmissionView from './pages/abacus/SubmissionView';
 
 import ProtectedRoute from './pages/components/ProtectedRoute';
+import AdminHelpRequests from './pages/abacus/AdminHelpRequests';
+import StudentHelpRequests from './pages/abacus/StudentHelpRequests';
+
+import StudentEagleHome from './pages/abacus/StudentEagleHome';
+import AdminEagleChat from './pages/abacus/AdminEagleChat';
+import StaffEagleTeamChat from './pages/abacus/StaffEagleTeamChat';
+import StudentEagleSubmissions from './pages/abacus/StudentEagleSubmissions';
 
 class App extends Component {
     render() {
@@ -160,14 +163,6 @@ class App extends Component {
                         element={
                             <ProtectedRoute requiredAdminRole={1}>
                                 <AdminGoldSubmissions />
-                            </ProtectedRoute>
-                        }
-                    />
-                    <Route
-                        path="/student/eagle-submissions"
-                        element={
-                            <ProtectedRoute>
-                                <StudentEagleSubmissions />
                             </ProtectedRoute>
                         }
                     />
@@ -378,25 +373,10 @@ class App extends Component {
                             <AdminUpload />
                         </ProtectedRoute>
                     } />
-                    <Route path="/admin/eagle-chat" element={
-                        <ProtectedRoute requiredAdminRole={1}>
-                            <AdminEagleChat />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/admin/eagle-team-chat/:teamId" element={
-                        <ProtectedRoute requiredAdminRole={1}>
-                            <StaffEagleTeamChat viewer="admin" />
-                        </ProtectedRoute>
-                    } />
 
                     <Route path="/teacher/team-manage" element={
                         <ProtectedRoute requiredAdminRole={0}>
                             <AdminTeamManage />
-                        </ProtectedRoute>
-                    } />
-                    <Route path="/teacher/eagle-team-chat/:teamId" element={
-                        <ProtectedRoute requiredAdminRole={0}>
-                            <StaffEagleTeamChat viewer="teacher" />
                         </ProtectedRoute>
                     } />
                     <Route path="/teacher/team-manage/:teamId/submissions" element={
@@ -410,14 +390,48 @@ class App extends Component {
                             <StudentProjectSelection />
                         </ProtectedRoute>
                     } />
-                    <Route path="/student/eagle-home" element={
-                        <ProtectedRoute>
-                            <StudentEagleHome />
-                        </ProtectedRoute>
-                    } />
                     <Route path="/student/:projectId/submit" element={
                         <ProtectedRoute>
                             <StudentSubmit />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/help-requests" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminHelpRequests />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/student/help-requests" element={
+                        <ProtectedRoute>
+                            <StudentHelpRequests />
+                        </ProtectedRoute>
+                    } />
+
+                    <Route
+                        path="/student/eagle-submissions"
+                        element={
+                            <ProtectedRoute>
+                                <StudentEagleSubmissions />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route path="/admin/eagle-chat" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <AdminEagleChat />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/admin/eagle-team-chat/:teamId" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <StaffEagleTeamChat viewer="admin" />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/teacher/eagle-team-chat/:teamId" element={
+                        <ProtectedRoute requiredAdminRole={0}>
+                            <StaffEagleTeamChat viewer="teacher" />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/student/eagle-home" element={
+                        <ProtectedRoute>
+                            <StudentEagleHome />
                         </ProtectedRoute>
                     } />
                     {/* Catch-all for 404 */}

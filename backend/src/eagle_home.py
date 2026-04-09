@@ -110,64 +110,6 @@ def list_eagle_teams():
         ]
     )
 
-
-@eagle_api.route("/inbox", methods=["GET"])
-@jwt_required()
-def eagle_inbox():
-    if not isinstance(current_user, AdminUsers):
-        return make_response({"message": "Unauthorized"}, HTTPStatus.FORBIDDEN)
-
-    role = _staff_role()
-    school_id = int(getattr(current_user, "SchoolId", 0) or 0)
-
-    team_q = Teams.query.filter(Teams.Division == "Eagle")
-    if role == TEACHER_ROLE:
-        team_q = team_q.filter(Teams.SchoolId == school_id)
-
-    teams = team_q.order_by(asc(Teams.SchoolId), asc(Teams.TeamNumber)).all()
-
-    out = []
-    for t in teams:
-        latest = (
-            EagleTeamMessages.query.filter_by(TeamId=int(t.Id))
-            .order_by(desc(EagleTeamMessages.CreatedAt), desc(EagleTeamMessages.Id))
-            .first()
-        )
-        if not latest:
-            continue
-
-        st = (latest.SenderType or "").lower()
-        if st == "student":
-            sender_role = "student"
-        else:
-            aid = int(latest.AdminId) if latest.AdminId is not None else None
-            if aid is None:
-                sender_role = "admin"
-            else:
-                u = AdminUsers.query.filter_by(Id=aid).first()
-                ar = int(getattr(u, "Role", ADMIN_ROLE) or ADMIN_ROLE) if u else ADMIN_ROLE
-                sender_role = "admin" if ar == ADMIN_ROLE else "teacher"
-
-        body = str(latest.Body or "")
-        preview = (body[:140] + "…") if len(body) > 140 else body
-
-        out.append(
-            {
-                "teamId": int(t.Id),
-                "teamNumber": int(getattr(t, "TeamNumber", 0) or 0),
-                "teamName": str(getattr(t, "Name", "") or ""),
-                "schoolId": int(getattr(t, "SchoolId", 0) or 0),
-                "lastMessageId": int(latest.Id),
-                "lastMessageAt": latest.CreatedAt.isoformat(sep=" ", timespec="seconds") if latest.CreatedAt else "",
-                "lastSenderRole": sender_role,
-                "lastPreview": preview,
-            }
-        )
-
-    out.sort(key=lambda x: x.get("lastMessageAt", ""), reverse=True)
-    return jsonify(out)
-
-
 @eagle_api.route("/messages", methods=["GET"])
 @jwt_required()
 def get_messages():
