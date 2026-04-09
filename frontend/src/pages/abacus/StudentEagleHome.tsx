@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
 import { FaDownload, FaPaperPlane } from "react-icons/fa";
@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 
 import MenuComponent from "../components/MenuComponent";
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
+import EagleChatMessageRow from "../components/EagleChatMessageRow";
 import "../../styling/StudentEagleHome.scss";
 
 type ProblemPayload = {
@@ -20,6 +21,7 @@ type ProblemPayload = {
 type ChatRow = {
     id: number;
     sender: string;
+    senderRole?: "student" | "admin" | "teacher";
     body: string;
     createdAt: string;
 };
@@ -34,6 +36,10 @@ export default function StudentEagleHome() {
     const [chatError, setChatError] = useState("");
     const [draft, setDraft] = useState("");
     const [sending, setSending] = useState(false);
+    const chatLogRef = useRef<HTMLDivElement | null>(null);
+    const [isPinnedToBottom, setIsPinnedToBottom] = useState(true);
+
+    const shouldAutoScroll = useMemo(() => isPinnedToBottom, [isPinnedToBottom]);
 
     const authConfig = useCallback(() => {
         const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
@@ -86,6 +92,13 @@ export default function StudentEagleHome() {
         const id = window.setInterval(loadMessages, 12000);
         return () => window.clearInterval(id);
     }, [loadMessages]);
+
+    useEffect(() => {
+        if (!shouldAutoScroll) return;
+        const el = chatLogRef.current;
+        if (!el) return;
+        el.scrollTop = el.scrollHeight;
+    }, [messages, shouldAutoScroll]);
 
     function downloadInstructions() {
         setProblemError("");
@@ -203,25 +216,23 @@ export default function StudentEagleHome() {
                                     {chatError}
                                 </div>
                             ) : null}
-                            <div className="eagle-chat-log" role="log" aria-live="polite">
+                            <div
+                                ref={chatLogRef}
+                                className="eagle-chat-log"
+                                role="log"
+                                aria-live="polite"
+                                onScroll={() => {
+                                    const el = chatLogRef.current;
+                                    if (!el) return;
+                                    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+                                    setIsPinnedToBottom(nearBottom);
+                                }}
+                            >
                             {messages.length === 0 ? (
                                 <p className="eagle-empty-chat">No messages yet. Say hello below.</p>
                             ) : (
                                 messages.map((m) => (
-                                    <div
-                                        key={m.id}
-                                        className={
-                                            m.sender === "admin"
-                                                ? "eagle-chat-bubble eagle-chat-bubble--admin"
-                                                : "eagle-chat-bubble eagle-chat-bubble--student"
-                                        }
-                                    >
-                                        <div>{m.body}</div>
-                                        <div className="eagle-chat-meta">
-                                            {m.sender === "admin" ? "Administrator" : "Your team"} ·{" "}
-                                            {m.createdAt || ""}
-                                        </div>
-                                    </div>
+                                    <EagleChatMessageRow key={m.id} message={m} audience="student" />
                                 ))
                             )}
                         </div>
@@ -230,6 +241,11 @@ export default function StudentEagleHome() {
                                 className="eagle-chat-input"
                                 value={draft}
                                 onChange={(e) => setDraft(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key !== "Enter" || e.shiftKey) return;
+                                    e.preventDefault();
+                                    (e.currentTarget.form as HTMLFormElement | null)?.requestSubmit();
+                                }}
                                 placeholder="Type a message to admins…"
                                 maxLength={8000}
                                 aria-label="Message to administrators"

@@ -1,14 +1,21 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
 import { FaPaperPlane } from "react-icons/fa";
 
 import MenuComponent from "../components/MenuComponent";
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
+import EagleChatMessageRow from "../components/EagleChatMessageRow";
 import "../../styling/StudentEagleHome.scss";
 
 type TeamOpt = { id: number; name: string; teamNumber: number; schoolId: number };
-type ChatRow = { id: number; sender: string; body: string; createdAt: string };
+type ChatRow = {
+    id: number;
+    sender: string;
+    senderRole?: "student" | "admin" | "teacher";
+    body: string;
+    createdAt: string;
+};
 
 export default function AdminEagleChat() {
     const apiBase = (import.meta.env.VITE_API_URL as string) || "";
@@ -19,6 +26,16 @@ export default function AdminEagleChat() {
     const [draft, setDraft] = useState("");
     const [error, setError] = useState("");
     const [sending, setSending] = useState(false);
+    const [teamDropdownOpen, setTeamDropdownOpen] = useState(false);
+    const chatLogRef = useRef<HTMLDivElement | null>(null);
+    const [isPinnedToBottom, setIsPinnedToBottom] = useState(true);
+
+    const selectedTeamLabel = useMemo(() => {
+        if (!teamId) return "Select a team…";
+        const t = teams.find((x) => x.id === teamId) || null;
+        if (!t) return "Select a team…";
+        return `#${t.teamNumber} — ${t.name} (school ${t.schoolId})`;
+    }, [teams, teamId]);
 
     const authConfig = useCallback(() => {
         const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
@@ -66,6 +83,13 @@ export default function AdminEagleChat() {
         return () => window.clearInterval(id);
     }, [loadMessages]);
 
+    useEffect(() => {
+        if (!isPinnedToBottom) return;
+        const el = chatLogRef.current;
+        if (!el) return;
+        el.scrollTop = el.scrollHeight;
+    }, [messages, isPinnedToBottom]);
+
     async function sendMessage(e: React.FormEvent) {
         e.preventDefault();
         if (!teamId || !draft.trim() || sending) return;
@@ -109,50 +133,85 @@ export default function AdminEagleChat() {
                             <div className="eagle-card__eyebrow">Team thread</div>
                             <h2 className="eagle-card__heading">Messages</h2>
                             <div className="eagle-admin-toolbar">
-                                <label htmlFor="eagle-team-select">Eagle team</label>
-                                <select
-                                    id="eagle-team-select"
-                                    className="eagle-team-select"
-                                    value={teamId === "" ? "" : String(teamId)}
-                                    onChange={(e) => {
-                                        const v = e.target.value;
-                                        setTeamId(v ? parseInt(v, 10) : "");
-                                    }}
+                                <span className="eagle-team-select-label">Eagle team</span>
+                                <div
+                                    className="eagle-team-select-wrap"
+                                    tabIndex={0}
+                                    onBlur={() => window.setTimeout(() => setTeamDropdownOpen(false), 0)}
                                 >
-                                    <option value="">Select a team…</option>
-                                    {teams.map((t) => (
-                                        <option key={t.id} value={t.id}>
-                                            #{t.teamNumber} — {t.name} (school {t.schoolId})
-                                        </option>
-                                    ))}
-                                </select>
+                                    <button
+                                        type="button"
+                                        className="eagle-team-select-trigger"
+                                        aria-haspopup="listbox"
+                                        aria-expanded={teamDropdownOpen}
+                                        onClick={() => setTeamDropdownOpen((v) => !v)}
+                                    >
+                                        {selectedTeamLabel}
+                                    </button>
+                                    {teamDropdownOpen ? (
+                                        <div className="eagle-team-select-menu" role="listbox" aria-label="Eagle team">
+                                            <button
+                                                type="button"
+                                                className={!teamId ? "eagle-team-select-option is-selected" : "eagle-team-select-option"}
+                                                onClick={() => {
+                                                    setTeamId("");
+                                                    setTeamDropdownOpen(false);
+                                                }}
+                                                role="option"
+                                                aria-selected={!teamId}
+                                            >
+                                                Select a team…
+                                            </button>
+                                            {teams.map((t) => {
+                                                const selected = teamId === t.id;
+                                                return (
+                                                    <button
+                                                        key={t.id}
+                                                        type="button"
+                                                        className={
+                                                            selected
+                                                                ? "eagle-team-select-option is-selected"
+                                                                : "eagle-team-select-option"
+                                                        }
+                                                        onClick={() => {
+                                                            setTeamId(t.id);
+                                                            setTeamDropdownOpen(false);
+                                                        }}
+                                                        role="option"
+                                                        aria-selected={selected}
+                                                    >
+                                                        #{t.teamNumber} — {t.name} (school {t.schoolId})
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : null}
+                                </div>
                             </div>
                         {error ? (
                             <div className="eagle-alert eagle-alert--error" role="alert">
                                 {error}
                             </div>
                         ) : null}
-                        <div className="eagle-chat-log" role="log" aria-live="polite">
+                        <div
+                            ref={chatLogRef}
+                            className="eagle-chat-log"
+                            role="log"
+                            aria-live="polite"
+                            onScroll={() => {
+                                const el = chatLogRef.current;
+                                if (!el) return;
+                                const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+                                setIsPinnedToBottom(nearBottom);
+                            }}
+                        >
                             {!teamId ? (
                                 <p className="eagle-empty-chat">Choose a team to load messages.</p>
                             ) : messages.length === 0 ? (
                                 <p className="eagle-empty-chat">No messages yet.</p>
                             ) : (
                                 messages.map((m) => (
-                                    <div
-                                        key={m.id}
-                                        className={
-                                            m.sender === "admin"
-                                                ? "eagle-chat-bubble eagle-chat-bubble--admin"
-                                                : "eagle-chat-bubble eagle-chat-bubble--student"
-                                        }
-                                    >
-                                        <div>{m.body}</div>
-                                        <div className="eagle-chat-meta">
-                                            {m.sender === "admin" ? "Admin" : "Student team"} ·{" "}
-                                            {m.createdAt || ""}
-                                        </div>
-                                    </div>
+                                    <EagleChatMessageRow key={m.id} message={m} audience="staff" />
                                 ))
                             )}
                         </div>
@@ -161,6 +220,11 @@ export default function AdminEagleChat() {
                                 className="eagle-chat-input"
                                 value={draft}
                                 onChange={(e) => setDraft(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key !== "Enter" || e.shiftKey) return;
+                                    e.preventDefault();
+                                    (e.currentTarget.form as HTMLFormElement | null)?.requestSubmit();
+                                }}
                                 placeholder={teamId ? "Reply to this team…" : "Select a team first"}
                                 maxLength={8000}
                                 disabled={!teamId}

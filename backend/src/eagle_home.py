@@ -4,10 +4,10 @@ from http import HTTPStatus
 from dependency_injector.wiring import Provide, inject
 from flask import Blueprint, current_app, jsonify, make_response, request, send_file
 from flask_jwt_extended import current_user, jwt_required
-from sqlalchemy import asc
+from sqlalchemy import asc, desc
 
 from container import Container
-from src.constants import ADMIN_ROLE, is_student_submission_locked
+from src.constants import ADMIN_ROLE, TEACHER_ROLE, is_student_submission_locked
 from src.repositories.database import db
 from src.repositories.models import AdminUsers, EagleTeamMessages, StudentUsers, Teams
 from src.repositories.project_repository import ProjectRepository
@@ -32,6 +32,12 @@ def _student_eagle_team() -> tuple[Teams | None, object | None]:
             HTTPStatus.FORBIDDEN,
         )
     return team, None
+
+
+def _staff_role() -> int | None:
+    if not isinstance(current_user, AdminUsers):
+        return None
+    return int(getattr(current_user, "Role", TEACHER_ROLE) or TEACHER_ROLE)
 
 
 def _eagle_instructions_path() -> tuple[str | None, str]:
@@ -105,6 +111,63 @@ def list_eagle_teams():
     )
 
 
+@eagle_api.route("/inbox", methods=["GET"])
+@jwt_required()
+def eagle_inbox():
+    if not isinstance(current_user, AdminUsers):
+        return make_response({"message": "Unauthorized"}, HTTPStatus.FORBIDDEN)
+
+    role = _staff_role()
+    school_id = int(getattr(current_user, "SchoolId", 0) or 0)
+
+    team_q = Teams.query.filter(Teams.Division == "Eagle")
+    if role == TEACHER_ROLE:
+        team_q = team_q.filter(Teams.SchoolId == school_id)
+
+    teams = team_q.order_by(asc(Teams.SchoolId), asc(Teams.TeamNumber)).all()
+
+    out = []
+    for t in teams:
+        latest = (
+            EagleTeamMessages.query.filter_by(TeamId=int(t.Id))
+            .order_by(desc(EagleTeamMessages.CreatedAt), desc(EagleTeamMessages.Id))
+            .first()
+        )
+        if not latest:
+            continue
+
+        st = (latest.SenderType or "").lower()
+        if st == "student":
+            sender_role = "student"
+        else:
+            aid = int(latest.AdminId) if latest.AdminId is not None else None
+            if aid is None:
+                sender_role = "admin"
+            else:
+                u = AdminUsers.query.filter_by(Id=aid).first()
+                ar = int(getattr(u, "Role", ADMIN_ROLE) or ADMIN_ROLE) if u else ADMIN_ROLE
+                sender_role = "admin" if ar == ADMIN_ROLE else "teacher"
+
+        body = str(latest.Body or "")
+        preview = (body[:140] + "…") if len(body) > 140 else body
+
+        out.append(
+            {
+                "teamId": int(t.Id),
+                "teamNumber": int(getattr(t, "TeamNumber", 0) or 0),
+                "teamName": str(getattr(t, "Name", "") or ""),
+                "schoolId": int(getattr(t, "SchoolId", 0) or 0),
+                "lastMessageId": int(latest.Id),
+                "lastMessageAt": latest.CreatedAt.isoformat(sep=" ", timespec="seconds") if latest.CreatedAt else "",
+                "lastSenderRole": sender_role,
+                "lastPreview": preview,
+            }
+        )
+
+    out.sort(key=lambda x: x.get("lastMessageAt", ""), reverse=True)
+    return jsonify(out)
+
+
 @eagle_api.route("/messages", methods=["GET"])
 @jwt_required()
 def get_messages():
@@ -114,13 +177,17 @@ def get_messages():
         if err:
             return err
         team_id = int(team.Id)
-    elif _is_global_admin():
+    elif isinstance(current_user, AdminUsers):
         team_id = request.args.get("team_id", type=int)
         if not team_id:
             return make_response({"message": "team_id is required"}, HTTPStatus.BAD_REQUEST)
         team = Teams.query.filter_by(Id=team_id, Division="Eagle").first()
         if not team:
             return make_response({"message": "Eagle team not found"}, HTTPStatus.NOT_FOUND)
+
+        role = _staff_role()
+        if role == TEACHER_ROLE and int(getattr(team, "SchoolId", 0) or 0) != int(getattr(current_user, "SchoolId", 0) or 0):
+            return make_response({"message": "Unauthorized"}, HTTPStatus.FORBIDDEN)
     else:
         return make_response({"message": "Unauthorized"}, HTTPStatus.FORBIDDEN)
 
@@ -129,13 +196,28 @@ def get_messages():
         .order_by(asc(EagleTeamMessages.CreatedAt), asc(EagleTeamMessages.Id))
         .all()
     )
+    admin_ids = {int(m.AdminId) for m in rows if m.AdminId is not None}
+    role_by_admin: dict[int, int] = {}
+    if admin_ids:
+        for u in AdminUsers.query.filter(AdminUsers.Id.in_(admin_ids)).all():
+            role_by_admin[int(u.Id)] = int(getattr(u, "Role", TEACHER_ROLE) or TEACHER_ROLE)
+
     out = []
     for m in rows:
-        sender = "admin" if (m.SenderType or "").lower() == "admin" else "student"
+        st = (m.SenderType or "").lower()
+        if st == "student":
+            sender = "student"
+            sender_role = "student"
+        else:
+            sender = "admin"
+            rid = int(m.AdminId) if m.AdminId is not None else None
+            ar = role_by_admin.get(rid, ADMIN_ROLE) if rid is not None else ADMIN_ROLE
+            sender_role = "admin" if ar == ADMIN_ROLE else "teacher"
         out.append(
             {
                 "id": m.Id,
                 "sender": sender,
+                "senderRole": sender_role,
                 "body": m.Body,
                 "createdAt": m.CreatedAt.isoformat(sep=" ", timespec="seconds") if m.CreatedAt else "",
             }
@@ -166,7 +248,7 @@ def post_message():
         db.session.commit()
         return jsonify({"id": msg.Id, "ok": True}), HTTPStatus.CREATED
 
-    if _is_global_admin():
+    if isinstance(current_user, AdminUsers):
         team_id = data.get("team_id")
         try:
             tid = int(team_id)
@@ -175,6 +257,11 @@ def post_message():
         team = Teams.query.filter_by(Id=tid, Division="Eagle").first()
         if not team:
             return make_response({"message": "Eagle team not found"}, HTTPStatus.NOT_FOUND)
+
+        role = _staff_role()
+        if role == TEACHER_ROLE and int(getattr(team, "SchoolId", 0) or 0) != int(getattr(current_user, "SchoolId", 0) or 0):
+            return make_response({"message": "Unauthorized"}, HTTPStatus.FORBIDDEN)
+
         msg = EagleTeamMessages(
             TeamId=tid,
             SenderType="admin",

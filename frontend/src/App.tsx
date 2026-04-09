@@ -25,6 +25,7 @@ import StudentProjectSelection from './pages/abacus/StudentProjectSelection';
 import AdminProblemReview from './pages/abacus/AdminProblemSubmissions';
 import StudentEagleHome from './pages/abacus/StudentEagleHome';
 import AdminEagleChat from './pages/abacus/AdminEagleChat';
+import StaffEagleTeamChat from './pages/abacus/StaffEagleTeamChat';
 
 import SubmissionView from './pages/abacus/SubmissionView';
 
@@ -137,10 +138,20 @@ class App extends Component {
                             <AdminEagleChat />
                         </ProtectedRoute>
                     } />
+                    <Route path="/admin/eagle-team-chat/:teamId" element={
+                        <ProtectedRoute requiredAdminRole={1}>
+                            <StaffEagleTeamChat viewer="admin" />
+                        </ProtectedRoute>
+                    } />
 
                     <Route path="/teacher/team-manage" element={
                         <ProtectedRoute requiredAdminRole={0}>
                             <AdminTeamManage />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/teacher/eagle-team-chat/:teamId" element={
+                        <ProtectedRoute requiredAdminRole={0}>
+                            <StaffEagleTeamChat viewer="teacher" />
                         </ProtectedRoute>
                     } />
                     <Route path="/teacher/team-manage/:teamId/submissions" element={

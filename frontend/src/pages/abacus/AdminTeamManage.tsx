@@ -824,6 +824,12 @@ export default function AdminTeamManage() {
     function updateTeamAttendance(teamId: number, isOnline: boolean) { updateTeam(teamId, { isOnline }) }
 
     function goToTeamSubmissions(teamId: number) {
+        const team = teams.find((t) => t.id === teamId) || null;
+        if (team && String(team.division || "").trim() === "Eagle") {
+            const eaglePath = isAdminMode ? `/admin/eagle-team-chat/${teamId}` : `/teacher/eagle-team-chat/${teamId}`;
+            navigate(eaglePath);
+            return;
+        }
         const path = isAdminMode
             ? `/admin/${managedSchoolId}/team-manage/${teamId}/submissions`
             : `/teacher/team-manage/${teamId}/submissions`;

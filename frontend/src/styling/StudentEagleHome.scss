@@ -202,10 +202,52 @@
     }
 }
 
+.eagle-chat-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-width: 92%;
+}
+
+.eagle-chat-row--student {
+    align-self: flex-end;
+    align-items: flex-end;
+}
+
+.eagle-chat-row--staff {
+    align-self: flex-start;
+    align-items: flex-start;
+}
+
+.eagle-chat-sender-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.2;
+}
+
+/* Match existing Eagle UI: admin thread blue + competition teal */
+.eagle-chat-sender-label--admin {
+    color: #2563eb;
+}
+
+.eagle-chat-sender-label--teacher {
+    color: #0d9488;
+}
+
+.eagle-chat-sender-label--student {
+    color: #6b7280;
+}
+
 .eagle-chat-log {
     flex: 0 1 auto;
-    min-height: 220px;
+    min-height: 200px;
+    /* Cap height so long threads scroll inside the card instead of stretching the page */
+    max-height: min(42vh, 400px);
     overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -214,22 +256,23 @@
 }
 
 .eagle-chat-bubble {
-    max-width: 92%;
+    max-width: 100%;
+    width: 100%;
+    min-width: 0;
     padding: 10px 14px;
     border-radius: 12px;
     font-size: 0.95rem;
     line-height: 1.5;
     color: #111827;
+    box-sizing: border-box;
 }
 
 .eagle-chat-bubble--student {
-    align-self: flex-end;
     background: #dbeafe;
     border: 1px solid #bfdbfe;
 }
 
 .eagle-chat-bubble--admin {
-    align-self: flex-start;
     background: #f3f4f6;
     border: 1px solid #e5e7eb;
 }
@@ -299,17 +342,73 @@
     flex-shrink: 0;
 }
 
-.eagle-admin-toolbar label {
+.eagle-admin-toolbar label,
+.eagle-team-select-label {
     font-size: 0.9rem;
     font-weight: 600;
     color: #374151;
 }
 
-.eagle-team-select {
-    min-width: 220px;
+.eagle-team-select-wrap {
+    position: relative;
+    min-width: 260px;
+}
+
+.eagle-team-select-trigger {
+    width: 100%;
+    min-width: 260px;
     padding: 8px 10px;
     border-radius: 8px;
     border: 1px solid #d1d5db;
     font-size: 0.95rem;
     background: #fff;
+    text-align: left;
+    cursor: pointer;
+
+    &:focus-visible {
+        outline: 2px solid #93c5fd;
+        outline-offset: 1px;
+        border-color: #93c5fd;
+    }
+}
+
+.eagle-team-select-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: #ffffff;
+    border: 1px solid #dbe4ee;
+    border-radius: 12px;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+    max-height: 260px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+.eagle-team-select-option {
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    padding: 10px 12px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #0f172a;
+
+    &:hover {
+        background: #f8fbff;
+    }
+
+    &:focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: -2px;
+    }
+}
+
+.eagle-team-select-option.is-selected {
+    background: linear-gradient(90deg, rgba(37, 99, 235, 0.12) 0%, rgba(255, 255, 255, 0) 58%);
+    font-weight: 700;
 }
