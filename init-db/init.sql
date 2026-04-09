@@ -166,23 +166,42 @@ CREATE TABLE `GoldDivision` (
 -- Table structure for table `HelpRequests`
 -- ============================================
 CREATE TABLE HelpRequests (
-    Id int NOT NULL AUTO_INCREMENT, 
+    Id int NOT NULL AUTO_INCREMENT,
     StudentId int,
     TeacherId int,
     ProblemId int,
     Reason varchar(255) NOT NULL,
     Description text,
     Status int NOT NULL,
-    CurrentAdminId int,         
-    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+    CurrentAdminId int,
+    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CompletedAt TIMESTAMP NULL,
     PRIMARY KEY (`Id`),
     UNIQUE KEY `Id_UNIQUE` (`Id`),
     FOREIGN KEY (`StudentId`) REFERENCES StudentUsers(Id) ON DELETE CASCADE,
     FOREIGN KEY (`TeacherId`) REFERENCES AdminUsers(Id) ON DELETE SET NULL,
     FOREIGN KEY (`CurrentAdminId`) REFERENCES AdminUsers(Id) ON DELETE SET NULL,
-    FOREIGN KEY (`ProblemId`) REFERENCES Projects(Id) ON DELETE SET NULL                
+    FOREIGN KEY (`ProblemId`) REFERENCES Projects(Id) ON DELETE SET NULL
 )ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE HelpRequestMessages (
+    Id int NOT NULL AUTO_INCREMENT,
+    HelpRequestId int NOT NULL,
+    SenderType varchar(16) NOT NULL,
+    StudentId int DEFAULT NULL,
+    AdminId int DEFAULT NULL,
+    Body text NOT NULL,
+    CreatedAt datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`Id`),
+    KEY `idx_helprequestmessages_request` (`HelpRequestId`),
+    KEY `idx_helprequestmessages_created` (`CreatedAt`),
+    CONSTRAINT `fk_helprequestmessages_request`
+      FOREIGN KEY (`HelpRequestId`) REFERENCES `HelpRequests` (`Id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_helprequestmessages_student`
+      FOREIGN KEY (`StudentId`) REFERENCES `StudentUsers` (`Id`) ON DELETE SET NULL,
+    CONSTRAINT `fk_helprequestmessages_admin`
+      FOREIGN KEY (`AdminId`) REFERENCES `AdminUsers` (`Id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE IF NOT EXISTS `EagleTeamMessages` (
   `Id` int NOT NULL AUTO_INCREMENT,
@@ -199,6 +218,7 @@ CREATE TABLE IF NOT EXISTS `EagleTeamMessages` (
   CONSTRAINT `fk_eagle_msg_student` FOREIGN KEY (`StudentId`) REFERENCES `StudentUsers` (`Id`) ON DELETE SET NULL,
   CONSTRAINT `fk_eagle_msg_admin` FOREIGN KEY (`AdminId`) REFERENCES `AdminUsers` (`Id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 -- ============================================
 -- Table structure for table `TeamProjectStats`
 -- ============================================

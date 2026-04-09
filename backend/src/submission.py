@@ -13,7 +13,15 @@ from openpyxl import Workbook
 
 from container import Container
 from src.constants import ADMIN_ROLE
-from src.repositories.models import Testcases, StudentUsers, Teams
+from src.repositories.database import db
+from src.repositories.models import (
+    Testcases,
+    StudentUsers,
+    Teams,
+    AdminUsers,
+    HelpRequests,
+    HelpRequestMessages,
+)
 from src.repositories.project_repository import ProjectRepository
 from src.repositories.school_repository import SchoolRepository
 from src.repositories.submission_repository import SubmissionRepository
@@ -23,6 +31,86 @@ from src.repositories.user_repository import UserRepository
 ui_clicks_log = "/tabot-files/project-files/code_view_clicks.log"
 
 submission_api = Blueprint('submission_api', __name__)
+
+
+def is_help_request_admin() -> bool:
+    return getattr(current_user, "Role", None) == ADMIN_ROLE
+
+
+def can_access_help_request(req) -> bool:
+    if req is None:
+        return False
+
+    if is_help_request_admin():
+        return True
+
+    if isinstance(current_user, StudentUsers):
+        return int(getattr(req, "StudentId", 0) or 0) == int(getattr(current_user, "Id", 0) or 0)
+
+    if isinstance(current_user, AdminUsers):
+        return int(getattr(req, "TeacherId", 0) or 0) == int(getattr(current_user, "Id", 0) or 0)
+
+    return False
+
+def get_help_request_message_sender_role(message, req):
+    if message is None or req is None:
+        return None
+
+    admin_id = int(getattr(message, "AdminId", 0) or 0)
+    student_id = int(getattr(message, "StudentId", 0) or 0)
+
+    if (
+        student_id > 0 and
+        student_id == int(getattr(req, "StudentId", 0) or 0)
+    ) or (
+        admin_id > 0 and
+        admin_id == int(getattr(req, "TeacherId", 0) or 0)
+    ):
+        return "requester"
+
+    return "staff"
+
+
+def derive_help_request_stage(req, latest_message):
+    status = int(getattr(req, "Status", 0) or 0)
+
+    if status == 2:
+        return "resolved"
+
+    if status == 3:
+        return "canceled"
+
+    if status == 0:
+        return "waiting_for_admin"
+
+    latest_sender_role = get_help_request_message_sender_role(latest_message, req)
+    if latest_sender_role == "staff":
+        return "awaiting_requester_reply"
+
+    return "awaiting_admin_reply"
+
+def serialize_help_request_message(message, req, user_repo: UserRepository):
+    admin_id = int(getattr(message, "AdminId", 0) or 0)
+    student_id = int(getattr(message, "StudentId", 0) or 0)
+
+    sender_name = "Student"
+    if admin_id > 0:
+        admin = user_repo.get_user(admin_id)
+        if admin and getattr(admin, "Firstname", None) and getattr(admin, "Lastname", None):
+            sender_name = f"{admin.Firstname} {admin.Lastname}"
+        else:
+            sender_name = "Admin"
+
+    sender_role = get_help_request_message_sender_role(message, req) or "staff"
+
+    return {
+        "id": int(getattr(message, "Id", 0) or 0),
+        "senderType": "admin" if admin_id > 0 else "student",
+        "senderRole": sender_role,
+        "senderName": sender_name,
+        "body": str(getattr(message, "Body", "") or "").strip(),
+        "createdAt": getattr(message, "CreatedAt", None).isoformat() if getattr(message, "CreatedAt", None) else None,
+    }
 
 
 def convert_tap_to_json(file_path, role, current_level, hasLVLSYSEnabled):
@@ -185,7 +273,7 @@ def get_testcase_errors(submission_repo: SubmissionRepository = Provide[Containe
                         r["shortDiffSameAsLong"] = True
 
                     if isinstance(r.get("test"), dict) and "output" in r["test"]:
-                        r["test"]["output"] = []                    
+                        r["test"]["output"] = []
 
             output = json.dumps(obj, sort_keys=True, indent=4)
     except Exception:
@@ -276,6 +364,7 @@ def codefinder(
     resp.headers["Access-Control-Expose-Headers"] = "Content-Disposition"
     return resp
 
+
 @submission_api.route('/log_ui', methods=['POST'])
 @jwt_required()
 def log_ui_click():
@@ -301,6 +390,7 @@ def log_ui_click():
     with open(log_path, 'a', encoding='utf-8') as f:
         f.write(line)
     return make_response({'status': 'logged'}, HTTPStatus.CREATED)
+
 
 @submission_api.route('/problem-review', methods=['GET'])
 @jwt_required()
@@ -444,6 +534,7 @@ def get_submission_data(
     }
     return make_response(jsonify(data), HTTPStatus.OK)
 
+
 @submission_api.route('/help-request', methods=['POST'])
 @jwt_required()
 @inject
@@ -452,13 +543,13 @@ def create_help_request(
 ):
 
     data = request.get_json(silent=True) or {}
-    problem_id = data.get("problemId") 
+    problem_id = data.get("problemId")
     description = data.get("description")
     reason = data.get("reason")
-    
+
     if not reason or not description:
         return make_response(jsonify({'message': 'Reason, and description are required'}), HTTPStatus.BAD_REQUEST)
-        
+
     new_id = submission_repo.create_help_request(
         student_id=current_user.Id if isinstance(current_user, StudentUsers) else None,
         teacher_id=current_user.Id if not isinstance(current_user, StudentUsers) else None,
@@ -466,7 +557,7 @@ def create_help_request(
         description=description,
         reason=reason
     )
-    
+
     return make_response(jsonify({'message': 'Help request submitted!', 'id': new_id}), HTTPStatus.CREATED)
 
 
@@ -481,39 +572,117 @@ def update_help_request(
     data = request.get_json(silent=True) or {}
     new_status = data.get("status")
 
-    if getattr(current_user, "Role", None) != ADMIN_ROLE and isinstance(current_user, StudentUsers) and getattr(data, "StudentId", None) == current_user.Id:
-        return make_response(jsonify({'message': 'Not Authorized'}), HTTPStatus.UNAUTHORIZED)
-    
     if new_status not in [0, 1, 2, 3]:
         return make_response(jsonify({'message': 'Invalid status code. Must be 0, 1, 2, or 3.'}), HTTPStatus.BAD_REQUEST)
-        
-    current_request = submission_repo.get_all_help_requests()
-    current_request = next((req for req in current_request if getattr(req, 'Id') == request_id), None)
+
+    current_request = HelpRequests.query.get(request_id)
     if not current_request:
         return make_response(jsonify({'message': 'Help request not found'}), HTTPStatus.NOT_FOUND)
 
-    current_status = getattr(current_request, 'status', current_request.Status if hasattr(current_request, 'Status') else None)
-    if new_status == 1:  # Admin trying to 'Start Helping'
+    is_request_admin = is_help_request_admin()
+    is_request_owner = can_access_help_request(current_request) and not is_request_admin
+
+    if not (is_request_admin or is_request_owner):
+        return make_response(jsonify({'message': 'Not Authorized'}), HTTPStatus.UNAUTHORIZED)
+
+    current_status = int(getattr(current_request, 'Status', 0) or 0)
+
+    if new_status in [0, 1, 2] and not is_request_admin:
+        return make_response(jsonify({'message': 'Only admins can set this status.'}), HTTPStatus.UNAUTHORIZED)
+
+    if new_status == 3 and not is_request_owner:
+        return make_response(jsonify({'message': 'Only the original requester can cancel this request.'}), HTTPStatus.UNAUTHORIZED)
+
+    if new_status == 1:
         if current_status == 3:
             return make_response(jsonify({'message': 'Conflict: Student already canceled this request.'}), HTTPStatus.CONFLICT)
         if current_status != 0:
             return make_response(jsonify({'message': 'Conflict: Another admin has already claimed this.'}), HTTPStatus.CONFLICT)
-    
-    elif new_status == 2:  # Admin trying to 'Resolve'
+
+    elif new_status == 2:
         if current_status == 3:
             return make_response(jsonify({'message': 'Conflict: Student canceled this request.'}), HTTPStatus.CONFLICT)
         if current_status != 1:
             return make_response(jsonify({'message': 'Conflict: Cannot resolve a request that is not in progress.'}), HTTPStatus.CONFLICT)
 
-    if new_status == 1:
-        # If admin is claiming the request, set themselves as the current admin
-        submission_repo.set_help_request_admin(request_id, current_user.Id)
-    
-    success = submission_repo.update_help_request_status(request_id, new_status)
-    if not success:
-        return make_response(jsonify({'message': 'Help request not found'}), HTTPStatus.NOT_FOUND)
-        
+    current_request.Status = new_status
+
+    if new_status == 0:
+        current_request.CurrentAdminId = None
+        current_request.CompletedAt = None
+    elif new_status == 1:
+        current_request.CurrentAdminId = current_user.Id
+        current_request.CompletedAt = None
+    elif new_status in [2, 3]:
+        if is_request_admin and getattr(current_request, "CurrentAdminId", None) is None:
+            current_request.CurrentAdminId = current_user.Id
+        current_request.CompletedAt = datetime.utcnow()
+
+    db.session.commit()
+
     return make_response(jsonify({'message': 'Status updated successfully'}), HTTPStatus.OK)
+
+
+@submission_api.route('/help-request/<int:request_id>/messages', methods=['GET'])
+@jwt_required()
+@inject
+def get_help_request_messages(
+    request_id: int,
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
+    req = HelpRequests.query.get(request_id)
+    if not req:
+        return make_response(jsonify({'message': 'Help request not found'}), HTTPStatus.NOT_FOUND)
+
+    if not can_access_help_request(req):
+        return make_response(jsonify({'message': 'Not Authorized'}), HTTPStatus.UNAUTHORIZED)
+
+    messages = (
+        HelpRequestMessages.query
+        .filter(HelpRequestMessages.HelpRequestId == request_id)
+        .order_by(HelpRequestMessages.CreatedAt.asc(), HelpRequestMessages.Id.asc())
+        .all()
+    )
+
+    payload = [serialize_help_request_message(message, req, user_repo) for message in messages]
+    return make_response(jsonify(payload), HTTPStatus.OK)
+
+
+@submission_api.route('/help-request/<int:request_id>/messages', methods=['POST'])
+@jwt_required()
+def create_help_request_message(request_id: int):
+    req = HelpRequests.query.get(request_id)
+    if not req:
+        return make_response(jsonify({'message': 'Help request not found'}), HTTPStatus.NOT_FOUND)
+
+    if not can_access_help_request(req):
+        return make_response(jsonify({'message': 'Not Authorized'}), HTTPStatus.UNAUTHORIZED)
+
+    if int(getattr(req, "Status", 0) or 0) in [2, 3]:
+        return make_response(jsonify({'message': 'Cannot reply to a closed request. Reopen it first.'}), HTTPStatus.CONFLICT)
+
+    data = request.get_json(silent=True) or {}
+    body = str(data.get("body", "") or "").strip()
+    if body == "":
+        return make_response(jsonify({'message': 'Message body is required.'}), HTTPStatus.BAD_REQUEST)
+
+    if is_help_request_admin() and int(getattr(req, "Status", 0) or 0) == 0:
+        req.Status = 1
+        req.CurrentAdminId = current_user.Id
+        req.CompletedAt = None
+
+    message = HelpRequestMessages(
+        HelpRequestId=request_id,
+        SenderType='admin' if isinstance(current_user, AdminUsers) else 'student',
+        StudentId=current_user.Id if isinstance(current_user, StudentUsers) else None,
+        AdminId=current_user.Id if isinstance(current_user, AdminUsers) else None,
+        Body=body,
+    )
+    db.session.add(message)
+    db.session.commit()
+
+    return make_response(jsonify({'message': 'Reply sent successfully.'}), HTTPStatus.CREATED)
+
 
 @submission_api.route('/help-requests', methods=['GET'])
 @jwt_required()
@@ -529,9 +698,21 @@ def get_all_help_requests(
         return make_response(jsonify({'message': 'Not Authorized'}), HTTPStatus.UNAUTHORIZED)
 
     requests = submission_repo.get_all_help_requests()
-    
+
     payload = []
     for req in requests:
+        latest_message = (
+            HelpRequestMessages.query
+            .filter(HelpRequestMessages.HelpRequestId == getattr(req, "Id", 0))
+            .order_by(HelpRequestMessages.CreatedAt.desc(), HelpRequestMessages.Id.desc())
+            .first()
+        )
+        message_count = (
+            HelpRequestMessages.query
+            .filter(HelpRequestMessages.HelpRequestId == getattr(req, "Id", 0))
+            .count()
+        )
+
         student_id = int(getattr(req, "StudentId", 0) or 0)
         teacher_id = int(getattr(req, "TeacherId", 0) or 0)
 
@@ -560,13 +741,19 @@ def get_all_help_requests(
             "problemName": getattr(project, "Name", None) if project else None,
             "reason": str(getattr(req, "Reason", "") or "").strip(),
             "description": str(getattr(req, "Description", "") or "").strip(),
-            "status": getattr(req, "Status", 0), # 0 = Not Started, 1 = In Progress, 2 = Complete
+            "status": getattr(req, "Status", 0),
             "adminName": f"{admin_firstname} {admin_lastname}" if admin_firstname and admin_lastname else None,
             "createdAt": req.CreatedAt.isoformat() if getattr(req, "CreatedAt", None) else None,
-            "completedAt": req.CompletedAt.isoformat() if getattr(req, "CompletedAt", None) else None
+            "completedAt": req.CompletedAt.isoformat() if getattr(req, "CompletedAt", None) else None,
+            "lastMessagePreview": str(getattr(latest_message, "Body", "") or "").strip()[:140] if latest_message else None,
+            "lastMessageAt": latest_message.CreatedAt.isoformat() if latest_message and getattr(latest_message, "CreatedAt", None) else None,
+            "lastMessageSenderRole": get_help_request_message_sender_role(latest_message, req),
+            "conversationStage": derive_help_request_stage(req, latest_message),
+            "messageCount": message_count,
         })
 
     return make_response(jsonify(payload), HTTPStatus.OK)
+
 
 @submission_api.route('/my-help-requests', methods=['GET'])
 @jwt_required()
@@ -577,11 +764,25 @@ def get_my_help_requests(
     user_repo: UserRepository = Provide[Container.user_repo],
 ):
 
-    requests = submission_repo.get_student_help_requests(current_user.Id if isinstance(current_user, StudentUsers) else None, current_user.Id if not isinstance(current_user, StudentUsers) else None)
-    
+    requests = submission_repo.get_student_help_requests(
+        current_user.Id if isinstance(current_user, StudentUsers) else None,
+        current_user.Id if not isinstance(current_user, StudentUsers) else None
+    )
 
     payload = []
     for req in requests:
+        latest_message = (
+            HelpRequestMessages.query
+            .filter(HelpRequestMessages.HelpRequestId == getattr(req, "Id", 0))
+            .order_by(HelpRequestMessages.CreatedAt.desc(), HelpRequestMessages.Id.desc())
+            .first()
+        )
+        message_count = (
+            HelpRequestMessages.query
+            .filter(HelpRequestMessages.HelpRequestId == getattr(req, "Id", 0))
+            .count()
+        )
+
         project = project_repo.get_selected_project(getattr(req, "ProblemId", None)) if getattr(req, "ProblemId", None) else None
         adminId = getattr(req, "CurrentAdminId", None)
         admin = user_repo.get_user(adminId) if adminId else None
@@ -592,11 +793,15 @@ def get_my_help_requests(
             "problemName": getattr(project, "Name", None) if project else None,
             "reason": str(getattr(req, "Reason", "") or "").strip(),
             "description": str(getattr(req, "Description", "") or "").strip(),
-            "status": getattr(req, "Status", 0), # 0 = Not Started, 1 = In Progress, 2 = Complete
+            "status": getattr(req, "Status", 0),
             "adminName": f"{admin_firstname} {admin_lastname}" if admin_firstname and admin_lastname else None,
             "createdAt": req.CreatedAt.isoformat() if getattr(req, "CreatedAt", None) else None,
-            "completedAt": req.CompletedAt.isoformat() if getattr(req, "CompletedAt", None) else None
+            "completedAt": req.CompletedAt.isoformat() if getattr(req, "CompletedAt", None) else None,
+            "lastMessagePreview": str(getattr(latest_message, "Body", "") or "").strip()[:140] if latest_message else None,
+            "lastMessageAt": latest_message.CreatedAt.isoformat() if latest_message and getattr(latest_message, "CreatedAt", None) else None,
+            "lastMessageSenderRole": get_help_request_message_sender_role(latest_message, req),
+            "conversationStage": derive_help_request_stage(req, latest_message),
+            "messageCount": message_count,
         })
 
     return make_response(jsonify(payload), HTTPStatus.OK)
-

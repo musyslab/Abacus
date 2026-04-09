@@ -111,6 +111,19 @@ class HelpRequests(db.Model):
     CreatedAt = Column(DateTime, default=func.now(), nullable=False)
     CompletedAt = Column(DateTime, nullable=True)
 
+
+class HelpRequestMessages(db.Model):
+    __tablename__ = "HelpRequestMessages"
+
+    Id = Column(Integer, primary_key=True, autoincrement=True)
+    HelpRequestId = Column(Integer, ForeignKey('HelpRequests.Id'), nullable=False)
+    SenderType = Column(String(16), nullable=False)
+    StudentId = Column(Integer, ForeignKey('StudentUsers.Id'), nullable=True)
+    AdminId = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=True)
+    Body = Column(Text, nullable=False)
+    CreatedAt = Column(DateTime, nullable=False, server_default=func.now())
+
+
 class EagleTeamMessages(db.Model):
     __tablename__ = "EagleTeamMessages"
     Id = Column(Integer, primary_key=True, autoincrement=True)
@@ -120,6 +133,7 @@ class EagleTeamMessages(db.Model):
     AdminId = Column(Integer, ForeignKey("AdminUsers.Id"), nullable=True)
     Body = Column(Text, nullable=False)
     CreatedAt = Column(DateTime, nullable=False, server_default=func.now())
+
 
 class TeamProjectStats(db.Model):
     __tablename__ = "TeamProjectStats"

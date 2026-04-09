@@ -1,8 +1,8 @@
-import { Component } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
-import '../../styling/HelpRequests.scss' 
+import '../../styling/AdminHelpRequests.scss'
 import MenuComponent from '../components/MenuComponent'
-import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs"
+import DirectoryBreadcrumbs from '../components/DirectoryBreadcrumbs'
 import {
     FaHandshake,
     FaRegClock,
@@ -11,14 +11,17 @@ import {
     FaUndo,
     FaTimesCircle,
     FaSync,
+    FaPaperPlane,
 } from 'react-icons/fa'
 
-interface HelpRequestsState {
-    helpRequests: Array<HelpRequestItem>
-    historyPage: number
-}
+type ConversationStage =
+    | 'waiting_for_admin'
+    | 'awaiting_admin_reply'
+    | 'awaiting_requester_reply'
+    | 'resolved'
+    | 'canceled'
 
-interface HelpRequestItem {
+interface HelpRequestsStateItem {
     id: number
     studentId: number
     teacherId: number
@@ -28,465 +31,783 @@ interface HelpRequestItem {
     problemName: string | null
     reason: string
     description: string
-    status: number // 0 = Waiting, 1 = In Progress, 2 = Complete, 3 = Canceled by Student
+    status: number
     adminName: string | null
     createdAt: string
     completedAt: string | null
+    lastMessagePreview?: string | null
+    lastMessageAt?: string | null
+    lastMessageSenderRole?: 'requester' | 'staff' | null
+    conversationStage?: ConversationStage
+    messageCount?: number
 }
 
-class AdminHelpRequests extends Component<{}, HelpRequestsState> {
-    private fetchIntervalId: number | undefined
+interface HelpRequestMessage {
+    id: number
+    senderType: 'student' | 'admin'
+    senderRole: 'requester' | 'staff'
+    senderName: string
+    body: string
+    createdAt: string
+}
 
-    constructor(props: {}) {
-        super(props)
-        this.state = {
-            helpRequests: [],
-            historyPage: 1,
+const HISTORY_PAGE_SIZE = 6
+const POLL_MS = 30000
+
+const AdminHelpRequests: React.FC = () => {
+    const [helpRequests, setHelpRequests] = useState<HelpRequestsStateItem[]>([])
+    const [historyPage, setHistoryPage] = useState(1)
+    const [selectedRequestId, setSelectedRequestId] = useState<number | null>(null)
+    const [messages, setMessages] = useState<HelpRequestMessage[]>([])
+    const [loadingMessages, setLoadingMessages] = useState(false)
+    const [draftMessage, setDraftMessage] = useState('')
+    const [sendingMessage, setSendingMessage] = useState(false)
+    const [updatingStatus, setUpdatingStatus] = useState(false)
+
+    const authConfig = useCallback(() => ({
+        headers: {
+            Authorization: `Bearer ${localStorage.getItem('AUTOTA_AUTH_TOKEN')}`,
+            'Content-Type': 'application/json',
+        },
+    }), [])
+
+    const toSafeDate = (timestampStr: string | null | undefined) => {
+        if (!timestampStr) return null
+        let safeTimestampStr = timestampStr.replace(' ', 'T')
+        if (!safeTimestampStr.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(safeTimestampStr)) {
+            safeTimestampStr += 'Z'
         }
-        this.fetchRequests = this.fetchRequests.bind(this)
-        this.updateRequestStatus = this.updateRequestStatus.bind(this)
-        this.startFetchingInterval = this.startFetchingInterval.bind(this)
-        this.setHistoryPage = this.setHistoryPage.bind(this)
+        const parsed = new Date(safeTimestampStr)
+        return Number.isNaN(parsed.getTime()) ? null : parsed
     }
 
-    componentDidMount() {
-        this.startFetchingInterval()
+    const formatTime = (timestampStr: string | null | undefined) => {
+        const parsed = toSafeDate(timestampStr)
+        if (!parsed) return '-'
+        return parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
 
-    componentDidUpdate(_prevProps: {}, prevState: HelpRequestsState) {
-        if (prevState.helpRequests !== this.state.helpRequests) {
-            const history = this.state.helpRequests.filter((q) => q.status === 2)
-            const totalPages = Math.max(1, Math.ceil(history.length / 5))
-            if (this.state.historyPage > totalPages) {
-                this.setState({ historyPage: totalPages })
-            }
-        }
+    const formatDateTime = (timestampStr: string | null | undefined) => {
+        const parsed = toSafeDate(timestampStr)
+        if (!parsed) return '-'
+        return parsed.toLocaleString([], {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        })
     }
 
-    componentWillUnmount() {
-        if (this.fetchIntervalId) {
-            window.clearInterval(this.fetchIntervalId)
-        }
-    }
-
-    fetchRequests = () => {
-        axios
-            .get(`${import.meta.env.VITE_API_URL}/submissions/help-requests`, {
-                headers: {
-                    Authorization: `Bearer ${localStorage.getItem('AUTOTA_AUTH_TOKEN')}`,
-                },
-            })
-            .then((res) => {
-                this.setState({ helpRequests: res.data })
-            })
-            .catch((err) => {
-                console.error("Failed to fetch help requests:", err)
-            })
-    }
-
-    updateRequestStatus = (id: number, newStatus: number) => {
-        axios
-            .put(
-                `${import.meta.env.VITE_API_URL}/submissions/help-request/${id}`,
-                { status: newStatus },
-                {
-                    headers: {
-                        Authorization: `Bearer ${localStorage.getItem('AUTOTA_AUTH_TOKEN')}`,
-                        "Content-Type": "application/json",
-                    },
-                }
-            )
-            .then(() => {
-                this.fetchRequests() 
-            })
-            .catch((err) => {
-
-                if (err.response && err.response.status === 409) {
-                    alert("Another admin or the student has already updated this request!")
-                    this.fetchRequests() 
-                } else {
-                    console.error("Failed to update status:", err)
-                    alert("Failed to update status. Please try again.")
-                }
-            })
-    }
-
-    calculateTimeDifference = (timestampStr: string) => {
-        if (!timestampStr) return 0
-
-        let safeTimestampStr = timestampStr.replace(" ", "T")
-        
-        if (!safeTimestampStr.endsWith("Z")) {
-            safeTimestampStr += "Z"
-        }
-
-        const currentTime = new Date()
-        const questionTimestamp = new Date(safeTimestampStr)
-        
-        const timeDifferenceInMilliseconds = currentTime.getTime() - questionTimestamp.getTime()
+    const calculateTimeDifference = (timestampStr: string) => {
+        const parsed = toSafeDate(timestampStr)
+        if (!parsed) return 0
+        const timeDifferenceInMilliseconds = new Date().getTime() - parsed.getTime()
         const timeDifferenceInMinutes = Math.floor(timeDifferenceInMilliseconds / (1000 * 60))
-        
         return Math.max(0, timeDifferenceInMinutes)
     }
 
-    formatTime = (timestampStr: string | null) => {
-        if (!timestampStr) return "—"
-        
-        let safeTimestampStr = timestampStr.replace(" ", "T")
-        if (!safeTimestampStr.endsWith("Z")) {
-            safeTimestampStr += "Z"
-        }
+    const formatWaitTimeDisplay = (timestampStr: string) => {
+        const totalMinutes = calculateTimeDifference(timestampStr)
 
-        return new Date(safeTimestampStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
+        if (totalMinutes === 0) return 'Just now'
 
-    startFetchingInterval() {
-        this.fetchRequests()
-        this.fetchIntervalId = window.setInterval(this.fetchRequests, 500000) // Fetch every 5 minutes 
-    }
-    
-    formatWaitTimeDisplay = (timestampStr: string) => {
-        const totalMinutes = this.calculateTimeDifference(timestampStr);
-        
-        if (totalMinutes === 0) return "Just now";
-        
-        const hours = Math.floor(totalMinutes / 60);
-        const remainingMinutes = totalMinutes % 60;
-        
+        const hours = Math.floor(totalMinutes / 60)
+        const remainingMinutes = totalMinutes % 60
+
         if (hours > 0) {
-            return remainingMinutes > 0 
-                ? `${hours} hr ${remainingMinutes} min` 
-                : `${hours} hr`;
+            return remainingMinutes > 0 ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`
         }
-        
-        return `${totalMinutes} min`;
+
+        return `${totalMinutes} min`
     }
 
-    setHistoryPage(nextPage: number) {
-        this.setState({ historyPage: nextPage })
-    }
+    const getConversationStage = useCallback((item: HelpRequestsStateItem | null | undefined): ConversationStage => {
+        if (!item) return 'waiting_for_admin'
+        if (item.conversationStage) return item.conversationStage
+        if (item.status === 2) return 'resolved'
+        if (item.status === 3) return 'canceled'
+        if (item.status === 0) return 'waiting_for_admin'
+        return item.lastMessageSenderRole === 'staff'
+            ? 'awaiting_requester_reply'
+            : 'awaiting_admin_reply'
+    }, [])
 
-    render() {
-        const { helpRequests } = this.state
+    const getConversationStageMeta = useCallback((item: HelpRequestsStateItem | null | undefined) => {
+        const stage = getConversationStage(item)
 
-        const allActiveQuestions = helpRequests
+        switch (stage) {
+            case 'waiting_for_admin':
+                return {
+                    label: 'Waiting to be claimed',
+                    className: 'is-waiting-for-admin',
+                    Icon: FaRegClock,
+                }
+            case 'awaiting_admin_reply':
+                return {
+                    label: 'Needs admin reply',
+                    className: 'is-awaiting-admin-reply',
+                    Icon: FaPaperPlane,
+                }
+            case 'awaiting_requester_reply':
+                return {
+                    label: 'Waiting for requester',
+                    className: 'is-awaiting-requester-reply',
+                    Icon: FaHandshake,
+                }
+            case 'resolved':
+                return {
+                    label: 'Resolved',
+                    className: 'is-resolved',
+                    Icon: FaCheckCircle,
+                }
+            case 'canceled':
+            default:
+                return {
+                    label: 'Canceled',
+                    className: 'is-canceled',
+                    Icon: FaTimesCircle,
+                }
+        }
+    }, [getConversationStage])
+
+    const getRequestActivityTime = useCallback((item: HelpRequestsStateItem) => {
+        return toSafeDate(item.lastMessageAt || item.createdAt)?.getTime() ?? 0
+    }, [])
+
+    const fetchRequests = useCallback(async () => {
+        try {
+            const res = await axios.get(
+                `${import.meta.env.VITE_API_URL}/submissions/help-requests`,
+                authConfig()
+            )
+            setHelpRequests(res.data)
+        } catch (err) {
+            console.error('Failed to fetch help requests:', err)
+        }
+    }, [authConfig])
+
+    const fetchMessages = useCallback(async (requestId: number, showLoader = true) => {
+        if (showLoader) setLoadingMessages(true)
+        try {
+            const res = await axios.get(
+                `${import.meta.env.VITE_API_URL}/submissions/help-request/${requestId}/messages`,
+                authConfig()
+            )
+            setMessages(res.data)
+        } catch (err) {
+            console.error('Failed to fetch help request messages:', err)
+            setMessages([])
+        } finally {
+            if (showLoader) setLoadingMessages(false)
+        }
+    }, [authConfig])
+
+    const refreshAll = useCallback(async () => {
+        await fetchRequests()
+        if (selectedRequestId) {
+            await fetchMessages(selectedRequestId, false)
+        }
+    }, [fetchRequests, fetchMessages, selectedRequestId])
+
+    useEffect(() => {
+        fetchRequests()
+        const intervalId = window.setInterval(() => {
+            fetchRequests()
+            if (selectedRequestId) {
+                fetchMessages(selectedRequestId, false)
+            }
+        }, POLL_MS)
+
+        return () => window.clearInterval(intervalId)
+    }, [fetchRequests, fetchMessages, selectedRequestId])
+
+    const allActiveRequests = useMemo(() => {
+        return [...helpRequests]
             .filter((q) => q.status !== 2 && q.status !== 3)
-            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) 
+            .sort((a, b) => getRequestActivityTime(a) - getRequestActivityTime(b))
+    }, [helpRequests, getRequestActivityTime])
 
-        const studentQueue = allActiveQuestions.filter((q) => q.studentId !== 0)
-        const teacherQueue = allActiveQuestions.filter((q) => q.studentId === 0)
+    const unclaimedRequests = useMemo(
+        () => allActiveRequests.filter((q) => getConversationStage(q) === 'waiting_for_admin'),
+        [allActiveRequests, getConversationStage]
+    )
 
-        const historyQuestions = helpRequests
+    const needsAdminReplyRequests = useMemo(
+        () => allActiveRequests.filter((q) => getConversationStage(q) === 'awaiting_admin_reply'),
+        [allActiveRequests, getConversationStage]
+    )
+
+    const waitingForRequesterRequests = useMemo(
+        () => allActiveRequests.filter((q) => getConversationStage(q) === 'awaiting_requester_reply'),
+        [allActiveRequests, getConversationStage]
+    )
+
+    const historyRequests = useMemo(() => {
+        return [...helpRequests]
             .filter((q) => q.status === 2 || q.status === 3)
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) 
+            .sort((a, b) => {
+                const aTime = toSafeDate(a.completedAt || a.createdAt)?.getTime() ?? 0
+                const bTime = toSafeDate(b.completedAt || b.createdAt)?.getTime() ?? 0
+                return bTime - aTime
+            })
+    }, [helpRequests])
 
-        const pageSize = 5
-        const totalHistoryPages = Math.max(1, Math.ceil(historyQuestions.length / pageSize))
-        const historyPage = Math.min(this.state.historyPage, totalHistoryPages)
-        const historyStart = (historyPage - 1) * pageSize
-        const historySlice = historyQuestions.slice(historyStart, historyStart + pageSize)
+    useEffect(() => {
+        const totalPages = Math.max(1, Math.ceil(historyRequests.length / HISTORY_PAGE_SIZE))
+        if (historyPage > totalPages) {
+            setHistoryPage(totalPages)
+        }
+    }, [historyRequests, historyPage])
+
+    useEffect(() => {
+        if (helpRequests.length === 0) {
+            setSelectedRequestId(null)
+            setMessages([])
+            return
+        }
+
+        const selectedStillExists = helpRequests.some((item) => item.id === selectedRequestId)
+        if (selectedStillExists) return
+
+        const preferred =
+            unclaimedRequests[0] ||
+            needsAdminReplyRequests[0] ||
+            waitingForRequesterRequests[0] ||
+            historyRequests[0] ||
+            helpRequests[0]
+
+        setSelectedRequestId(preferred?.id ?? null)
+    }, [
+        helpRequests,
+        selectedRequestId,
+        unclaimedRequests,
+        needsAdminReplyRequests,
+        waitingForRequesterRequests,
+        historyRequests,
+    ])
+
+    useEffect(() => {
+        if (selectedRequestId) {
+            fetchMessages(selectedRequestId)
+        } else {
+            setMessages([])
+        }
+    }, [selectedRequestId, fetchMessages])
+
+    const selectedRequest = useMemo(() => {
+        return helpRequests.find((item) => item.id === selectedRequestId) ?? null
+    }, [helpRequests, selectedRequestId])
+
+    const updateRequestStatus = async (id: number, newStatus: number) => {
+        setUpdatingStatus(true)
+        try {
+            await axios.put(
+                `${import.meta.env.VITE_API_URL}/submissions/help-request/${id}`,
+                { status: newStatus },
+                authConfig()
+            )
+            await refreshAll()
+        } catch (err: any) {
+            if (err.response && err.response.status === 409) {
+                alert(err.response?.data?.message || 'Another user already updated this request.')
+                await refreshAll()
+            } else {
+                console.error('Failed to update status:', err)
+                alert(err.response?.data?.message || 'Failed to update status. Please try again.')
+            }
+        } finally {
+            setUpdatingStatus(false)
+        }
+    }
+
+    const sendMessage = async () => {
+        if (!selectedRequestId || !draftMessage.trim()) return
+
+        setSendingMessage(true)
+        try {
+            await axios.post(
+                `${import.meta.env.VITE_API_URL}/submissions/help-request/${selectedRequestId}/messages`,
+                { body: draftMessage.trim() },
+                authConfig()
+            )
+            setDraftMessage('')
+            await refreshAll()
+            await fetchMessages(selectedRequestId, false)
+        } catch (err: any) {
+            console.error('Failed to send message:', err)
+            alert(err.response?.data?.message || 'Failed to send message.')
+        } finally {
+            setSendingMessage(false)
+        }
+    }
+
+    const handleCardKeyDown = (
+        e: React.KeyboardEvent<HTMLDivElement>,
+        requestId: number
+    ) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setSelectedRequestId(requestId)
+        }
+    }
+
+    const renderStatusBadge = (item: HelpRequestsStateItem) => {
+        if (item.status === 1) {
+            return (
+                <span className="ahr-status-badge is-progress">
+                    <FaHandshake />
+                    <span>{item.adminName ? `In Progress · ${item.adminName}` : 'In Progress'}</span>
+                </span>
+            )
+        }
+
+        if (item.status === 2) {
+            return (
+                <span className="ahr-status-badge is-resolved">
+                    <FaCheckCircle />
+                    <span>{item.adminName ? `Resolved · ${item.adminName}` : 'Resolved'}</span>
+                </span>
+            )
+        }
+
+        if (item.status === 3) {
+            return (
+                <span className="ahr-status-badge is-canceled">
+                    <FaTimesCircle />
+                    <span>Canceled</span>
+                </span>
+            )
+        }
 
         return (
-            <>
-                <MenuComponent/>
+            <span className="ahr-status-badge is-waiting">
+                <FaRegClock />
+                <span>Waiting</span>
+            </span>
+        )
+    }
 
-                <DirectoryBreadcrumbs
-                    items={[
-                        { label: "Admin Menu", to: "/admin" },
-                        { label: "Help Requests" },
-                    ]}
-                />
+    const renderConversationStageBadge = (item: HelpRequestsStateItem | null | undefined) => {
+        const { label, className, Icon } = getConversationStageMeta(item)
 
-                <div
-                    className="pageTitle" 
-                    style={{ 
-                        position: 'relative', 
-                        display: 'flex', 
-                        justifyContent: 'center', 
-                        alignItems: 'center' 
-                    }}
-                >
-                    <span>Help Requests</span>
-                    <button 
-                        className="button" 
-                        onClick={this.fetchRequests}
-                        title="Refresh requests manually"
-                        style={{ 
-                            position: 'absolute', 
-                            right: '15px', /* Adjust this to match your inner padding */
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '8px',
-                            margin: 0 /* Ensures the button doesn't inherit unwanted margins */
-                        }}
-                    >
-                        <FaSync aria-hidden="true" /> Refresh
-                    </button>
+        return (
+            <span className={`ahr-conversation-badge ${className}`}>
+                <Icon />
+                <span>{label}</span>
+            </span>
+        )
+    }
+
+    const renderRequesterBadge = (item: HelpRequestsStateItem) => (
+        <span className="ahr-requester-badge">
+            {item.studentId === 0 ? 'Teacher Request' : 'Student Request'}
+        </span>
+    )
+
+    const getCardFooterLead = (item: HelpRequestsStateItem) => {
+        const stage = getConversationStage(item)
+        const referenceTime = item.lastMessageAt || item.createdAt
+
+        if (stage === 'waiting_for_admin') {
+            return `Waiting ${formatWaitTimeDisplay(item.createdAt)}`
+        }
+
+        if (stage === 'awaiting_admin_reply') {
+            return `Needs response since ${formatDateTime(referenceTime)}`
+        }
+
+        if (stage === 'awaiting_requester_reply') {
+            return `Waiting since ${formatDateTime(referenceTime)}`
+        }
+
+        return `Updated ${formatDateTime(referenceTime)}`
+    }
+
+    const renderActiveRequestCard = (item: HelpRequestsStateItem) => (
+        <div
+            key={item.id}
+            className={`ahr-request-card ${selectedRequestId === item.id ? 'is-selected' : ''}`}
+            role="button"
+            tabIndex={0}
+            onClick={() => setSelectedRequestId(item.id)}
+            onKeyDown={(e) => handleCardKeyDown(e, item.id)}
+        >
+            <div className="ahr-request-card__top">
+                {renderConversationStageBadge(item)}
+                {renderRequesterBadge(item)}
+            </div>
+
+            <div className="ahr-request-card__title">{item.teamName || 'Unknown requester'}</div>
+
+            <div className="ahr-request-card__meta">
+                <span>{item.teamSchool || 'No school'}</span>
+                <span>{item.teamDivision || (item.studentId === 0 ? 'Teacher' : 'Student')}</span>
+            </div>
+
+            <div className="ahr-request-card__tags">
+                <span>{item.problemName || 'General'}</span>
+                <span>{item.reason}</span>
+            </div>
+
+            <p className="ahr-request-card__description">{item.description}</p>
+
+            <div className="ahr-request-card__footer">
+                <span>{getCardFooterLead(item)}</span>
+                <span>{item.messageCount ?? 0} replies</span>
+            </div>
+        </div>
+    )
+
+    const historyTotalPages = Math.max(1, Math.ceil(historyRequests.length / HISTORY_PAGE_SIZE))
+    const safeHistoryPage = Math.min(historyPage, historyTotalPages)
+    const historySlice = historyRequests.slice(
+        (safeHistoryPage - 1) * HISTORY_PAGE_SIZE,
+        safeHistoryPage * HISTORY_PAGE_SIZE
+    )
+
+    const canReply = !!selectedRequest && selectedRequest.status !== 2 && selectedRequest.status !== 3
+
+    const composerHint = useMemo(() => {
+        if (!selectedRequest) return ''
+
+        const stage = getConversationStage(selectedRequest)
+        if (stage === 'waiting_for_admin') {
+            return 'Sending a message here will automatically move this request to In Progress.'
+        }
+
+        if (stage === 'awaiting_admin_reply') {
+            return 'The requester is waiting on an admin response.'
+        }
+
+        if (stage === 'awaiting_requester_reply') {
+            return 'You replied last. Send another message only if you need to add more context.'
+        }
+
+        return 'Use this thread to keep the conversation in one place.'
+    }, [selectedRequest, getConversationStage])
+
+    const renderResponseBanner = () => {
+        if (!selectedRequest || !canReply) return null
+
+        const stage = getConversationStage(selectedRequest)
+
+        if (stage === 'waiting_for_admin') {
+            return (
+                <div className="ahr-response-banner is-admin">
+                    This request is still unclaimed. Start helping or send a reply to claim it.
                 </div>
-                <div className="oh-page__content">
-                    {/* ======================= STUDENT QUEUE ======================= */}
-                    <div className="table-section">
-                        <div className="tableTitle">Student Queue</div>
-                        <table border={1} className="question-queue-table oh-table">
-                            <thead className="table-head">
-                                <tr className="head-row">
-                                    <th className="col-status">Status</th>
-                                    <th className="col-position">Queue</th>
-                                    <th className="col-division">Division</th>
-                                    <th className="col-student">Team Name</th>
-                                    <th className="col-school">Team School</th>
-                                    <th className="col-problem">Problem</th>
-                                    <th className="col-reason">Reason</th>
-                                    <th className="col-description">Description</th>
-                                    <th className="col-wait">Wait Time</th>
-                                    <th className="col-feedback">Actions</th>
-                                </tr>
-                            </thead>
+            )
+        }
 
-                            <tbody className="table-body">
-                                {studentQueue.length === 0 ? (
-                                    <tr className="empty-row">
-                                        <td className="empty-cell" colSpan={9}>
-                                            No students are currently waiting for help.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    studentQueue.map((item: HelpRequestItem, index) => (
-                                        <tr
-                                            key={item.id}
-                                            className={`data-row ${item.status === 1 ? 'is-in-oh' : ''}`}
-                                        >
-                                            <td className="cell-status" aria-label={item.status === 1 ? 'In Progress' : 'Waiting'}>
-                                                {item.status === 1 ? (
-                                                    <span className="status in-oh" aria-hidden="true" title={`Being helped by ${item.adminName || 'an Admin'}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <FaHandshake /> 
-                                                        <span style={{ fontSize: '0.85em', fontWeight: 'bold' }}>{item.adminName}</span>
-                                                    </span>
-                                                ) : (
-                                                    <span className="status waiting" aria-hidden="true" title="Waiting in queue">
-                                                        <FaRegClock />
-                                                    </span>
-                                                )}
-                                            </td>
+        if (stage === 'awaiting_admin_reply') {
+            return (
+                <div className="ahr-response-banner is-admin">
+                    The requester is waiting on an admin response.
+                </div>
+            )
+        }
 
-                                            <td className="cell-position">{index + 1}</td>
-                                            <td className="cell-division"><strong>{item.teamDivision ? item.teamDivision : "N/A"}</strong></td>
-                                            <td className="cell-student"><strong>{item.teamName !== "Team 0" ? item.teamName : "N/A"}</strong></td>
-                                            <td className="cell-school"><strong>{item.teamSchool ? item.teamSchool : "N/A"}</strong></td>
-                                            <td className="cell-problem">{item.problemName ? item.problemName : "General"}</td>
-                                            <td className="cell-reason">{item.reason}</td>
-                                            <td className="cell-description">{item.description}</td>
-                                            <td className="cell-wait">
-                                                {this.formatWaitTimeDisplay(item.createdAt)}
-                                            </td>
+        if (stage === 'awaiting_requester_reply') {
+            return (
+                <div className="ahr-response-banner is-requester">
+                    You replied last. The next response should usually come from the requester.
+                </div>
+            )
+        }
 
-                                            <td className="cell-feedback">
-                                                {item.status === 0 ? (
-                                                    <button
-                                                        className="button button-accept"
-                                                        onClick={() => this.updateRequestStatus(item.id, 1)}
-                                                    >
-                                                        <FaPlay aria-hidden="true" /> Start Helping
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        className="button button-completed"
-                                                        onClick={() => this.updateRequestStatus(item.id, 2)}
-                                                    >
-                                                        <FaCheckCircle aria-hidden="true" /> Resolve
-                                                    </button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+        return null
+    }
 
-                    {/* ======================= TEACHER QUEUE ======================= */}
-                    <div className="table-section" style={{ marginTop: '2rem' }}>
-                        <div className="tableTitle">Teacher Queue</div>
-                        <table border={1} className="question-queue-table oh-table">
-                            <thead className="table-head">
-                                <tr className="head-row">
-                                    <th className="col-status">Status</th>
-                                    <th className="col-position">Queue</th>
-                                    <th className="col-student">Name</th>
-                                    <th className="col-school">School</th>
-                                    <th className="col-problem">Problem</th>
-                                    <th className="col-reason">Reason</th>
-                                    <th className="col-description">Description</th>
-                                    <th className="col-wait">Wait Time</th>
-                                    <th className="col-feedback">Actions</th>
-                                </tr>
-                            </thead>
+    return (
+        <div className="ahr-page">
+            <MenuComponent />
 
-                            <tbody className="table-body">
-                                {teacherQueue.length === 0 ? (
-                                    <tr className="empty-row">
-                                        <td className="empty-cell" colSpan={8}>
-                                            No teachers are currently waiting for help.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    teacherQueue.map((item: HelpRequestItem, index) => (
-                                        <tr
-                                            key={item.id}
-                                            className={`data-row ${item.status === 1 ? 'is-in-oh' : ''}`}
-                                        >
-                                            <td className="cell-status" aria-label={item.status === 1 ? 'In Progress' : 'Waiting'}>
-                                                {item.status === 1 ? (
-                                                    <span className="status in-oh" aria-hidden="true" title={`Being helped by ${item.adminName || 'an Admin'}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <FaHandshake /> 
-                                                        <span style={{ fontSize: '0.85em', fontWeight: 'bold' }}>{item.adminName}</span>
-                                                    </span>
-                                                ) : (
-                                                    <span className="status waiting" aria-hidden="true" title="Waiting in queue">
-                                                        <FaRegClock />
-                                                    </span>
-                                                )}
-                                            </td>
+            <DirectoryBreadcrumbs
+                items={[
+                    { label: 'Admin Menu', to: '/admin' },
+                    { label: 'Help Requests' },
+                ]}
+            />
 
-                                            <td className="cell-position">{index + 1}</td>
-                                            <td className="cell-student"><strong>{item.teamName ? item.teamName : "N/A"}</strong></td>
-                                            <td className="cell-school"><strong>{item.teamSchool ? item.teamSchool : "N/A"}</strong></td>
-                                            <td className="cell-problem">{item.problemName ? item.problemName : "General"}</td>
-                                            <td className="cell-reason">{item.reason}</td>
-                                            <td className="cell-description">{item.description}</td>
-                                            <td className="cell-wait">
-                                                {this.formatWaitTimeDisplay(item.createdAt)}
-                                            </td>
+            <div className="pageTitle">Help Requests</div>
 
-                                            <td className="cell-feedback">
-                                                {item.status === 0 ? (
-                                                    <button
-                                                        className="button button-accept"
-                                                        onClick={() => this.updateRequestStatus(item.id, 1)}
-                                                    >
-                                                        <FaPlay aria-hidden="true" /> Start Helping
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        className="button button-completed"
-                                                        onClick={() => this.updateRequestStatus(item.id, 2)}
-                                                    >
-                                                        <FaCheckCircle aria-hidden="true" /> Resolve
-                                                    </button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+            <div className="ahr-layout">
+                <aside className="ahr-sidebar">
+                    <section className="ahr-panel">
+                        <div className="ahr-panel__header">
+                            <h2>Unclaimed</h2>
+                            <span className="ahr-panel__count">{unclaimedRequests.length}</span>
+                        </div>
 
-                    {/* ======================= HISTORY TABLE ======================= */}
-                    <div className="table-section" style={{ marginTop: '2rem' }}>
-                        <div className="tableTitle">History</div>
-                        <table border={1} className="question-queue-table oh-table history-table">
-                            <thead className="table-head">
-                                <tr className="head-row">
-                                    <th className="col-status">Status</th>
-                                    <th className="col-role">Role</th>
-                                    <th className="col-division">Team Division</th>
-                                    <th className="col-student">Team/Teacher Name</th>
-                                    <th className="col-school">Team School</th>
-                                    <th className="col-problem">Problem</th>
-                                    <th className="col-reason">Reason</th>
-                                    <th className="col-description">Description</th>
-                                    <th className="col-wait">Requested At</th>
-                                    <th className="col-feedback">Resolved At</th>
-                                    <th className="col-actions">Actions</th>
-                                </tr>
-                            </thead>
+                        <div className="ahr-request-list">
+                            {unclaimedRequests.length === 0 ? (
+                                <div className="ahr-empty-state">No requests are waiting to be claimed.</div>
+                            ) : (
+                                unclaimedRequests.map(renderActiveRequestCard)
+                            )}
+                        </div>
+                    </section>
 
-                            <tbody className="table-body">
-                                {historyQuestions.length === 0 ? (
-                                    <tr className="empty-row">
-                                        <td className="empty-cell" colSpan={10}>
-                                            No history yet.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    historySlice.map((item: HelpRequestItem) => (
-                                        <tr key={`hist-${item.id}`} className="data-row is-history">
-                                            <td className="cell-status" aria-label="Outcome">
-                                                {item.status === 3 ? (
-                                                    <span className="status" style={{ color: '#dc2626', display: 'flex', alignItems: 'center', gap: '5px' }} title="Canceled by Student">
-                                                        <FaTimesCircle /> Canceled
-                                                    </span>
-                                                ) : (
-                                                    <span className="status outcome-accepted" style={{ display: 'flex', alignItems: 'center', gap: '5px' }} title={`Resolved by ${item.adminName || 'Admin'}`}>
-                                                        <FaCheckCircle /> 
-                                                        <span>
-                                                            Resolved {item.adminName && <span style={{ fontSize: '0.85em', opacity: 0.8 }}><br/>by {item.adminName}</span>}
-                                                        </span>
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="cell-role"><strong>{item.studentId === 0 ? "Teacher" : "Student"}</strong></td>
-                                            <td className="cell-division"><strong>{item.teamDivision ? item.teamDivision : "N/A"}</strong></td>
-                                            <td className="cell-student"><strong>{item.teamName ? item.teamName : "N/A"}</strong></td>
-                                            <td className="cell-school"><strong>{item.teamSchool ? item.teamSchool : "N/A"}</strong></td>
-                                            <td className="cell-problem">{item.problemName?item.problemName:"General"}</td>
-                                            <td className="cell-reason">{item.reason}</td>
-                                            <td className="cell-description">{item.description}</td>
-                                            <td className="cell-wait">{this.formatTime(item.createdAt)}</td>
-                                            <td className="cell-feedback">{this.formatTime(item.completedAt)}</td>
-                                            <td className="cell-actions">
-                                                {item.status === 3 ? (
-                                                    <span style={{ fontSize: '0.85em', color: '#666', fontStyle: 'italic' }}>
-                                                        N/A
-                                                    </span>
-                                                ) : (
-                                                    <button
-                                                        className="button"
-                                                        style={{ backgroundColor: '#f59e0b', color: 'white', border: 'none' }}
-                                                        onClick={() => {
-                                                            if (window.confirm("Are you sure you want to reopen this request?")) {
-                                                                this.updateRequestStatus(item.id, 0)
-                                                            }
-                                                        }}
-                                                        title="Send back to the active queue"
-                                                    >
-                                                        <FaUndo aria-hidden="true" /> Reopen
-                                                    </button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
+                    <section className="ahr-panel">
+                        <div className="ahr-panel__header">
+                            <h2>Needs Admin Reply</h2>
+                            <span className="ahr-panel__count">{needsAdminReplyRequests.length}</span>
+                        </div>
 
-                        {historyQuestions.length > pageSize && (
-                            <div className="pagination-controls" aria-label="History pagination">
+                        <div className="ahr-request-list">
+                            {needsAdminReplyRequests.length === 0 ? (
+                                <div className="ahr-empty-state">No conversations are waiting on admin replies.</div>
+                            ) : (
+                                needsAdminReplyRequests.map(renderActiveRequestCard)
+                            )}
+                        </div>
+                    </section>
+
+                    <section className="ahr-panel">
+                        <div className="ahr-panel__header">
+                            <h2>Waiting for Requester</h2>
+                            <span className="ahr-panel__count">{waitingForRequesterRequests.length}</span>
+                        </div>
+
+                        <div className="ahr-request-list">
+                            {waitingForRequesterRequests.length === 0 ? (
+                                <div className="ahr-empty-state">No conversations are currently waiting on a requester reply.</div>
+                            ) : (
+                                waitingForRequesterRequests.map(renderActiveRequestCard)
+                            )}
+                        </div>
+                    </section>
+
+                    <section className="ahr-panel">
+                        <div className="ahr-panel__header">
+                            <h2>History</h2>
+                            <span className="ahr-panel__count">{historyRequests.length}</span>
+                        </div>
+
+                        <div className="ahr-request-list">
+                            {historyRequests.length === 0 ? (
+                                <div className="ahr-empty-state">No history yet.</div>
+                            ) : (
+                                historySlice.map((item) => (
+                                    <div
+                                        key={item.id}
+                                        className={`ahr-request-card is-history ${selectedRequestId === item.id ? 'is-selected' : ''}`}
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={() => setSelectedRequestId(item.id)}
+                                        onKeyDown={(e) => handleCardKeyDown(e, item.id)}
+                                    >
+                                        <div className="ahr-request-card__top">
+                                            {renderStatusBadge(item)}
+                                            {renderRequesterBadge(item)}
+                                        </div>
+
+                                        <div className="ahr-request-card__title">{item.teamName || 'Unknown requester'}</div>
+
+                                        <div className="ahr-request-card__meta">
+                                            <span>{item.teamSchool || 'No school'}</span>
+                                            <span>{item.teamDivision || (item.studentId === 0 ? 'Teacher' : 'Student')}</span>
+                                        </div>
+
+                                        <div className="ahr-request-card__tags">
+                                            <span>{item.problemName || 'General'}</span>
+                                            <span>{item.reason}</span>
+                                        </div>
+
+                                        <p className="ahr-request-card__description">{item.description}</p>
+
+                                        <div className="ahr-request-card__footer">
+                                            <span>Requested {formatDateTime(item.createdAt)}</span>
+                                            <span>Closed {formatDateTime(item.completedAt)}</span>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+
+                        {historyRequests.length > HISTORY_PAGE_SIZE && (
+                            <div className="ahr-pagination" aria-label="History pagination">
                                 <button
                                     className="button"
-                                    onClick={() => this.setHistoryPage(Math.max(1, historyPage - 1))}
-                                    disabled={historyPage <= 1}
+                                    onClick={() => setHistoryPage(Math.max(1, safeHistoryPage - 1))}
+                                    disabled={safeHistoryPage <= 1}
                                 >
                                     Prev
                                 </button>
-                                <div className="pagination-meta">
-                                    Page {historyPage} of {totalHistoryPages}
+                                <div className="ahr-pagination__meta">
+                                    Page {safeHistoryPage} of {historyTotalPages}
                                 </div>
                                 <button
                                     className="button"
-                                    onClick={() => this.setHistoryPage(Math.min(totalHistoryPages, historyPage + 1))}
-                                    disabled={historyPage >= totalHistoryPages}
+                                    onClick={() => setHistoryPage(Math.min(historyTotalPages, safeHistoryPage + 1))}
+                                    disabled={safeHistoryPage >= historyTotalPages}
                                 >
                                     Next
                                 </button>
                             </div>
                         )}
-                    </div>
-                </div>
-            </>
-        )
-    }
+                    </section>
+                </aside>
+
+                <section className="ahr-thread-panel">
+                    {!selectedRequest ? (
+                        <div className="ahr-thread-panel__empty">
+                            Select a help request to view the conversation.
+                        </div>
+                    ) : (
+                        <>
+                            <div className="ahr-thread-panel__header">
+                                <div>
+                                    <div className="ahr-thread-panel__eyebrow">
+                                        {selectedRequest.studentId === 0 ? 'Teacher Request' : 'Student Request'}
+                                    </div>
+                                    <h2>{selectedRequest.teamName || 'Unknown requester'}</h2>
+                                    <div className="ahr-thread-panel__meta">
+                                        <span>{selectedRequest.teamSchool || 'No school'}</span>
+                                        <span>{selectedRequest.teamDivision || (selectedRequest.studentId === 0 ? 'Teacher' : 'Student')}</span>
+                                        <span>Opened {formatDateTime(selectedRequest.createdAt)}</span>
+                                    </div>
+                                </div>
+
+                                <div className="ahr-thread-panel__actions">
+                                    <button
+                                        className="button"
+                                        onClick={refreshAll}
+                                        title="Refresh"
+                                    >
+                                        <FaSync /> Refresh
+                                    </button>
+
+                                    {selectedRequest.status === 0 && (
+                                        <button
+                                            className="button button-accept"
+                                            disabled={updatingStatus}
+                                            onClick={() => updateRequestStatus(selectedRequest.id, 1)}
+                                        >
+                                            <FaPlay /> Start Helping
+                                        </button>
+                                    )}
+
+                                    {selectedRequest.status === 1 && (
+                                        <button
+                                            className="button button-completed"
+                                            disabled={updatingStatus}
+                                            onClick={() => updateRequestStatus(selectedRequest.id, 2)}
+                                        >
+                                            <FaCheckCircle /> Resolve
+                                        </button>
+                                    )}
+
+                                    {(selectedRequest.status === 2 || selectedRequest.status === 3) && (
+                                        <button
+                                            className="button ahr-button-reopen"
+                                            disabled={updatingStatus}
+                                            onClick={() => {
+                                                if (window.confirm('Are you sure you want to reopen this request?')) {
+                                                    updateRequestStatus(selectedRequest.id, 0)
+                                                }
+                                            }}
+                                        >
+                                            <FaUndo /> Reopen
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="ahr-summary-grid">
+                                <div className="ahr-summary-card">
+                                    <div className="ahr-summary-card__label">Status</div>
+                                    <div className="ahr-summary-card__value">{renderStatusBadge(selectedRequest)}</div>
+                                </div>
+
+                                <div className="ahr-summary-card">
+                                    <div className="ahr-summary-card__label">Reply State</div>
+                                    <div className="ahr-summary-card__value">{renderConversationStageBadge(selectedRequest)}</div>
+                                </div>
+
+                                <div className="ahr-summary-card">
+                                    <div className="ahr-summary-card__label">Problem</div>
+                                    <div className="ahr-summary-card__value">{selectedRequest.problemName || 'General'}</div>
+                                </div>
+
+                                <div className="ahr-summary-card">
+                                    <div className="ahr-summary-card__label">Reason</div>
+                                    <div className="ahr-summary-card__value">{selectedRequest.reason}</div>
+                                </div>
+
+                                <div className="ahr-summary-card">
+                                    <div className="ahr-summary-card__label">Requested</div>
+                                    <div className="ahr-summary-card__value">{formatTime(selectedRequest.createdAt)}</div>
+                                </div>
+                            </div>
+
+                            <div className="ahr-original-request">
+                                <div className="ahr-original-request__label">Original request</div>
+                                <div className="ahr-original-request__body">{selectedRequest.description}</div>
+                            </div>
+
+                            {renderResponseBanner()}
+
+                            <div className="ahr-messages">
+                                {loadingMessages ? (
+                                    <div className="ahr-empty-state">Loading conversation...</div>
+                                ) : messages.length === 0 ? (
+                                    <div className="ahr-empty-state">No replies yet.</div>
+                                ) : (
+                                    messages.map((message) => (
+                                        <div
+                                            key={message.id}
+                                            className={`ahr-message ${message.senderRole === 'staff' ? 'is-staff' : 'is-requester'}`}
+                                        >
+                                            <div className="ahr-message__meta">
+                                                <span className="ahr-message__author">{message.senderName}</span>
+                                                <span>{formatDateTime(message.createdAt)}</span>
+                                            </div>
+                                            <div className="ahr-message__body">{message.body}</div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+
+                            <div className="ahr-composer">
+                                {!canReply ? (
+                                    <div className="ahr-composer__closed">
+                                        This request is closed. Reopen it to continue the conversation.
+                                    </div>
+                                ) : (
+                                    <>
+                                        <label htmlFor="admin-help-request-reply" className="ahr-composer__label">
+                                            Reply
+                                        </label>
+                                        <textarea
+                                            id="admin-help-request-reply"
+                                            rows={4}
+                                            value={draftMessage}
+                                            onChange={(e) => setDraftMessage(e.target.value)}
+                                            placeholder="Send an update, ask a follow-up question, or give the requester next steps."
+                                            disabled={sendingMessage}
+                                        />
+                                        <div className="ahr-composer__footer">
+                                            <span className="ahr-composer__hint">
+                                                {composerHint}
+                                            </span>
+                                            <button
+                                                className="button button-accept"
+                                                disabled={sendingMessage || !draftMessage.trim()}
+                                                onClick={sendMessage}
+                                            >
+                                                <FaPaperPlane /> {sendingMessage ? 'Sending...' : 'Send Reply'}
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </>
+                    )}
+                </section>
+            </div>
+        </div>
+    )
 }
 
 export default AdminHelpRequests
