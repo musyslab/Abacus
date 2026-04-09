@@ -7,10 +7,13 @@ import MenuComponent from "../components/MenuComponent";
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
 import "../../styling/StudentGoldSubmissions.scss";
 
+type GoldProblemType = "normal" | "creative";
+
 type GoldProjectSummary = {
   Id: number;
   Name: string;
   Division?: string;
+  GoldProblemType?: GoldProblemType;
 };
 
 type SubmissionStatus =
@@ -23,6 +26,7 @@ type MyGoldSubmissionResponse = {
   id: number;
   projectId: number | null;
   link: string;
+  docLink?: string | null;
   points: number | null;
   feedback: string | null;
   submittedAt: string | null;
@@ -31,6 +35,8 @@ type MyGoldSubmissionResponse = {
   regradeRequested: boolean;
   regradeRequestedAt: string | null;
   regradeRequestedByStudentId: number | null;
+  cooldownSecondsRemaining?: number;
+  nextAllowedSubmissionAt?: string | null;
 };
 
 const StudentGoldSubmissions = () => {
@@ -45,7 +51,10 @@ const StudentGoldSubmissions = () => {
       : null;
 
   const [projectName, setProjectName] = useState<string>("");
+  const [goldProblemType, setGoldProblemType] =
+    useState<GoldProblemType>("normal");
   const [link, setLink] = useState("");
+  const [docLink, setDocLink] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(false);
@@ -61,6 +70,10 @@ const StudentGoldSubmissions = () => {
   const [regradeRequestedAt, setRegradeRequestedAt] = useState<string | null>(
     null
   );
+  const [cooldownRemainingSeconds, setCooldownRemainingSeconds] = useState(0);
+  const [nextAllowedSubmissionAt, setNextAllowedSubmissionAt] = useState<
+    string | null
+  >(null);
 
   function authConfig() {
     const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
@@ -71,13 +84,39 @@ const StudentGoldSubmissions = () => {
     return url.includes("scratch.mit.edu/projects/");
   };
 
+  const isValidOnlineDocLink = (url: string) => {
+    const trimmed = url.trim();
+    if (!trimmed) return false;
+
+    try {
+      const parsed = new URL(trimmed);
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+
   const extractScratchProjectId = (url: string) => {
     const match = url.match(/projects\/(\d+)/);
     return match ? match[1] : null;
   };
 
   const scratchProjectId = extractScratchProjectId(link);
+  const isCreativeProblem = goldProblemType === "creative";
   const isError = message.includes("❌");
+
+  const applyCooldownState = (
+    secondsRemaining?: number,
+    nextAllowedAt?: string | null
+  ) => {
+    const normalizedSeconds =
+      typeof secondsRemaining === "number" && Number.isFinite(secondsRemaining)
+        ? Math.max(0, Math.ceil(secondsRemaining))
+        : 0;
+
+    setCooldownRemainingSeconds(normalizedSeconds);
+    setNextAllowedSubmissionAt(nextAllowedAt ?? null);
+  };
 
   const fetchProjectMetadata = async (targetProjectId: number) => {
     try {
@@ -93,9 +132,14 @@ const StudentGoldSubmissions = () => {
       const match = projects.find(
         (project) => Number(project.Id) === targetProjectId
       );
+
       setProjectName(match?.Name || "");
+      setGoldProblemType(
+        match?.GoldProblemType === "creative" ? "creative" : "normal"
+      );
     } catch {
       setProjectName("");
+      setGoldProblemType("normal");
     }
   };
 
@@ -117,8 +161,13 @@ const StudentGoldSubmissions = () => {
         setPoints(typeof res.data.points === "number" ? res.data.points : null);
         setFeedback(res.data.feedback ?? null);
         setLink(res.data.link || "");
+        setDocLink(res.data.docLink || "");
         setRegradeRequested(Boolean(res.data.regradeRequested));
         setRegradeRequestedAt(res.data.regradeRequestedAt ?? null);
+        applyCooldownState(
+          res.data.cooldownSecondsRemaining,
+          res.data.nextAllowedSubmissionAt ?? null
+        );
       } else {
         setSubmissionId(null);
         setHasSubmission(false);
@@ -127,8 +176,10 @@ const StudentGoldSubmissions = () => {
         setPoints(null);
         setFeedback(null);
         setLink("");
+        setDocLink("");
         setRegradeRequested(false);
         setRegradeRequestedAt(null);
+        applyCooldownState(0, null);
       }
     } catch {
       setSubmissionId(null);
@@ -138,8 +189,10 @@ const StudentGoldSubmissions = () => {
       setPoints(null);
       setFeedback(null);
       setLink("");
+      setDocLink("");
       setRegradeRequested(false);
       setRegradeRequestedAt(null);
+      applyCooldownState(0, null);
     }
   };
 
@@ -174,19 +227,60 @@ const StudentGoldSubmissions = () => {
     };
   }, [projectId]);
 
+  useEffect(() => {
+    if (cooldownRemainingSeconds <= 0) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setCooldownRemainingSeconds((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [cooldownRemainingSeconds]);
+
   const handleSubmit = async () => {
     if (!projectId) {
       setMessage("❌ Missing or invalid Gold Division project ID.");
       return;
     }
 
-    if (!link) {
+    if (!link.trim()) {
       setMessage("❌ Please enter a Scratch link.");
       return;
     }
 
     if (!isValidScratchLink(link)) {
       setMessage("❌ Please enter a valid Scratch project link.");
+      return;
+    }
+
+    if (isCreativeProblem && !docLink.trim()) {
+      setMessage(
+        "❌ Creative problems require both a Scratch project link and a document link."
+      );
+      return;
+    }
+
+    if (isCreativeProblem && !isValidOnlineDocLink(docLink)) {
+      setMessage("❌ Please enter a valid online document link.");
+      return;
+    }
+
+    if (cooldownRemainingSeconds > 0) {
+      setMessage(
+        `❌ Please wait ${formatCooldown(
+          cooldownRemainingSeconds
+        )} before submitting again.`
+      );
       return;
     }
 
@@ -198,7 +292,8 @@ const StudentGoldSubmissions = () => {
         `${API}/gold-division/create`,
         {
           project_id: projectId,
-          scratch_link: link,
+          scratch_link: link.trim(),
+          description_link: isCreativeProblem ? docLink.trim() : "",
         },
         authConfig()
       );
@@ -206,8 +301,16 @@ const StudentGoldSubmissions = () => {
       setMessage("✅ Team submission saved successfully!");
       await fetchMySubmission(projectId);
     } catch (err: any) {
-      const msg =
-        err?.response?.data?.message || "Submission failed. Try again.";
+      const responseData = err?.response?.data;
+
+      if (err?.response?.status === 429) {
+        applyCooldownState(
+          responseData?.cooldownSecondsRemaining,
+          responseData?.nextAllowedSubmissionAt ?? null
+        );
+      }
+
+      const msg = responseData?.message || "Submission failed. Try again.";
       setMessage(`❌ ${msg}`);
     } finally {
       setLoading(false);
@@ -282,11 +385,31 @@ const StudentGoldSubmissions = () => {
     return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString();
   };
 
+  const formatCooldown = (seconds: number) => {
+    const safeSeconds = Math.max(0, Math.ceil(seconds));
+    const minutes = Math.floor(safeSeconds / 60);
+    const remainingSeconds = safeSeconds % 60;
+
+    if (minutes > 0) {
+      return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+    }
+
+    return `${remainingSeconds}s`;
+  };
+
   const canRequestRegrade =
     hasSubmission &&
     !regradeRequested &&
     status === "graded" &&
     (points !== null || Boolean(feedback));
+
+  const submitButtonDisabled =
+    loading ||
+    pageLoading ||
+    regradeLoading ||
+    !link.trim() ||
+    (isCreativeProblem && !docLink.trim()) ||
+    cooldownRemainingSeconds > 0;
 
   return (
     <>
@@ -299,8 +422,8 @@ const StudentGoldSubmissions = () => {
       <div className="student-gold-root">
         <DirectoryBreadcrumbs
           items={[
-            { label: "Gold Problems", to: "/student/gold/problems" },
-            { label: "Gold Division Submission" },
+            { label: "Student Gold Problem Select", to: "/student/gold/problems" },
+            { label: "Gold Division Problems" },
           ]}
           trailingSeparator={false}
         />
@@ -318,10 +441,18 @@ const StudentGoldSubmissions = () => {
                 <div className={`sgs-status-banner ${statusToneClass}`}>
                   <div className="sgs-status-banner__main">
                     <div className="sgs-status-banner__header">
-                      <div className="sgs-status-banner__title">
-                        Team submission status
+                      <div className="sgs-status-banner__title-wrap">
+                        <div className="sgs-status-banner__eyebrow">
+                          Team overview
+                        </div>
+                        <div className="sgs-status-banner__title">
+                          Team Submission Status
+                        </div>
                       </div>
-                      <span className={`sgs-status-pill sgs-status-pill--${status}`}>
+
+                      <span
+                        className={`sgs-status-pill sgs-status-pill--${status}`}
+                      >
                         {statusLabel}
                       </span>
                     </div>
@@ -337,13 +468,51 @@ const StudentGoldSubmissions = () => {
                       ) : null}
                       {points !== null ? (
                         <div>
-                          <strong>Grade:</strong> {points}
+                          <strong>Points:</strong> {points}
                         </div>
                       ) : null}
                       {regradeRequested && regradeRequestedAt ? (
                         <div>
                           <strong>Regrade requested:</strong>{" "}
                           {formatDateTime(regradeRequestedAt)}
+                        </div>
+                      ) : null}
+                      {cooldownRemainingSeconds > 0 ? (
+                        <div>
+                          <strong>Your submit cooldown:</strong>{" "}
+                          {formatCooldown(cooldownRemainingSeconds)}
+                        </div>
+                      ) : null}
+                      {cooldownRemainingSeconds > 0 && nextAllowedSubmissionAt ? (
+                        <div>
+                          <strong>You can submit again at:</strong>{" "}
+                          {formatDateTime(nextAllowedSubmissionAt)}
+                        </div>
+                      ) : null}
+                      {link ? (
+                        <div>
+                          <strong>Scratch Link:</strong>{" "}
+                          <a
+                            href={link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="sgs-status-link"
+                          >
+                            <span>Open project</span>
+                          </a>
+                        </div>
+                      ) : null}
+                      {isCreativeProblem && docLink ? (
+                        <div>
+                          <strong>Description Doc:</strong>{" "}
+                          <a
+                            href={docLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="sgs-status-link"
+                          >
+                            <span>Open document</span>
+                          </a>
                         </div>
                       ) : null}
                     </div>
@@ -398,7 +567,18 @@ const StudentGoldSubmissions = () => {
                 all teammates will see the same submission, score, feedback,
                 status, and regrade request state. A live preview will appear
                 automatically when a valid Scratch project link is entered.
+                {isCreativeProblem
+                  ? " For Creative problems, you must also include a link to an online document that explains the project for admins."
+                  : ""}
               </div>
+
+              {cooldownRemainingSeconds > 0 && (
+                <div className="sgs-callout sgs-callout--warning">
+                  You recently submitted a project. Please wait{" "}
+                  <strong>{formatCooldown(cooldownRemainingSeconds)}</strong>{" "}
+                  before submitting again.
+                </div>
+              )}
 
               <div className="sgs-panel">
                 <div className="sgs-panel__header">
@@ -407,17 +587,18 @@ const StudentGoldSubmissions = () => {
                       Scratch Project Submission
                     </div>
                     <div className="sgs-panel__subtitle">
-                      {projectName
-                        ? `Submitting for: ${projectName}`
-                        : `Submitting for Gold problem #${projectId}`}
+                      Save your team’s latest Scratch project link below.
                     </div>
                   </div>
                 </div>
 
                 <div className="sgs-form">
                   <div className="sgs-field">
-                    <label className="sgs-field__label" htmlFor="gold-scratch-link">
-                      Scratch project link
+                    <label
+                      className="sgs-field__label"
+                      htmlFor="gold-scratch-link"
+                    >
+                      Scratch Project Link
                     </label>
                     <input
                       id="gold-scratch-link"
@@ -431,10 +612,36 @@ const StudentGoldSubmissions = () => {
                     <div className="sgs-field__help">
                       Use a Scratch project URL in the format shown above. Saving
                       this link updates the shared team submission for this
-                      problem. If your team had already been graded, submitting a
-                      new link will reset the status back to awaiting grading.
+                      problem. If your submission had already been graded,
+                      submitting a new link will reset the status back to
+                      awaiting grading. Each student account must wait one
+                      minute between submissions for the same Gold problem.
                     </div>
                   </div>
+
+                  {isCreativeProblem && (
+                    <div className="sgs-field">
+                      <label
+                        className="sgs-field__label"
+                        htmlFor="gold-description-doc-link"
+                      >
+                        Description Document Link
+                      </label>
+                      <input
+                        id="gold-description-doc-link"
+                        type="text"
+                        placeholder="https://docs.google.com/..."
+                        value={docLink}
+                        onChange={(e) => setDocLink(e.target.value)}
+                        className="sgs-field__input sgs-input"
+                        disabled={pageLoading}
+                      />
+                      <div className="sgs-field__help">
+                        Add a required online document that helps admins
+                        understand the creative project and its design choices.
+                      </div>
+                    </div>
+                  )}
 
                   {scratchProjectId && (
                     <div className="sgs-preview-container">
@@ -464,19 +671,26 @@ const StudentGoldSubmissions = () => {
                     <button
                       onClick={handleSubmit}
                       className="sgs-button sgs-button--primary"
-                      disabled={loading || pageLoading || regradeLoading || !link}
+                      disabled={submitButtonDisabled}
                       type="button"
                     >
-                      {loading ? "Submitting..." : "Submit Project"}
+                      {loading
+                        ? "Submitting..."
+                        : cooldownRemainingSeconds > 0
+                          ? `Submit Again In ${formatCooldown(
+                              cooldownRemainingSeconds
+                            )}`
+                          : "Submit Project"}
                     </button>
                   </div>
 
                   {message && (
                     <div
-                      className={`sgs-message ${isError
+                      className={`sgs-message ${
+                        isError
                           ? "sgs-message--error"
                           : "sgs-message--success"
-                        }`}
+                      }`}
                     >
                       {message}
                     </div>

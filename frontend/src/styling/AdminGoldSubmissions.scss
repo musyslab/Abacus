@@ -385,24 +385,26 @@
 
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100%;
   height: 100%;
   background: rgba(15, 23, 42, 0.55);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 999;
-  padding: 20px;
+  padding: 88px 16px 16px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .modal {
   width: 460px;
-  max-width: 100%;
-  max-height: calc(100vh - 40px);
-  overflow-y: auto;
+  max-width: min(100%, 460px);
+  max-height: calc(100vh - 104px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: #ffffff;
   border-radius: 16px;
   padding: 1.8rem;
@@ -412,6 +414,16 @@
 
 .modal-history {
   width: 760px;
+  max-width: min(100%, 760px);
+  max-height: calc(100vh - 104px);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.25rem;
 }
 
 .modal-title {
@@ -425,6 +437,54 @@
   font-size: 0.9rem;
   color: #6b7280;
   margin-bottom: 1.2rem;
+}
+
+.modal-subtitle a.button {
+  min-width: auto;
+}
+
+.modal-close-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #4b5563;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    transform 120ms ease,
+    box-shadow 120ms ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+
+  &:hover:not(:disabled) {
+    background: #f9fafb;
+    border-color: #cbd5e1;
+    color: #111827;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid #93c5fd;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
 }
 
 .form-group {
@@ -480,6 +540,12 @@
   justify-content: flex-end;
   gap: 0.7rem;
   margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+  background: #ffffff;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
 }
 
 .history-loading {
@@ -491,6 +557,10 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-right: 0.25rem;
 }
 
 .history-card {
@@ -562,12 +632,25 @@
 }
 
 @media (max-width: 720px) {
-  .modal {
+  .modal-overlay {
+    padding: 76px 12px 12px;
+  }
+
+  .modal,
+  .modal-history {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100vh - 88px);
     padding: 1.1rem;
   }
 
   .history-grid {
     grid-template-columns: 1fr;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
   }
 
   .gold-submissions-table {

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, UniqueConstraint, Text, DateTime, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Boolean, UniqueConstraint, Text, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.schema import ForeignKey
 from sqlalchemy.types import Date
@@ -16,6 +16,7 @@ class Projects(db.Model):
     Division = Column(String, nullable=False, default="blue")
     DescriptionText = Column(String)
     OrderIndex = Column(Integer)
+    GoldProblemType = Column(String(20), nullable=False, default="normal")
     Submissions = relationship('Submissions')
     solutionpath = Column(String)
     AsnDescriptionPath = Column(String)
@@ -95,6 +96,7 @@ class StudentUsers(db.Model):
     PasswordHash = Column(String(255))
     IsLocked = Column(Boolean, default=False)
 
+
 class HelpRequests(db.Model):
     __tablename__ = "HelpRequests"
 
@@ -106,10 +108,7 @@ class HelpRequests(db.Model):
     Description = Column(Text, nullable=False)
     Status = Column(Integer, default=0, nullable=False)
     CurrentAdminId = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=True)
-    # Timestamp
     CreatedAt = Column(DateTime, default=func.now(), nullable=False)
-    
-    # Stays null until compelted
     CompletedAt = Column(DateTime, nullable=True)
 
 
@@ -127,6 +126,7 @@ class TeamProjectStats(db.Model):
         UniqueConstraint('TeamId', 'ProjectId', name='teamprojectstats_team_project_unique'),
     )
 
+
 class ScoreboardSnapshots(db.Model):
     __tablename__ = "ScoreboardSnapshots"
     Id = Column(Integer, primary_key=True, autoincrement=True)
@@ -140,21 +140,20 @@ class ScoreboardSnapshots(db.Model):
         UniqueConstraint('Division', 'IsOnline', 'Minute', name='scoreboardsnapshots_division_online_minute_unique'),
     )
 
+
 class GoldDivision(db.Model):
     __tablename__ = "GoldDivision"
-    __table_args__ = (
-        UniqueConstraint('StudentId', 'ProjectId', name='uq_golddivision_student_project'),
-    )
 
     Id = Column(Integer, primary_key=True, autoincrement=True)
     Link = Column(String(255), nullable=False)
+    DocLink = Column(String(1000), nullable=True)
     StudentId = Column(Integer, ForeignKey('StudentUsers.Id'), nullable=False)
     ProjectId = Column(Integer, ForeignKey('Projects.Id'), nullable=False)
-    SubmittedAt = Column(Date)
+    SubmittedAt = Column(DateTime)
     Points = Column(Integer)
     Feedback = Column(String)
     AdminGraderId = Column(Integer, ForeignKey('AdminUsers.Id'), nullable=True)
-    RegradeRequestedAt = Column(Date, nullable=True)
+    RegradeRequestedAt = Column(DateTime, nullable=True)
     RegradeRequestedByStudentId = Column(
         Integer,
         ForeignKey('StudentUsers.Id'),

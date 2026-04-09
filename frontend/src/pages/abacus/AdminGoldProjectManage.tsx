@@ -12,6 +12,7 @@ import { FaExchangeAlt, FaRegFile } from 'react-icons/fa';
 import '../../styling/AdminProjectManage.scss';
 
 type GoldProjectType = 'competition' | 'none';
+type GoldProblemCategory = 'normal' | 'creative';
 
 export default function AdminGoldProjectManage() {
     const { id } = useParams();
@@ -25,11 +26,15 @@ export default function AdminGoldProjectManage() {
 
     const [projectName, setProjectName] = useState('');
     const [projectType, setProjectType] = useState<GoldProjectType>('none');
+    const [goldProblemType, setGoldProblemType] = useState<GoldProblemCategory>('normal');
     const [descriptionFile, setDescriptionFile] = useState<File | undefined>(undefined);
     const [descriptionFileName, setDescriptionFileName] = useState('');
     const [serverDescriptionFileName, setServerDescriptionFileName] = useState('');
     const [edit, setEdit] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+
+    const goldProblemTypeLabel = goldProblemType === 'creative' ? 'Creative' : 'Normal';
+    const goldProblemTypeMaxPoints = goldProblemType === 'creative' ? 15 : 7;
 
     function authConfig() {
         const token = localStorage.getItem('AUTOTA_AUTH_TOKEN');
@@ -48,6 +53,11 @@ export default function AdminGoldProjectManage() {
                 const data = res.data || {};
                 setProjectName(data.name || '');
                 setProjectType((data.type as GoldProjectType) || 'none');
+                setGoldProblemType(
+                    ((data.goldProblemType || 'normal') as GoldProblemCategory) === 'creative'
+                        ? 'creative'
+                        : 'normal'
+                );
 
                 const serverDesc = (data.descriptionFile || '') as string;
                 setDescriptionFileName(serverDesc);
@@ -92,6 +102,7 @@ export default function AdminGoldProjectManage() {
             formData.append('language', 'none');
             formData.append('project_type', projectType);
             formData.append('division', 'gold');
+            formData.append('gold_problem_type', goldProblemType);
 
             if (descriptionFile) {
                 formData.append('assignmentdesc', descriptionFile);
@@ -188,6 +199,25 @@ export default function AdminGoldProjectManage() {
                                         }
                                         getOptionClassName={(v) => v.toLowerCase()}
                                     />
+                                </div>
+
+                                <div className="form-field input-field">
+                                    <label>Gold Problem Category</label>
+                                    <SegmentedControl
+                                        className="segment-project-type"
+                                        options={[
+                                            { label: 'Normal (7 pts max)', value: 'normal' },
+                                            { label: 'Creative (15 pts max)', value: 'creative' },
+                                        ]}
+                                        value={goldProblemType}
+                                        onChange={(v) =>
+                                            setGoldProblemType(v as GoldProblemCategory)
+                                        }
+                                        getOptionClassName={(v) => v.toLowerCase()}
+                                    />
+                                    <div className="muted" style={{ marginTop: 8 }}>
+                                        {goldProblemTypeLabel} problems can earn up to {goldProblemTypeMaxPoints} points.
+                                    </div>
                                 </div>
 
                                 <div className="form-field input-field">
