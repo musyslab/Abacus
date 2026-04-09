@@ -862,17 +862,13 @@ export default function AdminTeamManage() {
         }
 
         if (division === "Eagle") {
-            navigate(isAdminMode ? "/admin/eagle-submissions" : "/teacher/eagle-submissions");
-            return;
-        }
-
-    function goToTeamSubmissions(teamId: number) {
-        const team = teams.find((t) => t.id === teamId) || null;
-        if (team && String(team.division || "").trim() === "Eagle") {
-            const eaglePath = isAdminMode ? `/admin/eagle-team-chat/${teamId}` : `/teacher/eagle-team-chat/${teamId}`;
+            const eaglePath = isAdminMode
+                ? `/admin/eagle-team-chat/${teamId}`
+                : `/teacher/eagle-team-chat/${teamId}`;
             navigate(eaglePath);
             return;
         }
+
         const path = isAdminMode
             ? `/admin/${managedSchoolId}/team-manage/${teamId}/submissions`
             : `/teacher/team-manage/${teamId}/submissions`;
@@ -1155,8 +1151,8 @@ export default function AdminTeamManage() {
                                                             <div className="atm-member-row__badges">
                                                                 <span
                                                                     className={`atm-badge ${saved
-                                                                            ? "atm-badge--success"
-                                                                            : "atm-badge--error"
+                                                                        ? "atm-badge--success"
+                                                                        : "atm-badge--error"
                                                                         }`}
                                                                 >
                                                                     {saved
@@ -1167,8 +1163,8 @@ export default function AdminTeamManage() {
                                                                 {saved ? (
                                                                     <span
                                                                         className={`atm-badge ${m.hasAccount
-                                                                                ? "atm-badge--success"
-                                                                                : "atm-badge--info"
+                                                                            ? "atm-badge--success"
+                                                                            : "atm-badge--info"
                                                                             }`}
                                                                     >
                                                                         {m.hasAccount
@@ -1200,8 +1196,8 @@ export default function AdminTeamManage() {
                                                                         </div>
                                                                         <div
                                                                             className={`atm-progress-row__value ${invite.sentCount > 0
-                                                                                    ? "is-ok"
-                                                                                    : "is-pending"
+                                                                                ? "is-ok"
+                                                                                : "is-pending"
                                                                                 }`}
                                                                         >
                                                                             {invite.sentCount > 0
@@ -1221,8 +1217,8 @@ export default function AdminTeamManage() {
                                                                         </div>
                                                                         <div
                                                                             className={`atm-progress-row__value ${m.hasAccount
-                                                                                    ? "is-ok"
-                                                                                    : "is-pending"
+                                                                                ? "is-ok"
+                                                                                : "is-pending"
                                                                                 }`}
                                                                         >
                                                                             {m.hasAccount
