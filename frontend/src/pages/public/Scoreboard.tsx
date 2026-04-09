@@ -29,6 +29,7 @@ type ScoreboardStatus =
     | "live"
     | "frozen"
     | "frozen-admin"
+    | "awaiting-results"
     | "final";
 
 type ProjectEntry = {
@@ -340,9 +341,10 @@ export default function Scoreboard() {
         };
     }, [shouldAutoRefresh, fetchScoreboard]);
 
-    // Handles auto-refresh for upcoming/frozen scoreboard
+    const shouldTransition = status === "upcoming" || status === "frozen" || status === "awaiting-results";
+    // Handles auto-refresh for upcoming/frozen/awaiting-results scoreboard
     useEffect(() => {
-        if ((status !== "upcoming" && status !== "frozen") || !transitionAt) return;
+        if (!shouldTransition || !transitionAt) return;
 
         const msUntil = transitionAt - Date.now() + REFRESH_OFFSET_SECONDS * 1000;
 
@@ -358,9 +360,9 @@ export default function Scoreboard() {
         return () => window.clearTimeout(timer);
     }, [status, transitionAt, fetchScoreboard]);
 
-    // Handles countdown for upcoming/frozen transitions
+    // Handles countdown for upcoming/frozen/awaiting-results transitions
     useEffect(() => {
-        if ((status !== "upcoming" && status !== "frozen") || !transitionAt) return;
+        if (!shouldTransition || !transitionAt) return;
 
         const offsetMs = REFRESH_OFFSET_SECONDS * 1000;
 
@@ -500,7 +502,7 @@ export default function Scoreboard() {
                     ) : undefined,
                     metaRight: transitionCountdown ? (
                         <MetaChip
-                            label="Final results in"
+                            label="Competition ends in"
                             value={transitionCountdown}
                             status={status}
                             icon={<FaHourglassHalf size={16}/>}
@@ -531,6 +533,22 @@ export default function Scoreboard() {
                         />
                     ) : undefined,
                 };
+            case "awaiting-results":
+                return {
+                    class: status,
+                    icon: <FaTrophy />,
+                    title: "Awaiting final results",
+                    subtitle: "Final standings will be revealed after the award ceremony",
+                    pill: "Awaiting Results",
+                    metaLeft: transitionCountdown ? (
+                        <MetaChip
+                            label="Final results in"
+                            value={transitionCountdown}
+                            status={status}
+                            icon={<FaHourglassHalf size={16}/>}
+                        />
+                    ) : undefined,
+                };
             case "final":
                 return {
                     class: status,
@@ -555,6 +573,8 @@ export default function Scoreboard() {
                 };
         }
     }, [status, timestamp, countdown, transitionCountdown]);
+
+    const scoreboardVisible = (status !== "upcoming" && status !== "awaiting-results") || isAdmin;
 
     if (isLoading) {
         return <LoadingAnimation show={true} message="Loading scoreboard..." />;
@@ -695,7 +715,7 @@ export default function Scoreboard() {
                             )}
                         </div>
                     </div>
-                    {(status !== "upcoming" || isAdmin) && (
+                    {scoreboardVisible && (
                         <table className="scoreboard-table">
                             <thead className="scoreboard-table-head">
                                 <tr className="scoreboard-table-row">

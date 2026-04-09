@@ -23,6 +23,7 @@ from src.constants import (
     COMPETITION_START,
     COMPETITION_END,
     SCOREBOARD_FREEZE,
+    SCOREBOARD_RELEASE,
     is_registration_open,
     is_student_submission_locked,
     is_teacher_submission_locked,
@@ -639,8 +640,16 @@ def get_scoreboard(
 
     transition_at = None
     if now > COMPETITION_END:
-        minute = get_minute_index(start=COMPETITION_START, now=COMPETITION_END)
-        status = "final"
+        if user_is_admin or now > SCOREBOARD_RELEASE:
+            minute = get_minute_index(start=COMPETITION_START, now=COMPETITION_END)
+            status = "final"
+        else:
+            return jsonify({
+                "projects": [],
+                "teams": [],
+                "status": "awaiting-results",
+                "transitionAt": SCOREBOARD_RELEASE.isoformat()
+            })
     elif now > SCOREBOARD_FREEZE and not user_is_admin:
         minute = get_minute_index(start=COMPETITION_START, now=SCOREBOARD_FREEZE)
         status = "frozen"
@@ -651,7 +660,7 @@ def get_scoreboard(
     else:
         minute = get_minute_index(start=COMPETITION_START, now=now)
         status = "live"
-    
+
     cache_key = f"scoreboard:{division}:{is_online}:{minute}:{status}"
 
     cached = cache.get(cache_key)

@@ -158,6 +158,12 @@
     color: #0f766e;
 }
 
+.scoreboard-status__pill--awaiting-results {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+}
+
 .scoreboard-status__pill--final {
     background: #fffbeb;
     border-color: #fde68a;
@@ -312,6 +318,16 @@
 
     &::before {
         background: #14b8a6;
+    }
+}
+
+.scoreboard-meta-chip--awaiting-results {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #991b1b;
+
+    &::before {
+        background: #ef4444;
     }
 }
 
