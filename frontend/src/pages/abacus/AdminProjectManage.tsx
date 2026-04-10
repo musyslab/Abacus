@@ -12,6 +12,7 @@ import { TbJson } from 'react-icons/tb'
 import {
     FaAlignJustify,
     FaCircleNotch,
+    FaCloudUploadAlt,
     FaCode,
     FaDownload,
     FaEdit,
@@ -54,6 +55,8 @@ class Testcase {
 
 type SolutionLang = 'java' | 'python'
 type ProjectType = 'competition' | 'practice' | 'none'
+type ProjectDivision = 'blue' | 'gold'
+type GoldProblemType = 'normal' | 'creative'
 
 const isJavaFileName = (n: string) => /\.java$/i.test(n)
 
@@ -76,7 +79,15 @@ function solutionLangFor(name: string): SolutionLang | null {
     return null
 }
 
-export default function AdminProjectManage() {
+type AdminProjectManageProps = {
+    division?: ProjectDivision
+    divisionLabel?: string
+}
+
+export default function AdminProjectManage({
+    division = 'blue',
+    divisionLabel = 'Blue Division',
+}: AdminProjectManageProps) {
     const { id } = useParams()
     const project_id = Number(id)
 
@@ -123,6 +134,10 @@ export default function AdminProjectManage() {
     const [removedAdditionalFiles, setRemovedAdditionalFiles] = useState<string[]>([])
     const [mainJavaFileName, setMainJavaFileName] = useState<string>('')
     const [projectType, setProjectType] = useState<ProjectType>('none')
+    const [goldProblemType, setGoldProblemType] = useState<GoldProblemType>('normal')
+
+    const goldProblemTypeLabel = goldProblemType === 'creative' ? 'Creative' : 'Normal'
+    const goldProblemTypeMaxPoints = goldProblemType === 'creative' ? 15 : 7
 
     // Lock page scroll whenever either modal is open
     useEffect(() => {
@@ -361,6 +376,7 @@ export default function AdminProjectManage() {
                     setProjectName(data["name"] || '')
                     setProjectLanguage(data["language"] || '')
                     setProjectType(data["type"] as ProjectType)
+                    setGoldProblemType(((data["goldProblemType"] || 'normal') as GoldProblemType) === 'creative' ? 'creative' : 'normal')
                     setServerProjectLanguageSnapshot(data["language"] || '')
                     setSolutionFileNames([])
                     setSolutionFiles([])
@@ -500,13 +516,25 @@ export default function AdminProjectManage() {
     }
 
     async function handleNewSubmit() {
-        if (!ProjectName || !ProjectLanguage) {
+        if (!ProjectName) {
             window.alert('Please fill out all fields')
             return
         }
-        if (SolutionFiles.length === 0 || !AssignmentDesc) {
-            window.alert('Please upload your solution file(s) and the problem description.')
-            return
+
+        if (division === 'gold') {
+            if (!AssignmentDesc) {
+                window.alert('Please upload the problem description.')
+                return
+            }
+        } else {
+            if (!ProjectLanguage) {
+                window.alert('Please fill out all fields')
+                return
+            }
+            if (SolutionFiles.length === 0 || !AssignmentDesc) {
+                window.alert('Please upload your solution file(s) and the problem description.')
+                return
+            }
         }
 
         try {
@@ -514,20 +542,25 @@ export default function AdminProjectManage() {
 
             const formData = new FormData()
             SolutionFiles.forEach(f => formData.append('solutionFiles', f))
-            formData.append('assignmentdesc', AssignmentDesc)
+            if (AssignmentDesc) formData.append('assignmentdesc', AssignmentDesc)
             selectedAddFiles.forEach(f => formData.append('additionalFiles', f))
             if (selectedAddFiles.length === 0 && additionalFileNames.length === 0) {
                 formData.append('clearAdditionalFiles', 'true')
             }
             formData.append('name', ProjectName)
-            formData.append('language', ProjectLanguage)
+            formData.append('language', division === 'gold' ? 'none' : ProjectLanguage)
             formData.append('project_type', projectType)
+            formData.append('division', division)
+            formData.append('gold_problem_type', goldProblemType)
 
             const res = await axios.post(`${API}/projects/create_project`, formData, authConfig())
             const newId = res.data
 
             window.alert('Your project has been created! Next, open the "Test Cases" tab to add test cases.')
-            window.location.href = `/admin/problem/manage/${newId}`
+            window.location.href =
+                division === 'gold'
+                    ? `/admin/gold/problem/manage/${newId}`
+                    : `/admin/blue/problem/manage/${newId}`
         } catch (error: any) {
             window.alert(error?.response?.data?.message || 'An error occurred while saving the project.')
             console.log(error)
@@ -539,7 +572,12 @@ export default function AdminProjectManage() {
 
     async function handleEditSubmit() {
         try {
-            if (!ProjectName || !ProjectLanguage) {
+            if (!ProjectName) {
+                window.alert('Please fill out all fields')
+                return
+            }
+
+            if (division !== 'gold' && !ProjectLanguage) {
                 window.alert('Please fill out all fields')
                 return
             }
@@ -564,13 +602,18 @@ export default function AdminProjectManage() {
             }
 
             formData.append('name', ProjectName)
-            formData.append('language', ProjectLanguage)
+            formData.append('language', division === 'gold' ? 'none' : ProjectLanguage)
             formData.append('project_type', projectType)
+            formData.append('division', division)
+            formData.append('gold_problem_type', goldProblemType)
 
             await axios.post(`${API}/projects/edit_project`, formData, authConfig())
 
             window.alert('Project information saved. Next, go to the "Test Cases" tab to create test cases.')
-            window.location.href = `/admin/problem/manage/${project_id}`
+            window.location.href =
+                division === 'gold'
+                    ? `/admin/gold/problem/manage/${project_id}`
+                    : `/admin/blue/problem/manage/${project_id}`
         } catch (error: any) {
             window.alert(error?.response?.data?.message || 'An error occurred while saving the project.')
             console.log(error)
@@ -915,13 +958,20 @@ export default function AdminProjectManage() {
             <DirectoryBreadcrumbs
                 items={[
                     { label: 'Admin Menu', to: '/admin' },
-                    { label: 'Problem List', to: '/admin/problems' },
-                    { label: 'Problem Manage' },
+                    {
+                        label: `${divisionLabel} Problem List`,
+                        to: division === 'blue' ? '/admin/blue/problems' : '/admin/gold/problems',
+                    },
+                    { label: `${divisionLabel} Problem Manage` },
                 ]}
             />
 
             <div className={`admin-project-config-container${modalOpen ? ' blurred' : ''}`}>
-                <div className="pageTitle">{edit ? 'Edit Problem' : 'Create Problem'}</div>
+                <div className="pageTitle">
+                    {edit
+                        ? `Edit ${divisionLabel} Problem`
+                        : `Create ${divisionLabel} Problem`}
+                </div>
 
                 <div className="tab-menu">
                     <button
@@ -970,147 +1020,172 @@ export default function AdminProjectManage() {
                                         />
                                     </div>
 
+                                    {division === 'gold' && (
+                                        <div className="form-field input-field">
+                                            <label>Gold Problem Category</label>
+                                            <SegmentedControl
+                                                className="segment-project-type"
+                                                options={[
+                                                    { label: 'Normal (10 pts max)', value: 'normal' },
+                                                    { label: 'Creative (15 pts max)', value: 'creative' },
+                                                ]}
+                                                value={goldProblemType}
+                                                onChange={(v) => setGoldProblemType(v as GoldProblemType)}
+                                                getOptionClassName={(v) => v.toLowerCase()}
+                                            />
+                                            <div className="muted" style={{ marginTop: 8 }}>
+                                                {goldProblemTypeLabel} problems can earn up to {goldProblemTypeMaxPoints} points.
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="form-group language-group">
                                         <label>Language</label>
-                                        <div className="detected-language">{languageLabel}</div>
+                                        <div className="detected-language">
+                                            {division === 'gold' ? 'Scratch / Link submission' : languageLabel}
+                                        </div>
                                     </div>
 
                                     <div className="file-section">
-                                        <div className="info-segment">
-                                            <h1 className="info-title">
-                                                {edit ? 'Preview or Change Solution Files' : 'Upload solution files'}
-                                            </h1>
-                                            <div
-                                                className="file-drop-area"
-                                                onDragOver={e => e.preventDefault()}
-                                                onDrop={e => {
-                                                    e.preventDefault()
-                                                    const files = e.dataTransfer.files
-                                                    if (files && files.length > 0) {
-                                                        handleSolutionFilesChange({ target: { files } } as any)
-                                                    }
-                                                }}
-                                            >
-                                                {SolutionFiles.length === 0 && (!edit || serverSolutionFileNames.length === 0) ? (
-                                                    <>
-                                                        <input
-                                                            type="file"
-                                                            className="file-input"
-                                                            multiple
-                                                            accept={SOLUTION_ACCEPT}
-                                                            onChange={handleSolutionFilesChange}
-                                                        />
-                                                        <div className="file-drop-message">
-                                                            Drag &amp; drop your file here or&nbsp;
-                                                            <span className="browse-text">browse</span>
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    <div className="file-preview">
-                                                        {(() => {
-                                                            const shownNames =
-                                                                SolutionFiles.length > 0
-                                                                    ? SolutionFiles.map(f => f.name)
-                                                                    : serverSolutionFileNames
-                                                            const showMainTag =
-                                                                ProjectLanguage === 'java' &&
-                                                                shownNames.filter(isJavaFileName).length > 1 &&
-                                                                !!mainJavaFileName
-                                                            return (
-                                                                <>
-                                                                    <button
-                                                                        type="button"
-                                                                        className="exchange-icon"
-                                                                        title={
-                                                                            SolutionFiles.length > 0
-                                                                                ? 'Clear selected solution files'
-                                                                                : 'Replace server solution files'
-                                                                        }
-                                                                        aria-label={
-                                                                            SolutionFiles.length > 0
-                                                                                ? 'Clear selected solution files'
-                                                                                : 'Replace server solution files'
-                                                                        }
-                                                                        onClick={(e) => {
-                                                                            e.preventDefault()
-                                                                            if (SolutionFiles.length > 0) {
-                                                                                setSolutionFiles([])
-                                                                                setSolutionFileNames([])
-                                                                            } else if (edit && serverSolutionFileNames.length > 0) {
-                                                                                setServerSolutionFileNames([])
+                                        {division === 'blue' && (
+                                            <div className="info-segment">
+                                                <h1 className="info-title">
+                                                    {edit ? 'Preview or Change Solution Files' : 'Upload solution files'}
+                                                </h1>
+                                                <div
+                                                    className="file-drop-area"
+                                                    onDragOver={e => e.preventDefault()}
+                                                    onDrop={e => {
+                                                        e.preventDefault()
+                                                        const files = e.dataTransfer.files
+                                                        if (files && files.length > 0) {
+                                                            handleSolutionFilesChange({ target: { files } } as any)
+                                                        }
+                                                    }}
+                                                >
+                                                    {SolutionFiles.length === 0 && (!edit || serverSolutionFileNames.length === 0) ? (
+                                                        <>
+                                                            <input
+                                                                type="file"
+                                                                className="file-input"
+                                                                multiple
+                                                                accept={SOLUTION_ACCEPT}
+                                                                onChange={handleSolutionFilesChange}
+                                                            />
+                                                            <div className="file-drop-message">
+                                                                <FaCloudUploadAlt className="upload-cloud-icon" aria-hidden="true" />
+                                                                Drag &amp; drop your file here or&nbsp;
+                                                                <span className="browse-text">browse</span>
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <div className="file-preview">
+                                                            {(() => {
+                                                                const shownNames =
+                                                                    SolutionFiles.length > 0
+                                                                        ? SolutionFiles.map(f => f.name)
+                                                                        : serverSolutionFileNames
+                                                                const showMainTag =
+                                                                    ProjectLanguage === 'java' &&
+                                                                    shownNames.filter(isJavaFileName).length > 1 &&
+                                                                    !!mainJavaFileName
+                                                                return (
+                                                                    <>
+                                                                        <button
+                                                                            type="button"
+                                                                            className="exchange-icon"
+                                                                            title={
+                                                                                SolutionFiles.length > 0
+                                                                                    ? 'Clear selected solution files'
+                                                                                    : 'Replace server solution files'
                                                                             }
-                                                                        }}
-                                                                    >
-                                                                        <FaExchangeAlt aria-hidden="true" />
-                                                                    </button>
-
-                                                                    <div
-                                                                        className="file-preview-list"
-                                                                        role={shownNames.length > 1 ? 'button' : undefined}
-                                                                        tabIndex={shownNames.length > 1 ? 0 : undefined}
-                                                                        title={
-                                                                            shownNames.length > 1
-                                                                                ? 'Click to preview ALL solution files'
-                                                                                : undefined
-                                                                        }
-                                                                        onClick={(e) => {
-                                                                            if (shownNames.length > 1) {
+                                                                            aria-label={
+                                                                                SolutionFiles.length > 0
+                                                                                    ? 'Clear selected solution files'
+                                                                                    : 'Replace server solution files'
+                                                                            }
+                                                                            onClick={(e) => {
                                                                                 e.preventDefault()
-                                                                                openAllSolutionPreview()
-                                                                            }
-                                                                        }}
-                                                                        onKeyDown={(e) => {
-                                                                            if (shownNames.length > 1 && (e.key === 'Enter' || e.key === ' ')) {
-                                                                                e.preventDefault()
-                                                                                openAllSolutionPreview()
-                                                                            }
-                                                                        }}
-                                                                    >
-                                                                        {shownNames.map((name) => (
-                                                                            <div key={name} className="file-preview-row solution-file-card">
-                                                                                <span className="file-icon-wrapper" aria-hidden="true">
-                                                                                    <FaRegFile className="file-outline-icon" aria-hidden="true" />
-                                                                                    {getFileIcon(name)}
-                                                                                </span>
+                                                                                if (SolutionFiles.length > 0) {
+                                                                                    setSolutionFiles([])
+                                                                                    setSolutionFileNames([])
+                                                                                } else if (edit && serverSolutionFileNames.length > 0) {
+                                                                                    setServerSolutionFileNames([])
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <FaExchangeAlt aria-hidden="true" />
+                                                                        </button>
 
-                                                                                {shownNames.length > 1 ? (
-                                                                                    <span className="file-name">
-                                                                                        {name}
-                                                                                        {showMainTag && isJavaFileName(name) && name === mainJavaFileName && (
-                                                                                            <span className="main-indicator">Main</span>
-                                                                                        )}
+                                                                        <div
+                                                                            className="file-preview-list"
+                                                                            role={shownNames.length > 1 ? 'button' : undefined}
+                                                                            tabIndex={shownNames.length > 1 ? 0 : undefined}
+                                                                            title={
+                                                                                shownNames.length > 1
+                                                                                    ? 'Click to preview ALL solution files'
+                                                                                    : undefined
+                                                                            }
+                                                                            onClick={(e) => {
+                                                                                if (shownNames.length > 1) {
+                                                                                    e.preventDefault()
+                                                                                    openAllSolutionPreview()
+                                                                                }
+                                                                            }}
+                                                                            onKeyDown={(e) => {
+                                                                                if (shownNames.length > 1 && (e.key === 'Enter' || e.key === ' ')) {
+                                                                                    e.preventDefault()
+                                                                                    openAllSolutionPreview()
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            {shownNames.map((name) => (
+                                                                                <div key={name} className="file-preview-row solution-file-card">
+                                                                                    <span className="file-icon-wrapper" aria-hidden="true">
+                                                                                        <FaRegFile className="file-outline-icon" aria-hidden="true" />
+                                                                                        {getFileIcon(name)}
                                                                                     </span>
-                                                                                ) : (
-                                                                                    <button
-                                                                                        type="button"
-                                                                                        className="file-name"
-                                                                                        title="Click to preview"
-                                                                                        onClick={(e) => {
-                                                                                            e.preventDefault()
-                                                                                            if (SolutionFiles.length > 0) {
-                                                                                                const file = SolutionFiles.find(x => x.name === name)
-                                                                                                if (file) openLocalPreview(file)
-                                                                                            } else {
-                                                                                                openServerPreview(name)
-                                                                                            }
-                                                                                        }}
-                                                                                    >
-                                                                                        {name}
-                                                                                        {showMainTag && isJavaFileName(name) && name === mainJavaFileName && (
-                                                                                            <span className="main-indicator">Main</span>
-                                                                                        )}
-                                                                                    </button>
-                                                                                )}
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                </>
-                                                            )
-                                                        })()}
-                                                    </div>
-                                                )}
+
+                                                                                    {shownNames.length > 1 ? (
+                                                                                        <span className="file-name">
+                                                                                            {name}
+                                                                                            {showMainTag && isJavaFileName(name) && name === mainJavaFileName && (
+                                                                                                <span className="main-indicator">Main</span>
+                                                                                            )}
+                                                                                        </span>
+                                                                                    ) : (
+                                                                                        <button
+                                                                                            type="button"
+                                                                                            className="file-name"
+                                                                                            title="Click to preview"
+                                                                                            onClick={(e) => {
+                                                                                                e.preventDefault()
+                                                                                                if (SolutionFiles.length > 0) {
+                                                                                                    const file = SolutionFiles.find(x => x.name === name)
+                                                                                                    if (file) openLocalPreview(file)
+                                                                                                } else {
+                                                                                                    openServerPreview(name)
+                                                                                                }
+                                                                                            }}
+                                                                                        >
+                                                                                            {name}
+                                                                                            {showMainTag && isJavaFileName(name) && name === mainJavaFileName && (
+                                                                                                <span className="main-indicator">Main</span>
+                                                                                            )}
+                                                                                        </button>
+                                                                                    )}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </>
+                                                                )
+                                                            })()}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
+
                                         <div className="info-segment">
                                             <h1 className="info-title">
                                                 {edit
@@ -1124,7 +1199,7 @@ export default function AdminProjectManage() {
                                                     e.preventDefault()
                                                     const files = e.dataTransfer.files
                                                     if (files && files.length > 0) {
-                                                        handleSolutionFilesChange({ target: { files } } as any)
+                                                        handleDescFileChange({ target: { files } } as any)
                                                     }
                                                 }}
                                             >
@@ -1138,6 +1213,7 @@ export default function AdminProjectManage() {
                                                             onChange={handleDescFileChange}
                                                         />
                                                         <div className="file-drop-message">
+                                                            <FaCloudUploadAlt className="upload-cloud-icon" aria-hidden="true" />
                                                             Drag &amp; drop your file here or&nbsp;
                                                             <span className="browse-text">browse</span>
                                                         </div>
@@ -1244,46 +1320,51 @@ export default function AdminProjectManage() {
                                             )}
                                         </div>
 
-                                        <div className="optional-file-toggle">
-                                            <button
-                                                type="button"
-                                                className={`toggle-optional-file ${showAdditionalFile ? 'on' : 'off'}`}
-                                                aria-pressed={showAdditionalFile}
-                                                onClick={() => setShowAdditionalFile(prev => !prev)}
-                                            >
-                                                {showAdditionalFile
-                                                    ? 'Optional additional text file: On'
-                                                    : 'Optional additional text file: Off'}
-                                            </button>
-                                        </div>
-
-                                        {showAdditionalFile && (
-                                            <div className="info-segment optional-additional-file-segment">
-                                                <h1 className="info-title">Optional Additional Files</h1>
-                                                <div
-                                                    className="file-drop-area optional-additional-file-drop"
-                                                    onDragOver={e => e.preventDefault()}
-                                                    onDrop={e => {
-                                                        e.preventDefault()
-                                                        const files = e.dataTransfer.files
-                                                        if (files && files.length > 0) {
-                                                            handleAdditionalFileChange({ target: { files } } as any)
-                                                        }
-                                                    }}
-                                                >
-                                                    <input
-                                                        type="file"
-                                                        className="file-input optional-additional-file-input"
-                                                        multiple
-                                                        accept={ADD_ACCEPT}
-                                                        onChange={handleAdditionalFileChange}
-                                                    />
-                                                    <div className="file-drop-message">
-                                                        Drag &amp; drop your file(s) here or&nbsp;
-                                                        <span className="browse-text">browse</span>
-                                                    </div>
+                                        {division === 'blue' && (
+                                            <>
+                                                <div className="optional-file-toggle">
+                                                    <button
+                                                        type="button"
+                                                        className={`toggle-optional-file ${showAdditionalFile ? 'on' : 'off'}`}
+                                                        aria-pressed={showAdditionalFile}
+                                                        onClick={() => setShowAdditionalFile(prev => !prev)}
+                                                    >
+                                                        {showAdditionalFile
+                                                            ? 'Optional additional text file: On'
+                                                            : 'Optional additional text file: Off'}
+                                                    </button>
                                                 </div>
-                                            </div>
+
+                                                {showAdditionalFile && (
+                                                    <div className="info-segment optional-additional-file-segment">
+                                                        <h1 className="info-title">Optional Additional Files</h1>
+                                                        <div
+                                                            className="file-drop-area optional-additional-file-drop"
+                                                            onDragOver={e => e.preventDefault()}
+                                                            onDrop={e => {
+                                                                e.preventDefault()
+                                                                const files = e.dataTransfer.files
+                                                                if (files && files.length > 0) {
+                                                                    handleAdditionalFileChange({ target: { files } } as any)
+                                                                }
+                                                            }}
+                                                        >
+                                                            <input
+                                                                type="file"
+                                                                className="file-input optional-additional-file-input"
+                                                                multiple
+                                                                accept={ADD_ACCEPT}
+                                                                onChange={handleAdditionalFileChange}
+                                                            />
+                                                            <div className="file-drop-message">
+                                                            <FaCloudUploadAlt className="upload-cloud-icon" aria-hidden="true" />
+                                                                Drag &amp; drop your file(s) here or&nbsp;
+                                                                <span className="browse-text">browse</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </>
                                         )}
                                     </div>
 
@@ -1401,7 +1482,7 @@ export default function AdminProjectManage() {
                                             e.preventDefault()
                                             const files = e.dataTransfer.files
                                             if (files && files.length > 0) {
-                                                handleDescFileChange({ target: { files } } as any)
+                                                handleJsonFileChange({ target: { files } } as any)
                                             }
                                         }}
                                     >
@@ -1415,6 +1496,7 @@ export default function AdminProjectManage() {
                                                     onChange={handleJsonFileChange}
                                                 />
                                                 <div className="file-drop-message">
+                                                <FaCloudUploadAlt className="upload-cloud-icon" aria-hidden="true" />
                                                     Drag &amp; drop your JSON file here or&nbsp;
                                                     <span className="browse-text">browse</span>
                                                 </div>
@@ -1431,6 +1513,7 @@ export default function AdminProjectManage() {
                                                     className="exchange-icon"
                                                     onClick={() => {
                                                         setjsonfilename('')
+                                                        setJsonFile(undefined)
                                                         const jsonInput = document.getElementById('jsonFile') as HTMLInputElement | null
                                                         if (jsonInput) jsonInput.value = ''
                                                     }}
@@ -1447,7 +1530,7 @@ export default function AdminProjectManage() {
                                         type="button"
                                         className="json-submit-button"
                                         onClick={handleJsonSubmit}
-                                        disabled={submittingJson}
+                                        disabled={submittingJson || !JsonFile}
                                     >
                                         {submittingJson ? (
                                             <>
@@ -1566,7 +1649,6 @@ export default function AdminProjectManage() {
                                     <label>Output</label>
                                     <textarea
                                         className="modal-textarea textarea--output"
-                                        //rows={1}
                                         value={selectedTestCase?.output || ''}
                                         readOnly
                                         aria-readonly="true"

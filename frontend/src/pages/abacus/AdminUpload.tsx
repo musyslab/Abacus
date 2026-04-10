@@ -23,6 +23,7 @@ interface ProjectObject {
     Id: number;
     Name: string;
     Type: string;
+    Difficulty: string;
     OrderIndex: number;
     TotalSubmissions: number;
 }
@@ -173,7 +174,7 @@ const AdminUpload = () => {
             .then((res) => {
                 const type = (res.headers as any)['content-type'] || 'application/octet-stream'
                 const blob = new Blob([res.data], { type })
-                let name = (res.headers as any)['x-filename'] || 'assignment_description'
+                const name = (res.headers as any)['x-filename'] || 'assignment_description'
                 const url = URL.createObjectURL(blob)
                 const a = document.createElement('a')
                 a.href = url
@@ -200,6 +201,7 @@ const AdminUpload = () => {
                     `${API}/teams/byschool?school_id=${schoolId}`,
                     authConfig()
                 )
+                console.log(res.data)
                 const data = Array.isArray(res.data) ? res.data : [];
                 setTeams(data)
             } catch (err: any) {
@@ -265,7 +267,7 @@ const AdminUpload = () => {
                 state: {
                     breadcrumbItems: [
                         { label: "Admin Menu", to: "/admin" },
-                        { label: "Admin Upload", to: "/admin/upload" },
+                        { label: "Blue Division Admin Upload", to: "/admin/upload" },
                     ],
                 },
             })
@@ -292,19 +294,22 @@ const AdminUpload = () => {
             <LoadingAnimation show={isLoading} message="Uploading..." />
 
             <Helmet>
-                <title>[Admin] Abacus</title>
+                <title>[Admin] Blue Division Admin Upload | Abacus</title>
             </Helmet>
 
-            <MenuComponent />
+            <MenuComponent
+                showAdminUpload={true}
+                showProblemList={true}
+            />
 
             <div className="admin-upload-root">
                 <DirectoryBreadcrumbs
                     items={[
                         { label: "Admin Menu", to: "/admin" },
-                        { label: "Admin Upload" },
+                        { label: "Blue Division Admin Upload" },
                     ]}
                 />
-                <div className="pageTitle">Admin Upload</div>
+                <div className="pageTitle">Blue Division Admin Upload</div>
                 <div className="admin-upload-content">
                     <form className={`upload-form ${isLoading ? 'is-loading' : ''}`} onSubmit={handleSubmit}>
                         <div className="select-section">
@@ -392,7 +397,7 @@ const AdminUpload = () => {
                         </div>
 
                         <div className="upload-section">
-                            <h1 className="info-title">Upload Assignment</h1>
+                            <h1 className="info-title">Blue Division Admin Upload</h1>
                             <button
                                 type="button"
                                 className="assignment-link"

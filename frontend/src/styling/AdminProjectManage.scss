@@ -82,6 +82,18 @@ body {
       gap: 1.5rem;
       width: 100%;
 
+      .gold-problem-meta-row {
+        display: flex;
+        gap: 5rem;
+        align-items: flex-start;
+        width: 100%;
+
+        .gold-problem-meta-field {
+          flex: 1 1 0;
+          min-width: 0;
+        }
+      }
+
       /* Side-by-side layout for start/end date */
       .date-range-group {
         display: flex;
@@ -122,7 +134,6 @@ body {
             border-radius: 6px;
             font-size: 1rem;
             transition: border-color 0.3s, box-shadow 0.3s;
-            cursor: text;
 
             &:focus {
               outline: none;
@@ -130,7 +141,6 @@ body {
               box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
             }
 
-            // But whenever you hover over the actual date‑text fields, show the I‑beam
             &::-webkit-datetime-edit-text,
             &::-webkit-datetime-edit-year-field,
             &::-webkit-datetime-edit-month-field,
@@ -140,7 +150,6 @@ body {
               cursor: text;
             }
 
-            // keep the built‑in calendar icon as a pointer
             &::-webkit-calendar-picker-indicator {
               cursor: pointer;
             }
@@ -150,6 +159,12 @@ body {
             input {
               border-color: #e74c3c;
               box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.15);
+            }
+          }
+
+          .segment-project-type {
+            .segment-option {
+              padding: 0.45rem 0.8rem;
             }
           }
         }
@@ -190,7 +205,6 @@ body {
             }
           }
 
-          /* Language display (replaces the <select>) */
           .detected-language {
             width: 100%;
             box-sizing: border-box;
@@ -199,12 +213,8 @@ body {
             border-radius: 6px;
             font-size: 1rem;
             line-height: 1.2;
-
-            /* Greyed out / disabled look */
             background: #f2f2f2;
             color: rgba(0, 0, 0, 0.45);
-
-            /* Non-interactive */
             pointer-events: none;
             user-select: none;
             cursor: not-allowed;
@@ -306,7 +316,6 @@ body {
       padding: 20px;
       border-radius: 10px;
       background-color: #f4f4f4;
-      /* grey background like the other file cards */
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       margin: 0;
       display: flex;
@@ -397,7 +406,6 @@ body {
       color: #475569;
     }
 
-    /* Filesystem view icons: separate class names from upload preview and smaller sizing */
     .filesystem-segment .directory-tree .fs-file-icon-wrapper {
       position: relative;
       width: 26px;
@@ -490,6 +498,17 @@ body {
 
 }
 
+.file-drop-message {
+  text-align: center;
+  line-height: 1.5;
+}
+
+.upload-cloud-icon {
+  display: block;
+  margin: 0 auto 0.5rem auto;
+  font-size: 2rem;
+  color: #000;
+}
 
 .pane-testcases {
 
@@ -505,13 +524,11 @@ body {
     padding: 1.5rem;
     margin-bottom: 2rem;
 
-    // tuck the “or” separator inside
     .or-separator {
       margin: 1.5rem 0;
     }
   }
 
-  // 2. Test cases table overview UI
   .form-testcases-overview {
     overflow-x: auto;
     margin-top: 1rem;
@@ -559,7 +576,6 @@ body {
             }
           }
 
-          // highlight on hover except for add row
           &:not(:last-child):hover {
             background: #f6fbfe;
           }
@@ -574,14 +590,12 @@ body {
           background: #e5e7eb;
         }
 
-        // "Add Test Case" row: bold button, rounded bottom
         tr:last-child td.add-row-cell {
           border-bottom-left-radius: 8px;
           border-bottom-right-radius: 8px;
         }
       }
 
-      // Input/output pre styling
       .testcase-input,
       .testcase-output {
         background: #f6fbfe;
@@ -595,13 +609,11 @@ body {
         margin: 0;
       }
 
-      // Description cell: slightly muted
       td:nth-child(5) {
         color: #505f7e;
         font-size: 0.98em;
       }
 
-      // Action button cell
       .testcase-edit-button {
         display: block;
         width: 100%;
@@ -623,7 +635,6 @@ body {
         }
       }
 
-      /* Toggle under Edit button */
       .testcase-hidden-toggle {
         margin-top: 0.5rem;
         display: flex;
@@ -683,7 +694,6 @@ body {
         transform: translateX(18px);
       }
 
-      // Add Test Case button
       .add-testcase-button {
         display: block;
         width: 50%;
@@ -698,7 +708,6 @@ body {
         cursor: pointer;
         box-shadow: 0 1px 3px rgba(46, 204, 113, 0.07);
         margin: 0.3em auto;
-
         transition: background 0.15s, transform 0.12s;
 
         &:hover,
@@ -710,7 +719,6 @@ body {
     }
   }
 
-  /* Export JSON sits directly under the table, visually attached but separate */
   .export-json-segment {
     background: #fff;
     border: 1px solid #e7eaf1;
@@ -807,7 +815,6 @@ body {
   }
 }
 
-// Info grid styling
 .testcase-info-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -843,7 +850,7 @@ body {
   user-select: none;
 }
 */
-/* lock background/page scroll whenever the preview modal exists */
+
 body:has(.preview-modal) {
   overflow: hidden;
 }
@@ -852,7 +859,6 @@ body:has(.testcase-modal) {
   overflow: hidden;
 }
 
-/* Overlay (matches .modal-overlay) */
 .preview-overlay {
   position: fixed;
   inset: 0;
@@ -868,11 +874,9 @@ body:has(.testcase-modal) {
   box-sizing: border-box;
 }
 
-/* Container (parity with .testcase-modal) */
 .preview-modal {
   position: relative;
   z-index: 1101;
-
   width: min(92vw, 1040px);
   max-height: calc(100vh - 150px);
   background: #ffffff;
@@ -886,7 +890,6 @@ body:has(.testcase-modal) {
   flex-direction: column;
   animation: modalEnterFlex 180ms cubic-bezier(.2, .8, .2, 1);
 
-  /* Header (parity with .modal-header) */
   .preview-header {
     position: sticky;
     top: 0;
@@ -914,7 +917,6 @@ body:has(.testcase-modal) {
     white-space: nowrap;
   }
 
-  /* Close button (parity with .modal-close-button) */
   .preview-close-button {
     position: absolute;
     top: -18px;
@@ -924,7 +926,6 @@ body:has(.testcase-modal) {
     border: none;
     border-radius: 999px;
     background: #ef4444;
-    /* red-500 */
     color: #ffffff;
     font-size: 1.1rem;
     font-weight: 800;
@@ -934,7 +935,6 @@ body:has(.testcase-modal) {
 
     &:hover {
       background: #dc2626;
-      /* red-600 */
       transform: rotate(90deg) scale(1.05);
       box-shadow: 0 10px 24px rgba(239, 68, 68, .35);
     }
@@ -949,7 +949,6 @@ body:has(.testcase-modal) {
     }
   }
 
-  /* Optional list of server files */
   .preview-file-list {
     padding: .75rem 1rem;
     border-bottom: 1px solid #e5e7eb;
@@ -975,14 +974,12 @@ body:has(.testcase-modal) {
       text-decoration: underline;
       cursor: pointer;
       color: #1d4ed8;
-      /* blue-700 */
       font-weight: 600;
 
       &:hover {
         color: #1e40af;
       }
 
-      /* blue-800 */
       &:focus-visible {
         outline: none;
         box-shadow: 0 0 0 4px rgba(59, 130, 246, .18);
@@ -991,27 +988,20 @@ body:has(.testcase-modal) {
     }
   }
 
-  /* Scrollable preview body */
   .preview-body {
-    /* Prefer CSS over inline where possible */
     white-space: pre-wrap;
-    /* wraps long lines but preserves newlines */
     font-size: .92rem;
     line-height: 1.5;
     tab-size: 2;
-
     padding: 1rem 1.25rem;
     color: #0f172a;
     background: #ffffff;
     flex: 1 1 auto;
     overflow: auto;
-
-    /* subtle code-like container edge */
     box-shadow: inset 0 1px 0 #e5e7eb;
   }
 }
 
-/* Animations (shared with testcase modal) */
 @keyframes overlayFadeIn {
   from {
     opacity: 0;
@@ -1076,8 +1066,6 @@ body:has(.testcase-modal) {
   left: 50%;
   transform: translateX(-50%);
   z-index: 1001;
-
-  // container
   width: min(92vw, 960px);
   max-height: calc(100vh - 150px);
   background: #ffffff;
@@ -1091,7 +1079,6 @@ body:has(.testcase-modal) {
   flex-direction: column;
   animation: modalEnterFixed 180ms cubic-bezier(.2, .8, .2, 1);
 
-  // header
   .modal-header {
     position: sticky;
     top: 0;
@@ -1115,7 +1102,6 @@ body:has(.testcase-modal) {
     }
   }
 
-  /* top-right close button */
   .modal-close-button {
     position: absolute;
     top: -18px;
@@ -1125,7 +1111,6 @@ body:has(.testcase-modal) {
     border: none;
     border-radius: 999px;
     background: #ef4444;
-    /* red-500 */
     color: #ffffff;
     font-size: 1.1rem;
     font-weight: 800;
@@ -1136,7 +1121,6 @@ body:has(.testcase-modal) {
 
   .modal-close-button:hover {
     background: #dc2626;
-    /* red-600 */
     transform: rotate(90deg) scale(1.05);
     box-shadow: 0 10px 24px rgba(239, 68, 68, .35);
   }
@@ -1150,7 +1134,6 @@ body:has(.testcase-modal) {
     box-shadow: 0 0 0 4px rgba(239, 68, 68, .25);
   }
 
-  // scrollable content
   .modal-content {
     position: relative;
     padding: 1.25rem;
@@ -1207,13 +1190,9 @@ body:has(.testcase-modal) {
         }
       }
 
-      /* Make input/description textareas start at the same height as the name input,
-         but allow users to grow them vertically if needed. */
       &.modal-textarea textarea,
       .modal-textarea {
-        /* Fallback for older engines */
         min-height: 44px;
-        /* Prefer logical size using the element's own line-height (1lh) + vertical padding + borders */
         min-block-size: calc(1lh + 1.4rem + 2px);
         height: auto;
         resize: none;
@@ -1229,7 +1208,6 @@ body:has(.testcase-modal) {
       }
     }
 
-    /* 2) Hidden "button" — upgraded to a sleek toggle switch */
     .modal-checkbox {
       label {
         display: inline-flex;
@@ -1329,7 +1307,6 @@ body:has(.testcase-modal) {
     }
   }
 
-  /* Read-only styling for the Output textarea */
   .form-field.modal-textarea textarea[readonly] {
     background: #f3f4f6;
     color: #6b7280;
@@ -1342,7 +1319,6 @@ body:has(.testcase-modal) {
     box-shadow: none;
   }
 
-  // sticky footer with actions
   .modal-action-buttons {
     z-index: 2;
     display: flex;
@@ -1354,7 +1330,6 @@ body:has(.testcase-modal) {
       #f8fafc;
     backdrop-filter: saturate(120%) blur(2px);
     border-top: 1px solid #e5e7eb;
-    /* Ensure the action bar sits at the very bottom even when content is short */
     margin-top: auto;
 
     button {
@@ -1385,7 +1360,6 @@ body:has(.testcase-modal) {
       background: #10b981;
       color: #ffffff;
       box-shadow: 0 6px 20px rgba(16, 185, 129, .25);
-      /* Make the primary action span most of the row */
       flex: 1 1 auto;
 
       &:hover {
@@ -1403,7 +1377,6 @@ body:has(.testcase-modal) {
     .modal-trash-button {
       background: #fee2e2;
       color: #991b1b;
-      /* Keep trash button compact */
       flex: 0 0 auto;
 
       &:hover {
@@ -1418,11 +1391,4 @@ body:has(.testcase-modal) {
   font-size: 0.95rem;
   margin-top: -0.75rem;
   margin-bottom: 0.5rem;
-}
-
-.segment-project-type {
-  .segment-option.selected { color: #fff; font-weight: 600; }
-  .segment-option.selected.none { background: #9ca3af; }
-  .segment-option.selected.competition { background: #1d63c1; }
-  .segment-option.selected.practice { background: #7e3ff2; }
 }

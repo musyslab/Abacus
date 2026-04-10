@@ -33,6 +33,9 @@ COMPETITION_START = datetime(*COMPETITION_DATE, 9, 0)
 COMPETITION_END = datetime(*COMPETITION_DATE, 12, 0)
 STUDENT_SUBMISSION_UNLOCK = datetime(2026, 4, 16, 12, 0)
 
+SCOREBOARD_FREEZE = datetime(*COMPETITION_DATE, 11, 30)
+SCOREBOARD_RELEASE = datetime(*COMPETITION_DATE, 14, 0)
+
 DIVISION_TEAM_CAPS = {
     "Blue": BLUE_TEAM_MAX,
     "Gold": GOLD_TEAM_MAX,
@@ -67,6 +70,10 @@ def is_student_submission_locked(now: datetime | None = None) -> bool:
     current = now or datetime.now()
     return COMPETITION_END <= current < STUDENT_SUBMISSION_UNLOCK
 
+def can_student_access_competition_materials(now: datetime | None = None) -> bool:
+    current = now or datetime.now()
+    return current >= COMPETITION_START and not is_student_submission_locked(current)
+
 def serialize_datetime(value: datetime) -> str:
     return value.strftime("%Y-%m-%dT%H:%M:%S")
 
@@ -79,3 +86,9 @@ def get_competition_schedule() -> dict[str, str]:
         "competitionEnd": serialize_datetime(COMPETITION_END),
         "studentSubmissionUnlock": serialize_datetime(STUDENT_SUBMISSION_UNLOCK),
     }
+
+def get_minute_index(start: datetime, now: datetime | None = None) -> int:
+    current = now or datetime.now()
+    if current < start:
+        return -1
+    return int((current - start).total_seconds() // 60)

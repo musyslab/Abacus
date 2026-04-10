@@ -103,19 +103,37 @@
 }
 
 .admin-menu-nav__item--schools .admin-menu-nav__icon {
-    color: #166534;
-    background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%);
-    border-color: #bbf7d0;
-}
-
-.admin-menu-nav__item--problems .admin-menu-nav__icon {
-    color: #7c2d12;
-    background: linear-gradient(135deg, #ffedd5 0%, #fff7ed 100%);
-    border-color: #fed7aa;
-}
-
-.admin-menu-nav__item--upload .admin-menu-nav__icon {
-    color: #5b21b6;
+    color: #7c3aed;
     background: linear-gradient(135deg, #ede9fe 0%, #f5f3ff 100%);
     border-color: #ddd6fe;
+}
+
+.admin-menu-nav__item--blue-problems .admin-menu-nav__icon {
+    color: #1d4ed8;
+    background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+    border-color: #93c5fd;
+}
+
+.admin-menu-nav__item--gold-problems .admin-menu-nav__icon {
+    color: #a16207;
+    background: linear-gradient(135deg, #fef3c7 0%, #fffbeb 100%);
+    border-color: #fcd34d;
+}
+
+.admin-menu-nav__item--blue-upload .admin-menu-nav__icon {
+    color: #2563eb;
+    background: linear-gradient(135deg, #bfdbfe 0%, #eff6ff 100%);
+    border-color: #93c5fd;
+}
+
+.admin-menu-nav__item--eagle .admin-menu-nav__icon {
+    color: #166534;
+    background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%);
+    border-color: #86efac;
+}
+
+.admin-menu-nav__item--help-requests .admin-menu-nav__icon {
+    color: #9a3412;
+    background: linear-gradient(135deg, #ffedd5 0%, #fff7ed 100%);
+    border-color: #fdba74;
 }

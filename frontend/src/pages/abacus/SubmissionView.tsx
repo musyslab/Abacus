@@ -65,7 +65,6 @@ export default function SubmissionView() {
         if (isProblemReviewSubmissionRoute) {
             return [
                 { label: "Admin Menu", to: "/admin" },
-                { label: "Problem List", to: "/admin/problems" },
                 { label: "Submissions", to: `/admin/problem/${problemId}/review` },
             ]
         }
@@ -73,7 +72,7 @@ export default function SubmissionView() {
         if (isAdminUploadSubmissionRoute) {
             return [
                 { label: "Admin Menu", to: "/admin" },
-                { label: "Admin Upload", to: "/admin/upload" },
+                { label: "Blue Division Admin Upload", to: "/admin/upload" },
             ]
         }
 

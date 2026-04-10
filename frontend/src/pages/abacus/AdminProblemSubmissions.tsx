@@ -28,6 +28,7 @@ type ReviewRow = {
     status: ReviewStatus;
     submittedAt: string;
     submittedAtLabel: string;
+    totalSubmissionCount: number;
 };
 
 type ReviewResponse = {
@@ -224,6 +225,10 @@ export default function AdminProblemSubmissions() {
                     {formatSubmittedAt(row.submittedAt, row.submittedAtLabel)}
                 </td>
 
+                <td className="problem-review-submitted-cell">
+                    {row.totalSubmissionCount}
+                </td>
+
                 <td
                     className={
                         row.status === "passed"
@@ -239,6 +244,13 @@ export default function AdminProblemSubmissions() {
                         <Link
                             className="problem-review-action problem-review-action--view"
                             to={`/admin/problem/${projectId}/review/submission/${row.submissionId}`}
+                            state={{
+                                breadcrumbItems: [
+                                    { label: "Admin Menu", to: "/admin" },
+                                    { label: "Blue Division Problem List", to: "/admin/blue/problems" },
+                                    { label: "Submissions", to: `/admin/problem/${projectId}/review` },
+                                ],
+                            }}
                         >
                             <FaEye aria-hidden="true" />
                             <span>View</span>
@@ -272,6 +284,10 @@ export default function AdminProblemSubmissions() {
 
                 <td className="problem-review-submitted-cell">N/A</td>
 
+                <td className="problem-review-submitted-cell">
+                    {row.totalSubmissionCount}
+                </td>
+
                 <td className="problem-review-status-cell problem-review-status-cell--notsubmitted">N/A</td>
 
                 <td className="problem-review-action-cell">
@@ -302,7 +318,7 @@ export default function AdminProblemSubmissions() {
                 <DirectoryBreadcrumbs
                     items={[
                         { label: "Admin Menu", to: "/admin" },
-                        { label: "Problem List", to: "/admin/problems" },
+                        { label: "Blue Division Problem List", to: "/admin/blue/problems" },
                         { label: "Submissions" },
                     ]}
                 />
@@ -402,6 +418,7 @@ export default function AdminProblemSubmissions() {
                                             <colgroup>
                                                 <col className="problem-review-table__col problem-review-table__col--name" />
                                                 <col className="problem-review-table__col problem-review-table__col--submitted" />
+                                                <col className="problem-review-table__col problem-review-table__col--submitted" />
                                                 <col className="problem-review-table__col problem-review-table__col--status" />
                                                 <col className="problem-review-table__col problem-review-table__col--view" />
                                                 <col className="problem-review-table__col problem-review-table__col--download" />
@@ -411,6 +428,7 @@ export default function AdminProblemSubmissions() {
                                                 <tr>
                                                     <th>Name</th>
                                                     <th>Last Submitted</th>
+                                                    <th>Total Submissions</th>
                                                     <th>Status</th>
                                                     <th>View</th>
                                                     <th>Download</th>
@@ -420,7 +438,7 @@ export default function AdminProblemSubmissions() {
                                             <tbody>
                                                 {submittedRows.length === 0 && (
                                                     <tr>
-                                                        <td colSpan={5} className="problem-review-empty">
+                                                        <td colSpan={6} className="problem-review-empty">
                                                             No teams with submissions found for this problem.
                                                         </td>
                                                     </tr>
@@ -445,6 +463,7 @@ export default function AdminProblemSubmissions() {
                                             <colgroup>
                                                 <col className="problem-review-table__col problem-review-table__col--name" />
                                                 <col className="problem-review-table__col problem-review-table__col--submitted" />
+                                                <col className="problem-review-table__col problem-review-table__col--submitted" />
                                                 <col className="problem-review-table__col problem-review-table__col--status" />
                                                 <col className="problem-review-table__col problem-review-table__col--view" />
                                                 <col className="problem-review-table__col problem-review-table__col--download" />
@@ -454,6 +473,7 @@ export default function AdminProblemSubmissions() {
                                                 <tr>
                                                     <th>Name</th>
                                                     <th>Last Submitted</th>
+                                                    <th>Total Submissions</th>
                                                     <th>Status</th>
                                                     <th>View</th>
                                                     <th>Download</th>
@@ -463,7 +483,7 @@ export default function AdminProblemSubmissions() {
                                             <tbody>
                                                 {notSubmittedRows.length === 0 && (
                                                     <tr>
-                                                        <td colSpan={5} className="problem-review-empty">
+                                                        <td colSpan={6} className="problem-review-empty">
                                                             Every visible team has submitted at least once.
                                                         </td>
                                                     </tr>

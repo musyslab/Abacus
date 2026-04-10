@@ -149,6 +149,13 @@ export default function AdminTeamSubmissions() {
                 setTeam(null);
                 setPageError("Team not found.");
             } else {
+                if (String(selectedTeam.division || "").trim() === "Eagle") {
+                    const eaglePath = isAdminMode
+                        ? `/admin/eagle-team-chat/${teamIdNum}`
+                        : `/teacher/eagle-team-chat/${teamIdNum}`;
+                    navigate(eaglePath, { replace: true });
+                    return;
+                }
                 setTeam({
                     id: selectedTeam.id,
                     name: selectedTeam.name,
