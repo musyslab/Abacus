@@ -13,11 +13,12 @@ from src.submission import submission_api
 from src.projects import projects_api
 from src.schools import school_api
 from src.teams import team_api
+from src.gold_division import gold_division_api
 from src.error import error_api
 from src.jwt_manager import jwt
 from src import teams, schools, auth, projects, submission, upload
 from src.services import timeout_service
-from src import teams, schools, auth, projects, submission, upload, timeout_service, eagle_home
+from src import teams, schools, auth, projects, submission, upload, timeout_service, gold_division, eagle_home
 from sentry_sdk.integrations.flask import FlaskIntegration
 import sentry_sdk
 import os
@@ -28,8 +29,7 @@ def create_app():
     app = Flask(__name__)
     container = Container()
     app.container = container
-    container.wire(modules=[teams, schools, auth, projects, submission, upload, timeout_service])
-    container.wire(modules=[teams,schools, auth, projects, submission, upload, timeout_service, eagle_home])
+    container.wire(modules=[teams, schools, auth, projects, submission, upload, timeout_service, gold_division, eagle_home])
 
     TEACHER_DIR = "/tabot-files/project-files/teacher-files"
     STUDENT_DIR = "/tabot-files/project-files/student-files"
@@ -53,6 +53,7 @@ def create_app():
     app.register_blueprint(projects_api,url_prefix='/api/projects')  
     app.register_blueprint(school_api, url_prefix='/api/schools')
     app.register_blueprint(team_api, url_prefix='/api/teams')
+    app.register_blueprint(gold_division_api, url_prefix='/api/gold-division')
     app.register_blueprint(eagle_home.eagle_api, url_prefix='/api/eagle')
     app.register_blueprint(error_api,url_prefix='/api/error')
   
