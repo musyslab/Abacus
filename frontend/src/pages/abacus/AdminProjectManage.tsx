@@ -12,6 +12,7 @@ import { TbJson } from 'react-icons/tb'
 import {
     FaAlignJustify,
     FaCircleNotch,
+    FaCloudUploadAlt,
     FaCode,
     FaDownload,
     FaEdit,
@@ -1072,6 +1073,7 @@ export default function AdminProjectManage({
                                                                 onChange={handleSolutionFilesChange}
                                                             />
                                                             <div className="file-drop-message">
+                                                                <FaCloudUploadAlt className="upload-cloud-icon" aria-hidden="true" />
                                                                 Drag &amp; drop your file here or&nbsp;
                                                                 <span className="browse-text">browse</span>
                                                             </div>
@@ -1211,6 +1213,7 @@ export default function AdminProjectManage({
                                                             onChange={handleDescFileChange}
                                                         />
                                                         <div className="file-drop-message">
+                                                            <FaCloudUploadAlt className="upload-cloud-icon" aria-hidden="true" />
                                                             Drag &amp; drop your file here or&nbsp;
                                                             <span className="browse-text">browse</span>
                                                         </div>
@@ -1354,6 +1357,7 @@ export default function AdminProjectManage({
                                                                 onChange={handleAdditionalFileChange}
                                                             />
                                                             <div className="file-drop-message">
+                                                            <FaCloudUploadAlt className="upload-cloud-icon" aria-hidden="true" />
                                                                 Drag &amp; drop your file(s) here or&nbsp;
                                                                 <span className="browse-text">browse</span>
                                                             </div>
@@ -1492,6 +1496,7 @@ export default function AdminProjectManage({
                                                     onChange={handleJsonFileChange}
                                                 />
                                                 <div className="file-drop-message">
+                                                <FaCloudUploadAlt className="upload-cloud-icon" aria-hidden="true" />
                                                     Drag &amp; drop your JSON file here or&nbsp;
                                                     <span className="browse-text">browse</span>
                                                 </div>

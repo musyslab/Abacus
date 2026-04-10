@@ -7,12 +7,17 @@ import MenuComponent from '../components/MenuComponent';
 import DirectoryBreadcrumbs from '../components/DirectoryBreadcrumbs';
 import SegmentedControl from '../components/SegmentedControl';
 import LoadingAnimation from '../components/LoadingAnimation';
-import { FaExchangeAlt, FaRegFile } from 'react-icons/fa';
+import { FaAlignJustify, FaCloudUploadAlt, FaExchangeAlt, FaRegFile, FaTimes } from 'react-icons/fa';
 
 import '../../styling/AdminProjectManage.scss';
+import '../../styling/FileUploadCommon.scss';
 
 type GoldProjectType = 'competition' | 'none';
 type GoldProblemCategory = 'normal' | 'creative';
+
+const DESC_ALLOWED_RE = /\.(pdf|docx?|txt)$/i;
+const DESC_ACCEPT = '.pdf,.doc,.docx,.txt';
+const TEXT_ICON_RE = /\.(txt|doc|docx|pdf)$/i;
 
 export default function AdminGoldProjectManage() {
     const { id } = useParams();
@@ -39,6 +44,13 @@ export default function AdminGoldProjectManage() {
     function authConfig() {
         const token = localStorage.getItem('AUTOTA_AUTH_TOKEN');
         return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+    }
+
+    function getFileIcon(filename: string): React.ReactNode {
+        if (TEXT_ICON_RE.test(filename)) {
+            return <FaAlignJustify className="file-language-icon" aria-hidden="true" />;
+        }
+        return <FaTimes className="file-language-icon" aria-hidden="true" />;
     }
 
     useEffect(() => {
@@ -77,6 +89,16 @@ export default function AdminGoldProjectManage() {
         const files = target.files;
 
         if (files != null && files.length === 1) {
+            if (!DESC_ALLOWED_RE.test(files[0].name)) {
+                window.alert(
+                    'Description file must be a Word document (.doc/.docx), PDF (.pdf), or text file (.txt).'
+                );
+                target.value = '';
+                setDescriptionFile(undefined);
+                setDescriptionFileName('');
+                return;
+            }
+
             setDescriptionFile(files[0]);
             setDescriptionFileName(files[0].name);
         } else {
@@ -129,7 +151,7 @@ export default function AdminGoldProjectManage() {
         } catch (error: any) {
             window.alert(
                 error?.response?.data?.message ||
-                    'An error occurred while saving the Gold Division problem.'
+                'An error occurred while saving the Gold Division problem.'
             );
             console.log(error);
         } finally {
@@ -185,38 +207,37 @@ export default function AdminGoldProjectManage() {
                                     />
                                 </div>
 
-                                <div className="form-field input-field">
-                                    <label>Problem Type</label>
-                                    <SegmentedControl
-                                        className="segment-project-type"
-                                        options={[
-                                            { label: 'None', value: 'none' },
-                                            { label: 'Competition', value: 'competition' },
-                                        ]}
-                                        value={projectType}
-                                        onChange={(v) =>
-                                            setProjectType(v as GoldProjectType)
-                                        }
-                                        getOptionClassName={(v) => v.toLowerCase()}
-                                    />
-                                </div>
+                                <div className="gold-problem-meta-row">
+                                    <div className="form-field input-field gold-problem-meta-field">
+                                        <label>Problem Type</label>
+                                        <SegmentedControl
+                                            className="segment-project-type"
+                                            options={[
+                                                { label: 'None', value: 'none' },
+                                                { label: 'Competition', value: 'competition' },
+                                            ]}
+                                            value={projectType}
+                                            onChange={(v) =>
+                                                setProjectType(v as GoldProjectType)
+                                            }
+                                            getOptionClassName={(v) => v.toLowerCase()}
+                                        />
+                                    </div>
 
-                                <div className="form-field input-field">
-                                    <label>Gold Problem Category</label>
-                                    <SegmentedControl
-                                        className="segment-project-type"
-                                        options={[
-                                            { label: 'Normal (7 pts max)', value: 'normal' },
-                                            { label: 'Creative (15 pts max)', value: 'creative' },
-                                        ]}
-                                        value={goldProblemType}
-                                        onChange={(v) =>
-                                            setGoldProblemType(v as GoldProblemCategory)
-                                        }
-                                        getOptionClassName={(v) => v.toLowerCase()}
-                                    />
-                                    <div className="muted" style={{ marginTop: 8 }}>
-                                        {goldProblemTypeLabel} problems can earn up to {goldProblemTypeMaxPoints} points.
+                                    <div className="form-field input-field gold-problem-meta-field">
+                                        <label>Gold Problem Category</label>
+                                        <SegmentedControl
+                                            className="segment-project-type"
+                                            options={[
+                                                { label: 'Normal (7 pts max)', value: 'normal' },
+                                                { label: 'Creative (15 pts max)', value: 'creative' },
+                                            ]}
+                                            value={goldProblemType}
+                                            onChange={(v) =>
+                                                setGoldProblemType(v as GoldProblemCategory)
+                                            }
+                                            getOptionClassName={(v) => v.toLowerCase()}
+                                        />
                                     </div>
                                 </div>
 
@@ -241,9 +262,11 @@ export default function AdminGoldProjectManage() {
                                                     type="file"
                                                     className="file-input"
                                                     id="goldDescFile"
+                                                    accept={DESC_ACCEPT}
                                                     onChange={handleDescriptionFileChange}
                                                 />
                                                 <div className="file-drop-message">
+                                                    <FaCloudUploadAlt className="upload-cloud-icon" aria-hidden="true" />
                                                     Drag &amp; drop your file here or&nbsp;
                                                     <span className="browse-text">browse</span>
                                                 </div>
@@ -276,6 +299,7 @@ export default function AdminGoldProjectManage() {
                                                                 className="file-outline-icon"
                                                                 aria-hidden="true"
                                                             />
+                                                            {getFileIcon(descriptionFileName)}
                                                         </span>
                                                         <span className="file-name">
                                                             {descriptionFileName}
@@ -297,8 +321,8 @@ export default function AdminGoldProjectManage() {
                                             ? 'Saving...'
                                             : 'Creating...'
                                         : edit
-                                        ? 'Submit Gold Division changes'
-                                        : 'Create Gold Division problem'}
+                                            ? 'Submit Gold Division changes'
+                                            : 'Create Gold Division problem'}
                                 </button>
                             </div>
                         </form>
