@@ -275,6 +275,45 @@
     }
 }
 
+.project-name__content {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.project-name__title {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.gold-problem-category-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.22rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.1;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    flex: 0 0 auto;
+
+    &.gold-problem-category-badge--normal {
+        background: #eef2ff;
+        color: #3730a3;
+        border-color: #c7d2fe;
+    }
+
+    &.gold-problem-category-badge--creative {
+        background: #fff7ed;
+        color: #c2410c;
+        border-color: #fdba74;
+    }
+}
+
 .project-metric__value {
     display: inline-flex;
     align-items: center;

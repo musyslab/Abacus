@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
+import { FaCheckCircle, FaExclamationCircle } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
 
 import MenuComponent from "../components/MenuComponent";
@@ -21,6 +22,8 @@ type SubmissionStatus =
   | "needs_grading"
   | "not_submitted"
   | "regrade_requested";
+
+type MessageTone = "success" | "error";
 
 type MyGoldSubmissionResponse = {
   id: number;
@@ -56,6 +59,7 @@ const StudentGoldSubmissions = () => {
   const [link, setLink] = useState("");
   const [docLink, setDocLink] = useState("");
   const [message, setMessage] = useState("");
+  const [messageTone, setMessageTone] = useState<MessageTone>("success");
   const [loading, setLoading] = useState(false);
   const [pageLoading, setPageLoading] = useState(false);
   const [regradeLoading, setRegradeLoading] = useState(false);
@@ -80,6 +84,20 @@ const StudentGoldSubmissions = () => {
     return token ? { headers: { Authorization: `Bearer ${token}` } } : {};
   }
 
+  const clearMessage = () => {
+    setMessage("");
+  };
+
+  const showErrorMessage = (text: string) => {
+    setMessageTone("error");
+    setMessage(text);
+  };
+
+  const showSuccessMessage = (text: string) => {
+    setMessageTone("success");
+    setMessage(text);
+  };
+
   const isValidScratchLink = (url: string) => {
     return url.includes("scratch.mit.edu/projects/");
   };
@@ -103,7 +121,7 @@ const StudentGoldSubmissions = () => {
 
   const scratchProjectId = extractScratchProjectId(link);
   const isCreativeProblem = goldProblemType === "creative";
-  const isError = message.includes("❌");
+  const isError = messageTone === "error";
 
   const applyCooldownState = (
     secondsRemaining?: number,
@@ -198,7 +216,7 @@ const StudentGoldSubmissions = () => {
 
   useEffect(() => {
     if (!projectId) {
-      setMessage("❌ Missing or invalid Gold Division project ID.");
+      showErrorMessage("Missing or invalid Gold Division project ID.");
       return;
     }
 
@@ -207,7 +225,7 @@ const StudentGoldSubmissions = () => {
     const loadPage = async () => {
       try {
         setPageLoading(true);
-        setMessage("");
+        clearMessage();
 
         await Promise.all([
           fetchProjectMetadata(projectId),
@@ -249,35 +267,35 @@ const StudentGoldSubmissions = () => {
 
   const handleSubmit = async () => {
     if (!projectId) {
-      setMessage("❌ Missing or invalid Gold Division project ID.");
+      showErrorMessage("Missing or invalid Gold Division project ID.");
       return;
     }
 
     if (!link.trim()) {
-      setMessage("❌ Please enter a Scratch link.");
+      showErrorMessage("Please enter a Scratch link.");
       return;
     }
 
     if (!isValidScratchLink(link)) {
-      setMessage("❌ Please enter a valid Scratch project link.");
+      showErrorMessage("Please enter a valid Scratch project link.");
       return;
     }
 
     if (isCreativeProblem && !docLink.trim()) {
-      setMessage(
-        "❌ Creative problems require both a Scratch project link and a document link."
+      showErrorMessage(
+        "Creative problems require both a Scratch project link and a document link."
       );
       return;
     }
 
     if (isCreativeProblem && !isValidOnlineDocLink(docLink)) {
-      setMessage("❌ Please enter a valid online document link.");
+      showErrorMessage("Please enter a valid online document link.");
       return;
     }
 
     if (cooldownRemainingSeconds > 0) {
-      setMessage(
-        `❌ Please wait ${formatCooldown(
+      showErrorMessage(
+        `Please wait ${formatCooldown(
           cooldownRemainingSeconds
         )} before submitting again.`
       );
@@ -286,7 +304,7 @@ const StudentGoldSubmissions = () => {
 
     try {
       setLoading(true);
-      setMessage("");
+      clearMessage();
 
       await axios.post(
         `${API}/gold-division/create`,
@@ -298,7 +316,7 @@ const StudentGoldSubmissions = () => {
         authConfig()
       );
 
-      setMessage("✅ Team submission saved successfully!");
+      showSuccessMessage("Team submission saved successfully!");
       await fetchMySubmission(projectId);
     } catch (err: any) {
       const responseData = err?.response?.data;
@@ -311,7 +329,7 @@ const StudentGoldSubmissions = () => {
       }
 
       const msg = responseData?.message || "Submission failed. Try again.";
-      setMessage(`❌ ${msg}`);
+      showErrorMessage(msg);
     } finally {
       setLoading(false);
     }
@@ -319,13 +337,15 @@ const StudentGoldSubmissions = () => {
 
   const handleRequestRegrade = async () => {
     if (!projectId || !hasSubmission) {
-      setMessage("❌ Your team needs a submission before requesting a regrade.");
+      showErrorMessage(
+        "Your team needs a submission before requesting a regrade."
+      );
       return;
     }
 
     try {
       setRegradeLoading(true);
-      setMessage("");
+      clearMessage();
 
       await axios.post(
         `${API}/gold-division/request-regrade`,
@@ -333,13 +353,13 @@ const StudentGoldSubmissions = () => {
         authConfig()
       );
 
-      setMessage("✅ Regrade request sent to the admins.");
+      showSuccessMessage("Regrade request sent to the admins.");
       await fetchMySubmission(projectId);
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         "Unable to send the regrade request right now.";
-      setMessage(`❌ ${msg}`);
+      showErrorMessage(msg);
     } finally {
       setRegradeLoading(false);
     }
@@ -678,21 +698,31 @@ const StudentGoldSubmissions = () => {
                         ? "Submitting..."
                         : cooldownRemainingSeconds > 0
                           ? `Submit Again In ${formatCooldown(
-                              cooldownRemainingSeconds
-                            )}`
+                            cooldownRemainingSeconds
+                          )}`
                           : "Submit Project"}
                     </button>
                   </div>
 
                   {message && (
                     <div
-                      className={`sgs-message ${
-                        isError
+                      className={`sgs-message ${isError
                           ? "sgs-message--error"
                           : "sgs-message--success"
-                      }`}
+                        }`}
                     >
-                      {message}
+                      {isError ? (
+                        <FaExclamationCircle
+                          className="sgs-message__icon"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <FaCheckCircle
+                          className="sgs-message__icon"
+                          aria-hidden="true"
+                        />
+                      )}
+                      <span>{message}</span>
                     </div>
                   )}
                 </div>

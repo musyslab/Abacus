@@ -24,12 +24,14 @@ import {
 type ProjectType = 'competition' | 'practice' | 'none';
 type ProjectDivision = 'blue' | 'gold';
 type ReorderableProjectType = Exclude<ProjectType, 'none'>;
+type GoldProblemCategory = 'normal' | 'creative';
 
 type ProjectObject = {
     Id: number;
     Name: string;
     Type: ProjectType;
     Division: ProjectDivision;
+    GoldProblemType?: GoldProblemCategory | null;
     DescriptionText?: string | null;
     OrderIndex: number | null;
     NotSubmittedCount: number;
@@ -60,6 +62,14 @@ function sortProjectsByOrderIndex(projects: ProjectObject[]) {
         if (b.OrderIndex === null) return -1;
         return a.OrderIndex - b.OrderIndex;
     });
+}
+
+function getGoldProblemCategory(project: ProjectObject): GoldProblemCategory {
+    return project.GoldProblemType === 'creative' ? 'creative' : 'normal';
+}
+
+function getGoldProblemCategoryLabel(project: ProjectObject): string {
+    return getGoldProblemCategory(project) === 'creative' ? 'Creative' : 'Normal';
 }
 
 type AdminProjectListProps = {
@@ -321,6 +331,7 @@ export default function AdminProjectList({
         const reorderableType: ReorderableProjectType | null =
             section.type === 'none' ? null : section.type;
         const colSpan = showOrderColumn ? 6 : 5;
+        const showGoldCategoryPill = division === 'gold';
 
         return (
             <section
@@ -395,50 +406,69 @@ export default function AdminProjectList({
                                 </td>
                             </tr>
                         ) : (
-                            section.projects.map((project, index) => (
-                                <tr className="project-row" key={project.Id}>
-                                    {showOrderColumn && (
-                                        <td className="project-order">
-                                            {project.OrderIndex ?? index + 1}
+                            section.projects.map((project, index) => {
+                                const goldCategory = getGoldProblemCategory(project);
+
+                                return (
+                                    <tr className="project-row" key={project.Id}>
+                                        {showOrderColumn && (
+                                            <td className="project-order">
+                                                {project.OrderIndex ?? index + 1}
+                                            </td>
+                                        )}
+
+                                        <td className="project-name">
+                                            <div className="project-name__content">
+                                                <span className="project-name__title">
+                                                    {project.Name}
+                                                </span>
+
+                                                {showGoldCategoryPill && (
+                                                    <span
+                                                        className={`gold-problem-category-badge gold-problem-category-badge--${goldCategory}`}
+                                                        title={`Gold problem category: ${getGoldProblemCategoryLabel(project)}`}
+                                                    >
+                                                        {getGoldProblemCategoryLabel(project)}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
-                                    )}
 
-                                    <td className="project-name">{project.Name}</td>
+                                        <td className="project-metric">
+                                            <span className="project-metric__value">
+                                                {project.NotSubmittedCount}
+                                            </span>
+                                        </td>
 
-                                    <td className="project-metric">
-                                        <span className="project-metric__value">
-                                            {project.NotSubmittedCount}
-                                        </span>
-                                    </td>
+                                        <td className="project-metric">
+                                            <span className="project-metric__value">
+                                                {project.SubmittedAtLeastOnceCount}
+                                            </span>
+                                        </td>
 
-                                    <td className="project-metric">
-                                        <span className="project-metric__value">
-                                            {project.SubmittedAtLeastOnceCount}
-                                        </span>
-                                    </td>
+                                        <td className="project-review">
+                                            <Link
+                                                className="button button-review"
+                                                to={getReviewPath(project)}
+                                                aria-label={`Review submissions for ${project.Name}`}
+                                            >
+                                                <FaEye aria-hidden="true" />
+                                                <span className="button-text">Review</span>
+                                            </Link>
+                                        </td>
 
-                                    <td className="project-review">
-                                        <Link
-                                            className="button button-review"
-                                            to={getReviewPath(project)}
-                                            aria-label={`Review submissions for ${project.Name}`}
-                                        >
-                                            <FaEye aria-hidden="true" />
-                                            <span className="button-text">Review</span>
-                                        </Link>
-                                    </td>
-
-                                    <td className="project-edit">
-                                        <Link
-                                            className="button button-edit"
-                                            to={`${manageBasePath}/${project.Id}`}
-                                        >
-                                            <FaEdit aria-hidden="true" />
-                                            <span className="button-text">Edit</span>
-                                        </Link>
-                                    </td>
-                                </tr>
-                            ))
+                                        <td className="project-edit">
+                                            <Link
+                                                className="button button-edit"
+                                                to={`${manageBasePath}/${project.Id}`}
+                                            >
+                                                <FaEdit aria-hidden="true" />
+                                                <span className="button-text">Edit</span>
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         )}
                     </tbody>
                 </table>

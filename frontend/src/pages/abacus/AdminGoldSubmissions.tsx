@@ -511,7 +511,7 @@ const AdminGoldSubmissions = () => {
           {loading ? (
             <div className="gold-loading">Loading...</div>
           ) : (
-            <table border={1} className="gold-submissions-table">
+            <table className="gold-submissions-table">
               <thead className="table-head">
                 <tr className="head-row">
                   <th>Team</th>
@@ -560,7 +560,7 @@ const AdminGoldSubmissions = () => {
 
                       <td>
                         {s.hasSubmission ? (
-                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                          <div className="submission-links">
                             {s.link ? (
                               <a
                                 className="button button-view-code"
@@ -657,17 +657,8 @@ const AdminGoldSubmissions = () => {
                     {activeSubmission.regradeRequested ? " • Regrade requested" : ""}
                   </div>
 
-
                   {(activeSubmission.link || activeSubmission.docLink) && (
-                    <div
-                      className="modal-subtitle"
-                      style={{
-                        marginTop: 10,
-                        display: "flex",
-                        gap: 8,
-                        flexWrap: "wrap",
-                      }}
-                    >
+                    <div className="modal-link-row">
                       {activeSubmission.link ? (
                         <a
                           className="button button-view-code"
@@ -717,7 +708,7 @@ const AdminGoldSubmissions = () => {
                   placeholder={`Enter score (0-${activeMaxPoints})`}
                   disabled={saving || projectMetaLoading}
                 />
-                <div className="muted-text" style={{ marginTop: 6 }}>
+                <div className="muted-text points-cap-text">
                   {getGoldProblemTypeLabel(activeGoldProblemType)} problems are capped at{" "}
                   {activeMaxPoints} points.
                 </div>
@@ -889,8 +880,8 @@ const AdminGoldSubmissions = () => {
                           <div className="history-grid__full">
                             <span className="history-label">Regrade Request</span>
                             <div>
-                              Requested by student {item.regradeRequestedByStudentId ?? "—"}{" "}
-                              on {formatDateTime(item.regradeRequestedAt)}
+                              Requested by student {item.regradeRequestedByStudentId ?? "—"} on{" "}
+                              {formatDateTime(item.regradeRequestedAt)}
                             </div>
                           </div>
                         )}
