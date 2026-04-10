@@ -14,11 +14,9 @@
   box-sizing: border-box;
   border-bottom: 1px solid #2a2a2a;
 
-  /* Make ALL text bigger + same weight everywhere */
   font-size: 19px;
   font-weight: 600;
 
-  /* Inner container */
   .menu__container {
     width: 95%;
     margin: 0 auto;
@@ -31,9 +29,9 @@
 
     box-sizing: border-box;
     padding: 0;
+    min-width: 0;
   }
 
-  /* Brand button/logo */
   .menu__brand {
     width: 90px;
     height: 90px;
@@ -74,18 +72,25 @@
     cursor: default;
   }
 
-  /* Spacer to push right-side items */
+  .menu__homeLinks {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
   .menu__spacer {
     flex: 1 1 auto;
     min-width: 0;
   }
 
-  /* Right section */
   .menu__right {
     margin-left: auto;
     display: flex;
     align-items: center;
     gap: 10px;
+    flex: 0 0 auto;
   }
 
   .menu__mailboxWrap {
@@ -197,7 +202,6 @@
     -webkit-box-orient: vertical;
   }
 
-  /* Shared menu item styles */
   .menu__item {
     height: 52px;
 
@@ -216,8 +220,9 @@
 
     cursor: pointer;
     line-height: 1;
+    white-space: nowrap;
+    flex: 0 0 auto;
 
-    /* Force uniform size + weight for every menu item */
     font-size: 1em;
     font-weight: inherit;
 
@@ -238,7 +243,6 @@
     }
   }
 
-  /* Keep modifiers but do NOT change typography */
   .menu__item--link {
     font-size: 1em;
     font-weight: inherit;
@@ -260,14 +264,11 @@
   .menu__text {
     display: inline-block;
     white-space: nowrap;
-
-    /* Force uniform size + weight for nested text spans */
     font-size: 1em;
     font-weight: inherit;
   }
 }
 
-/* Modifiers */
 .menu--top {
   position: fixed;
   top: 0;
@@ -287,7 +288,26 @@
 }
 
 .menu--huge {
-  /* Ensure this modifier does not diverge from base sizing */
   font-size: 19px;
   font-weight: 600;
+}
+
+@media (max-width: 1280px) {
+  .menu .menu__homeLinks {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .menu {
+    font-size: 17px;
+  }
+
+  .menu .menu__right {
+    gap: 6px;
+  }
+
+  .menu .menu__item {
+    padding: 0 10px;
+  }
 }

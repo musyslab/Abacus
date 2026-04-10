@@ -150,6 +150,17 @@ class Home extends Component<Record<string, never>, HomeState> {
                         learning.
                     </p>
                     <p className="sec-text">The competition is offered in three divisions:</p>
+                    <p className="sec-text">
+                        For frequently asked questions, please click{" "}
+                        <a
+                            href="https://docs.google.com/document/d/1VRXpKHG1uH4ixFmNQCAKpqmm8vCL0nM1ewvudH13scQ/edit?usp=sharing"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            this link
+                        </a>
+                        .
+                    </p>
                     <div className="sec-subtitle">
                         <span className="blue-div">Blue Division</span> &#8212; Java & Python
                     </div>
