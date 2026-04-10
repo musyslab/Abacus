@@ -7,7 +7,11 @@ from flask_jwt_extended import current_user, jwt_required
 from sqlalchemy import asc, desc
 
 from container import Container
-from src.constants import ADMIN_ROLE, TEACHER_ROLE, is_student_submission_locked
+from src.constants import (
+    ADMIN_ROLE,
+    TEACHER_ROLE,
+    can_student_access_competition_materials,
+)
 from src.repositories.database import db
 from src.repositories.models import AdminUsers, EagleTeamMessages, StudentUsers, Teams
 from src.repositories.project_repository import ProjectRepository
@@ -102,9 +106,11 @@ def download_eagle_instructions():
         _, err = _student_eagle_team()
         if err:
             return err
-        if is_student_submission_locked():
+        if not can_student_access_competition_materials():
             return make_response(
-                {"message": "Problem materials are not available during this phase."},
+                {
+                    "message": "Problem materials are only available during the competition and after submissions unlock."
+                },
                 HTTPStatus.FORBIDDEN,
             )
     elif not _is_global_admin():
@@ -313,9 +319,11 @@ def eagle_problem(project_repo: ProjectRepository = Provide[Container.project_re
         _, err = _student_eagle_team()
         if err:
             return err
-        if is_student_submission_locked():
+        if not can_student_access_competition_materials():
             return make_response(
-                {"message": "Problem materials are not available during this phase."},
+                {
+                    "message": "Problem materials are only available during the competition and after submissions unlock."
+                },
                 HTTPStatus.FORBIDDEN,
             )
     elif not _is_global_admin():

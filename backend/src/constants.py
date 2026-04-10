@@ -70,6 +70,10 @@ def is_student_submission_locked(now: datetime | None = None) -> bool:
     current = now or datetime.now()
     return COMPETITION_END <= current < STUDENT_SUBMISSION_UNLOCK
 
+def can_student_access_competition_materials(now: datetime | None = None) -> bool:
+    current = now or datetime.now()
+    return current >= COMPETITION_START and not is_student_submission_locked(current)
+
 def serialize_datetime(value: datetime) -> str:
     return value.strftime("%Y-%m-%dT%H:%M:%S")
 

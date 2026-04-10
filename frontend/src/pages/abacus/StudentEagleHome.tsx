@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
 import { FaDownload } from "react-icons/fa";
@@ -7,6 +7,12 @@ import { useNavigate } from "react-router-dom";
 import MenuComponent from "../components/MenuComponent";
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
 import EagleChatThread from "../components/EagleChatThread";
+import CompetitionStageStatus, {
+    CompetitionSchedule,
+    CompetitionStage,
+    fetchCompetitionSchedule,
+    getCompetitionStage,
+} from "../components/CompetitionStageStatus";
 import "../../styling/EagleDivision.scss";
 
 type ProblemPayload = {
@@ -45,6 +51,9 @@ export default function StudentEagleHome() {
     const [draft, setDraft] = useState("");
     const [sending, setSending] = useState(false);
     const [teamName, setTeamName] = useState("");
+    const [competitionSchedule, setCompetitionSchedule] = useState<CompetitionSchedule | null>(null);
+    const [scheduleError, setScheduleError] = useState("");
+    const [now, setNow] = useState<Date>(() => new Date());
 
     const authConfig = useCallback(() => {
         const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
@@ -71,12 +80,33 @@ export default function StudentEagleHome() {
             const res = await axios.get<ProblemPayload>(`${apiBase}/eagle/problem`, authConfig());
             setProblem(res.data);
         } catch (err: unknown) {
-            const ax = err as { response?: { status?: number; data?: { message?: string } } };
-            if (ax.response?.status === 403) {
+            const ax = err as {
+                response?: {
+                    status?: number;
+                    data?: { message?: string };
+                };
+            };
+            const status = ax.response?.status;
+            const message = ax.response?.data?.message || "";
+            const normalized = message.toLowerCase();
+
+            const isVisibilityError =
+                normalized.includes("problem materials") ||
+                normalized.includes("during the competition") ||
+                normalized.includes("submissions unlock");
+
+            if (status === 403 && !isVisibilityError) {
                 navigate("/student/problems", { replace: true });
                 return;
             }
-            setProblemError(ax.response?.data?.message || "Could not load the Eagle problem.");
+
+            if (status === 403) {
+                setProblem(null);
+                setProblemError(message || "The Eagle problem is not available right now.");
+                return;
+            }
+
+            setProblemError(message || "Could not load the Eagle problem.");
         }
     }, [apiBase, authConfig, navigate]);
 
@@ -102,8 +132,59 @@ export default function StudentEagleHome() {
     }, [loadTeam]);
 
     useEffect(() => {
-        loadProblem();
-    }, [loadProblem]);
+        let active = true;
+
+        fetchCompetitionSchedule(apiBase)
+            .then((data) => {
+                if (!active) return;
+                setCompetitionSchedule(data);
+                setScheduleError("");
+            })
+            .catch(() => {
+                if (!active) return;
+                setCompetitionSchedule(null);
+                setScheduleError("Failed to load competition schedule.");
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [apiBase]);
+
+    useEffect(() => {
+        const id = window.setInterval(() => {
+            setNow(new Date());
+        }, 1000);
+
+        return () => window.clearInterval(id);
+    }, []);
+
+    const competitionStage = useMemo<CompetitionStage | null>(() => {
+        if (!competitionSchedule) return null;
+        return getCompetitionStage(competitionSchedule, now, "student");
+    }, [competitionSchedule, now]);
+
+    const canViewProblem = useMemo(() => {
+        return (
+            competitionStage === "competition" ||
+            competitionStage === "student-submission-unlocked" ||
+            (!!problem && !problemError)
+        );
+    }, [competitionStage, problem, problemError]);
+
+    useEffect(() => {
+        if (
+            competitionStage === "competition" ||
+            competitionStage === "student-submission-unlocked" ||
+            scheduleError
+        ) {
+            loadProblem();
+            return;
+        }
+
+        setProblem(null);
+        setProblemError("");
+    }, [competitionStage, scheduleError, loadProblem]);
 
     useEffect(() => {
         loadMessages();
@@ -174,11 +255,13 @@ export default function StudentEagleHome() {
                 <div className="pageTitle">Eagle Submissions</div>
 
                 <div className="eagle-home-content">
+                    <CompetitionStageStatus audience="student" />
+
                     <div className="eagle-home__grid">
                         <section className="eagle-card eagle-card--problem" aria-labelledby="eagle-problem-heading">
                             <div className="eagle-card__eyebrow">Competition problem</div>
                             <h2 id="eagle-problem-heading" className="eagle-card__heading">
-                                {problem?.name || "Eagle problem"}
+                                {canViewProblem ? (problem?.name || "Eagle problem") : "Problem locked"}
                             </h2>
                             <div className="eagle-card__main">
                                 {problemError ? (
@@ -186,24 +269,40 @@ export default function StudentEagleHome() {
                                         {problemError}
                                     </div>
                                 ) : null}
-                                <p className="eagle-card__body">
-                                    Official Eagle Division rules and problem details are in the instructions PDF.
-                                    Use the button below to download it.
-                                </p>
-                                {showTextPreview ? (
-                                    <div className="eagle-problem-preview">{problem?.preview}</div>
-                                ) : null}
+
+                                {canViewProblem ? (
+                                    <>
+                                        <p className="eagle-card__body">
+                                            Official Eagle Division rules and problem details are in the instructions PDF.
+                                            Use the button below to download it.
+                                        </p>
+                                        {showTextPreview ? (
+                                            <div className="eagle-problem-preview">{problem?.preview}</div>
+                                        ) : null}
+                                    </>
+                                ) : (
+                                    <>
+                                        <p className="eagle-card__body">
+                                            The Eagle competition problem will appear here once the competition begins.
+                                        </p>
+                                        <div className="eagle-alert eagle-alert--muted" role="status">
+                                            Check the timer above. The problem preview and download button will become available when the competition opens.
+                                        </div>
+                                    </>
+                                )}
                             </div>
-                            <div className="eagle-actions">
-                                <button
-                                    type="button"
-                                    className="eagle-btn eagle-btn--primary"
-                                    onClick={downloadInstructions}
-                                >
-                                    <FaDownload aria-hidden />
-                                    Download instructions
-                                </button>
-                            </div>
+                            {canViewProblem ? (
+                                <div className="eagle-actions">
+                                    <button
+                                        type="button"
+                                        className="eagle-btn eagle-btn--primary"
+                                        onClick={downloadInstructions}
+                                    >
+                                        <FaDownload aria-hidden />
+                                        Download instructions
+                                    </button>
+                                </div>
+                            ) : null}
                         </section>
 
                         <section className="eagle-card eagle-card--chat" aria-labelledby="eagle-chat-heading">
