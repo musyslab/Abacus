@@ -1252,7 +1252,10 @@ def get_available_projects(
         if not team:
             return make_response({'message': 'Team not found'}, HTTPStatus.NOT_FOUND)
 
-        divisions = [normalize_division(getattr(team, 'Division', None))]
+        team_division = str(getattr(team, 'Division', '') or '').strip().lower()
+        if team_division not in {'blue', 'gold'}:
+            return make_response([], HTTPStatus.OK)
+        divisions = [team_division]
 
     elif isinstance(current_user, AdminUsers) and int(getattr(current_user, 'Role', 0) or 0) != ADMIN_ROLE:
         school_id = int(getattr(current_user, 'SchoolId', 0) or 0)
@@ -1263,10 +1266,12 @@ def get_available_projects(
         if not teams:
             return make_response([], HTTPStatus.OK)
 
-        divisions = sorted({
-            normalize_division(getattr(team, 'Division', None))
-            for team in teams
-        })
+        visible_divisions = set()
+        for team in teams:
+            team_division = str(getattr(team, 'Division', '') or '').strip().lower()
+            if team_division in {'blue', 'gold'}:
+                visible_divisions.add(team_division)
+        divisions = sorted(visible_divisions)
 
     else:
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
