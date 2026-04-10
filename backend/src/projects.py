@@ -210,6 +210,53 @@ def get_visible_student_ids_for_gold_summary() -> list[int]:
 
     return []
 
+def build_project_total_submission_counts(projects, visible_team_ids: list[int]) -> dict[int, int]:
+    project_ids = [int(proj.Id) for proj in (projects or [])]
+    counts_by_project: dict[int, int] = {pid: 0 for pid in project_ids}
+
+    if not project_ids or not visible_team_ids:
+        return counts_by_project
+
+    submissions = (
+        Submissions.query
+        .filter(
+            Submissions.Project.in_(project_ids),
+            Submissions.Team.in_(visible_team_ids),
+        )
+        .all()
+    )
+
+    for submission in submissions:
+        project_id = int(getattr(submission, "Project", 0) or 0)
+        if project_id in counts_by_project:
+            counts_by_project[project_id] += 1
+
+    return counts_by_project
+
+def build_gold_project_total_submission_counts(projects, visible_team_ids: list[int]) -> dict[int, int]:
+    project_ids = [int(proj.Id) for proj in (projects or [])]
+    counts_by_project: dict[int, int] = {pid: 0 for pid in project_ids}
+
+    if not project_ids or not visible_team_ids:
+        return counts_by_project
+
+    submissions = (
+        GoldDivision.query
+        .join(StudentUsers, StudentUsers.Id == GoldDivision.StudentId)
+        .filter(
+            GoldDivision.ProjectId.in_(project_ids),
+            StudentUsers.TeamId.in_(visible_team_ids),
+        )
+        .all()
+    )
+
+    for submission in submissions:
+        project_id = int(getattr(submission, "ProjectId", 0) or 0)
+        if project_id in counts_by_project:
+            counts_by_project[project_id] += 1
+
+    return counts_by_project
+
 def build_project_review_counts(projects, visible_team_ids: list[int]) -> dict[int, dict[str, int]]:
     project_ids = [int(proj.Id) for proj in (projects or [])]
     total_visible_teams = len(visible_team_ids)
@@ -343,14 +390,14 @@ def all_projects(project_repo: ProjectRepository = Provide[Container.project_rep
         if normalize_division(getattr(proj, "Division", "blue")) == division_filter
     ]
 
-    thisdic = submission_repo.get_total_submission_for_all_projects()
-
     visible_team_ids = get_visible_team_ids_for_project_summary(division_filter)
 
     if division_filter == "gold":
         review_counts = build_gold_project_review_counts(data, visible_team_ids)
+        total_submission_counts = build_gold_project_total_submission_counts(data, visible_team_ids)
     else:
         review_counts = build_project_review_counts(data, visible_team_ids)
+        total_submission_counts = build_project_total_submission_counts(data, visible_team_ids)
 
     new_projects = [
         {
@@ -361,7 +408,7 @@ def all_projects(project_repo: ProjectRepository = Provide[Container.project_rep
             "GoldProblemType": normalize_gold_problem_type(getattr(proj, "GoldProblemType", "normal")),
             "DescriptionText": getattr(proj, "DescriptionText", None),
             "OrderIndex": proj.OrderIndex,
-            "TotalSubmissions": thisdic.get(proj.Id, 0),
+            "TotalSubmissions": total_submission_counts.get(proj.Id, 0),
             "NotSubmittedCount": review_counts.get(proj.Id, {}).get("NotSubmittedCount", 0),
             "SubmittedAtLeastOnceCount": review_counts.get(proj.Id, {}).get("SubmittedAtLeastOnceCount", 0),
             "PassingAllTestcasesCount": review_counts.get(proj.Id, {}).get("PassingAllTestcasesCount", 0),
@@ -728,7 +775,7 @@ def edit_project(project_repo: ProjectRepository = Provide[Container.project_rep
         proj_row.DescriptionText = None
         db.session.commit()
 
-    # Recompute testcase outputs **against the path we just wrote**, so we don't depend on
+    # Recompute testcase outputs against the path we just wrote, so we don't depend on
     # any cached ORM objects or delayed reads.
     try:
         # Recompute if either the solution OR the additional file changed.

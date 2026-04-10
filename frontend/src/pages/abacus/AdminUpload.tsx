@@ -263,7 +263,14 @@ const AdminUpload = () => {
         try {
             const res = await axios.post(`${API}/upload/`, formData, authConfig())
             setIsLoading(false)
-            navigate(`/submission/${res.data.sid}`)
+            navigate(`/admin/upload/submission/${res.data.sid}`, {
+                state: {
+                    breadcrumbItems: [
+                        { label: "Admin Menu", to: "/admin" },
+                        { label: "Blue Division Admin Upload", to: "/admin/upload" },
+                    ],
+                },
+            })
         } catch (err: any) {
             console.log(err)
             alert('Upload failed.')

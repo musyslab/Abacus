@@ -36,6 +36,7 @@ type ProjectObject = {
     OrderIndex: number | null;
     NotSubmittedCount: number;
     SubmittedAtLeastOnceCount: number;
+    TotalSubmissions: number;
 };
 
 type ProjectSection = {
@@ -324,13 +325,14 @@ export default function AdminProjectList({
     function renderProjectSection(section: ProjectSection) {
         const showOrderColumn =
             section.type === 'competition' || section.type === 'practice';
+        const showTotalSubmissions = division === 'blue';
         const showTableStatus =
             division === 'blue' &&
             (section.type === 'competition' || section.type === 'practice');
         const isActiveTable = showTableStatus && activeTableType === section.type;
         const reorderableType: ReorderableProjectType | null =
             section.type === 'none' ? null : section.type;
-        const colSpan = showOrderColumn ? 6 : 5;
+        const colSpan = (showOrderColumn ? 6 : 5) + (showTotalSubmissions ? 1 : 0);
         const showGoldCategoryPill = division === 'gold';
 
         return (
@@ -393,6 +395,11 @@ export default function AdminProjectList({
                             <th className="projects-table-header project-metric">
                                 Submitted
                             </th>
+                            {showTotalSubmissions && (
+                                <th className="projects-table-header project-metric">
+                                    Total Submissions
+                                </th>
+                            )}
                             <th className="projects-table-header project-review">Review</th>
                             <th className="projects-table-header project-edit">Edit</th>
                         </tr>
@@ -446,6 +453,14 @@ export default function AdminProjectList({
                                             </span>
                                         </td>
 
+                                        {showTotalSubmissions && (
+                                            <td className="project-metric">
+                                                <span className="project-metric__value">
+                                                    {project.TotalSubmissions}
+                                                </span>
+                                            </td>
+                                        )}
+
                                         <td className="project-review">
                                             <Link
                                                 className="button button-review"
@@ -461,6 +476,7 @@ export default function AdminProjectList({
                                             <Link
                                                 className="button button-edit"
                                                 to={`${manageBasePath}/${project.Id}`}
+                                                aria-label={`Edit ${project.Name}`}
                                             >
                                                 <FaEdit aria-hidden="true" />
                                                 <span className="button-text">Edit</span>

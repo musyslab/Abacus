@@ -422,11 +422,14 @@ def problem_review(
     )
 
     latest_by_team = {}
+    submission_counts_by_team = {}
     for submission in ordered_submissions:
         team_id = int(getattr(submission, "Team", 0) or 0)
-        if team_id <= 0 or team_id in latest_by_team:
+        if team_id <= 0:
             continue
-        latest_by_team[team_id] = submission
+        submission_counts_by_team[team_id] = submission_counts_by_team.get(team_id, 0) + 1
+        if team_id not in latest_by_team:
+            latest_by_team[team_id] = submission
 
     project_division = str(getattr(project, "Division", "blue") or "blue").strip().capitalize()
     teams_query = Teams.query
@@ -460,6 +463,7 @@ def problem_review(
             ),
             "submittedAt": submitted_at.isoformat() if submitted_at else "",
             "submittedAtLabel": submitted_at.strftime("%x %X") if submitted_at else "N/A",
+            "totalSubmissionCount": submission_counts_by_team.get(team_id, 0),
         })
 
     rows.sort(key=lambda row: (row["schoolName"].lower(), row["teamName"].lower()))
