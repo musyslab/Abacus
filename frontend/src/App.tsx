@@ -32,12 +32,12 @@ import AdminProblemReview from './pages/abacus/AdminProblemSubmissions';
 import StudentGoldSubmissions from './pages/abacus/StudentGoldSubmissions';
 import AdminGoldSubmissions from './pages/abacus/AdminGoldSubmissions';
 
-
 import SubmissionView from './pages/abacus/SubmissionView';
 
 import ProtectedRoute from './pages/components/ProtectedRoute';
 import AdminHelpRequests from './pages/abacus/AdminHelpRequests';
 import StudentHelpRequests from './pages/abacus/StudentHelpRequests';
+import TeacherHelpRequests from './pages/abacus/TeacherHelpRequests';
 
 import StudentEagleHome from './pages/abacus/StudentEagleHome';
 import AdminEagleChat from './pages/abacus/AdminEagleChat';
@@ -397,6 +397,11 @@ class App extends Component {
                     <Route path="/admin/help-requests" element={
                         <ProtectedRoute requiredAdminRole={1}>
                             <AdminHelpRequests />
+                        </ProtectedRoute>
+                    } />
+                    <Route path="/teacher/help-requests" element={
+                        <ProtectedRoute requiredAdminRole={0}>
+                            <TeacherHelpRequests />
                         </ProtectedRoute>
                     } />
                     <Route path="/student/help-requests" element={

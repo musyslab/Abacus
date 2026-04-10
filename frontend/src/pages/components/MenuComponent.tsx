@@ -89,25 +89,25 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                 const isAdmin = role === 1;
                 if (isAdmin) {
                     const info = { label: "Admin Menu", path: "/admin" };
-                    this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true, isAdminRole: true });
+                    this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true, isStudent: false, isAdminRole: true });
                     this.props.onUserRole?.("admin");
                     return info;
                 }
 
                 const info = { label: "Team Manage", path: "/teacher/team-manage" };
 
-                this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true });
+                this.setState({ dashboardLabel: info.label, dashboardPath: info.path, isRoleLoaded: true, isStudent: false, isAdminRole: false });
                 this.props.onUserRole?.("teacher");
                 return info;
             }
 
             const fallback = { label: "Dashboard", path: "/home" };
-            this.setState({ dashboardLabel: fallback.label, dashboardPath: fallback.path, isRoleLoaded: true });
+            this.setState({ dashboardLabel: fallback.label, dashboardPath: fallback.path, isRoleLoaded: true, isStudent: false, isAdminRole: false });
             this.props.onUserRole?.("student");
             return fallback;
         } catch {
             const fallback = { label: "Dashboard", path: "/home" };
-            this.setState({ dashboardLabel: fallback.label, dashboardPath: fallback.path, isRoleLoaded: true });
+            this.setState({ dashboardLabel: fallback.label, dashboardPath: fallback.path, isRoleLoaded: true, isStudent: false, isAdminRole: false });
             this.props.onUserRole?.("student");
             return fallback;
         }
@@ -174,8 +174,14 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                                 </Link>
                                 {loggedIn ? (
                                     <>
-                                        {this.state.isRoleLoaded && !this.state.isAdminRole && (
+                                        {this.state.isRoleLoaded && this.state.isStudent && (
                                             <Link to="/student/help-requests" className="menu__item menu__item--link" title="My Help Requests">
+                                                <FaQuestionCircle className="menu__icon" aria-hidden="true" />
+                                                <span className="menu__text">Help Requests</span>
+                                            </Link>
+                                        )}
+                                        {this.state.isRoleLoaded && !this.state.isStudent && !this.state.isAdminRole && (
+                                            <Link to="/teacher/help-requests" className="menu__item menu__item--link" title="My Help Requests">
                                                 <FaQuestionCircle className="menu__icon" aria-hidden="true" />
                                                 <span className="menu__text">Help Requests</span>
                                             </Link>
@@ -229,8 +235,14 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                                 </Link>
                                 {loggedIn ? (
                                     <>
-                                        {this.state.isRoleLoaded && !this.state.isAdminRole && (
+                                        {this.state.isRoleLoaded && this.state.isStudent && (
                                             <Link to="/student/help-requests" className="menu__item menu__item--link" title="My Help Requests">
+                                                <FaQuestionCircle className="menu__icon" aria-hidden="true" />
+                                                <span className="menu__text">Help Requests</span>
+                                            </Link>
+                                        )}
+                                        {this.state.isRoleLoaded && !this.state.isStudent && !this.state.isAdminRole && (
+                                            <Link to="/teacher/help-requests" className="menu__item menu__item--link" title="My Help Requests">
                                                 <FaQuestionCircle className="menu__icon" aria-hidden="true" />
                                                 <span className="menu__text">Help Requests</span>
                                             </Link>
@@ -289,9 +301,20 @@ class MenuComponent extends Component<MenuComponentProps, MenuComponentState> {
                                     <FaTrophy className="menu__icon" aria-hidden="true" />
                                     <span className="menu__text">Scoreboard</span>
                                 </Link>
-                                {this.state.isRoleLoaded && !this.state.isAdminRole && (
+                                {this.state.isRoleLoaded && this.state.isStudent && (
                                     <Link
                                         to="/student/help-requests"
+                                        className="menu__item menu__item--link"
+                                        title="My Help Requests"
+                                    >
+                                        <FaQuestionCircle className="menu__icon" aria-hidden="true" />
+                                        <span className="menu__text">Help Requests</span>
+                                    </Link>
+                                )}
+
+                                {this.state.isRoleLoaded && !this.state.isStudent && !this.state.isAdminRole && (
+                                    <Link
+                                        to="/teacher/help-requests"
                                         className="menu__item menu__item--link"
                                         title="My Help Requests"
                                     >

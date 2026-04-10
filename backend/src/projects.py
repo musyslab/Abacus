@@ -1198,16 +1198,44 @@ def get_available_projects(
     project_repo: ProjectRepository = Provide[Container.project_repo],
     team_repo: TeamRepository = Provide[Container.team_repo]
 ):
-    if not isinstance(current_user, StudentUsers):
+    divisions: list[str] = []
+
+    if isinstance(current_user, StudentUsers):
+        team = team_repo.get_team_by_id(current_user.TeamId) if current_user.TeamId else None
+        if not team:
+            return make_response({'message': 'Team not found'}, HTTPStatus.NOT_FOUND)
+
+        divisions = [normalize_division(getattr(team, 'Division', None))]
+
+    elif isinstance(current_user, AdminUsers) and int(getattr(current_user, 'Role', 0) or 0) != ADMIN_ROLE:
+        school_id = int(getattr(current_user, 'SchoolId', 0) or 0)
+        if school_id <= 0:
+            return make_response({'message': 'School not found'}, HTTPStatus.NOT_FOUND)
+
+        teams = Teams.query.filter(Teams.SchoolId == school_id).all()
+        if not teams:
+            return make_response([], HTTPStatus.OK)
+
+        divisions = sorted({
+            normalize_division(getattr(team, 'Division', None))
+            for team in teams
+        })
+
+    else:
         return make_response({'message': 'Access Denied'}, HTTPStatus.UNAUTHORIZED)
 
-    team = team_repo.get_team_by_id(current_user.TeamId) if current_user.TeamId else None
-    if not team:
-        return make_response({'message': 'Team not found'}, HTTPStatus.NOT_FOUND)
+    projects_by_id = {}
 
-    projects = project_repo.get_projects_by_type_division(
-        project_type='competition',
-        division=team.Division
-    )
+    for division in divisions:
+        projects = project_repo.get_projects_by_type_division(
+            project_type='competition',
+            division=division
+        )
 
-    return make_response([{'id': p.Id, 'name': p.Name} for p in projects], HTTPStatus.OK)
+        for p in projects:
+            projects_by_id[int(p.Id)] = {'id': p.Id, 'name': p.Name}
+
+    ordered_projects = list(projects_by_id.values())
+    ordered_projects.sort(key=lambda p: p['name'].lower())
+
+    return make_response(ordered_projects, HTTPStatus.OK)

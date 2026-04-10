@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react'
 import axios from 'axios'
 import '../../styling/AdminHelpRequests.scss'
 import MenuComponent from '../components/MenuComponent'
@@ -53,6 +60,7 @@ interface HelpRequestMessage {
 
 const HISTORY_PAGE_SIZE = 6
 const POLL_MS = 30000
+const COMPOSER_MIN_HEIGHT = 56
 
 const AdminHelpRequests: React.FC = () => {
     const [helpRequests, setHelpRequests] = useState<HelpRequestsStateItem[]>([])
@@ -63,6 +71,8 @@ const AdminHelpRequests: React.FC = () => {
     const [draftMessage, setDraftMessage] = useState('')
     const [sendingMessage, setSendingMessage] = useState(false)
     const [updatingStatus, setUpdatingStatus] = useState(false)
+
+    const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null)
 
     const authConfig = useCallback(() => ({
         headers: {
@@ -173,6 +183,18 @@ const AdminHelpRequests: React.FC = () => {
     const getRequestActivityTime = useCallback((item: HelpRequestsStateItem) => {
         return toSafeDate(item.lastMessageAt || item.createdAt)?.getTime() ?? 0
     }, [])
+
+    const resizeComposer = useCallback(() => {
+        const textarea = composerTextareaRef.current
+        if (!textarea) return
+
+        textarea.style.height = 'auto'
+        textarea.style.height = `${Math.max(textarea.scrollHeight, COMPOSER_MIN_HEIGHT)}px`
+    }, [])
+
+    useLayoutEffect(() => {
+        resizeComposer()
+    }, [draftMessage, selectedRequestId, resizeComposer])
 
     const fetchRequests = useCallback(async () => {
         try {
@@ -423,6 +445,14 @@ const AdminHelpRequests: React.FC = () => {
         return `Updated ${formatDateTime(referenceTime)}`
     }
 
+    const getCardAudienceLabel = (item: HelpRequestsStateItem) => {
+        return item.teamDivision || (item.studentId === 0 ? 'Teacher' : 'Student')
+    }
+
+    const getCardTopicLabel = (item: HelpRequestsStateItem) => {
+        return `${item.problemName || 'General'} · ${item.reason}`
+    }
+
     const renderActiveRequestCard = (item: HelpRequestsStateItem) => (
         <div
             key={item.id}
@@ -441,15 +471,10 @@ const AdminHelpRequests: React.FC = () => {
 
             <div className="ahr-request-card__meta">
                 <span>{item.teamSchool || 'No school'}</span>
-                <span>{item.teamDivision || (item.studentId === 0 ? 'Teacher' : 'Student')}</span>
+                <span>{getCardAudienceLabel(item)}</span>
             </div>
 
-            <div className="ahr-request-card__tags">
-                <span>{item.problemName || 'General'}</span>
-                <span>{item.reason}</span>
-            </div>
-
-            <p className="ahr-request-card__description">{item.description}</p>
+            <div className="ahr-request-card__topic">{getCardTopicLabel(item)}</div>
 
             <div className="ahr-request-card__footer">
                 <span>{getCardFooterLead(item)}</span>
@@ -606,15 +631,10 @@ const AdminHelpRequests: React.FC = () => {
 
                                         <div className="ahr-request-card__meta">
                                             <span>{item.teamSchool || 'No school'}</span>
-                                            <span>{item.teamDivision || (item.studentId === 0 ? 'Teacher' : 'Student')}</span>
+                                            <span>{getCardAudienceLabel(item)}</span>
                                         </div>
 
-                                        <div className="ahr-request-card__tags">
-                                            <span>{item.problemName || 'General'}</span>
-                                            <span>{item.reason}</span>
-                                        </div>
-
-                                        <p className="ahr-request-card__description">{item.description}</p>
+                                        <div className="ahr-request-card__topic">{getCardTopicLabel(item)}</div>
 
                                         <div className="ahr-request-card__footer">
                                             <span>Requested {formatDateTime(item.createdAt)}</span>
@@ -780,11 +800,12 @@ const AdminHelpRequests: React.FC = () => {
                                             Reply
                                         </label>
                                         <textarea
+                                            ref={composerTextareaRef}
                                             id="admin-help-request-reply"
-                                            rows={4}
+                                            rows={2}
                                             value={draftMessage}
                                             onChange={(e) => setDraftMessage(e.target.value)}
-                                            placeholder="Send an update, ask a follow-up question, or give the requester next steps."
+                                            placeholder="Reply with an update, follow-up question, or next steps."
                                             disabled={sendingMessage}
                                         />
                                         <div className="ahr-composer__footer">
