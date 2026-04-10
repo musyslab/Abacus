@@ -40,6 +40,43 @@ def _staff_role() -> int | None:
     return int(getattr(current_user, "Role", TEACHER_ROLE) or TEACHER_ROLE)
 
 
+def _visible_eagle_teams_query():
+    if not isinstance(current_user, AdminUsers):
+        return None
+
+    teams_query = Teams.query.filter(Teams.Division == "Eagle")
+    if _staff_role() == TEACHER_ROLE:
+        teams_query = teams_query.filter(
+            Teams.SchoolId == int(getattr(current_user, "SchoolId", 0) or 0)
+        )
+
+    return teams_query
+
+
+def _message_sender_role(message) -> str | None:
+    if message is None:
+        return None
+
+    sender_type = (getattr(message, "SenderType", "") or "").strip().lower()
+    if sender_type == "student":
+        return "student"
+
+    admin_id = int(getattr(message, "AdminId", 0) or 0)
+    admin = AdminUsers.query.filter_by(Id=admin_id).first() if admin_id > 0 else None
+    admin_role = int(getattr(admin, "Role", TEACHER_ROLE) or TEACHER_ROLE) if admin else ADMIN_ROLE
+    return "admin" if admin_role == ADMIN_ROLE else "teacher"
+
+
+def _conversation_stage(message_count: int, last_sender_role: str | None) -> str:
+    if message_count <= 0:
+        return "no_messages"
+
+    if last_sender_role == "student":
+        return "needs_admin_reply"
+
+    return "waiting_for_requester"
+
+
 def _eagle_instructions_path() -> tuple[str | None, str]:
     """Resolve PDF under tabot-files/eagledivision (dev: repo sibling; prod: /tabot-files mount)."""
     download_name = "Eagle-Division-2026.pdf"
@@ -91,13 +128,11 @@ def download_eagle_instructions():
 @eagle_api.route("/teams", methods=["GET"])
 @jwt_required()
 def list_eagle_teams():
-    if not _is_global_admin():
+    teams_query = _visible_eagle_teams_query()
+    if teams_query is None:
         return make_response({"message": "Admin access required"}, HTTPStatus.FORBIDDEN)
-    teams = (
-        Teams.query.filter(Teams.Division == "Eagle")
-        .order_by(asc(Teams.SchoolId), asc(Teams.TeamNumber))
-        .all()
-    )
+
+    teams = teams_query.order_by(asc(Teams.SchoolId), asc(Teams.TeamNumber)).all()
     return jsonify(
         [
             {
@@ -109,6 +144,55 @@ def list_eagle_teams():
             for t in teams
         ]
     )
+
+
+@eagle_api.route("/conversations", methods=["GET"])
+@jwt_required()
+def list_eagle_conversations():
+    teams_query = _visible_eagle_teams_query()
+    if teams_query is None:
+        return make_response({"message": "Unauthorized"}, HTTPStatus.FORBIDDEN)
+
+    teams = teams_query.order_by(asc(Teams.SchoolId), asc(Teams.TeamNumber)).all()
+    payload = []
+
+    for team in teams:
+        latest_message = (
+            EagleTeamMessages.query
+            .filter(EagleTeamMessages.TeamId == int(team.Id))
+            .order_by(desc(EagleTeamMessages.CreatedAt), desc(EagleTeamMessages.Id))
+            .first()
+        )
+        message_count = (
+            EagleTeamMessages.query
+            .filter(EagleTeamMessages.TeamId == int(team.Id))
+            .count()
+        )
+
+        last_sender_role = _message_sender_role(latest_message)
+        payload.append(
+            {
+                "teamId": int(team.Id),
+                "teamName": str(getattr(team, "Name", "") or f"Team {team.Id}").strip(),
+                "teamNumber": int(getattr(team, "TeamNumber", 0) or 0),
+                "schoolId": int(getattr(team, "SchoolId", 0) or 0),
+                "lastMessagePreview": (
+                    str(getattr(latest_message, "Body", "") or "").strip()[:140]
+                    if latest_message else None
+                ),
+                "lastMessageAt": (
+                    latest_message.CreatedAt.isoformat(sep=" ", timespec="seconds")
+                    if latest_message and getattr(latest_message, "CreatedAt", None)
+                    else None
+                ),
+                "lastSenderRole": last_sender_role,
+                "conversationStage": _conversation_stage(message_count, last_sender_role),
+                "messageCount": message_count,
+            }
+        )
+
+    return jsonify(payload)
+
 
 @eagle_api.route("/messages", methods=["GET"])
 @jwt_required()
@@ -191,6 +275,13 @@ def post_message():
         return jsonify({"id": msg.Id, "ok": True}), HTTPStatus.CREATED
 
     if isinstance(current_user, AdminUsers):
+        role = _staff_role()
+        if role != ADMIN_ROLE:
+            return make_response(
+                {"message": "Teachers can view Eagle chat threads but cannot send messages."},
+                HTTPStatus.FORBIDDEN,
+            )
+
         team_id = data.get("team_id")
         try:
             tid = int(team_id)
@@ -199,10 +290,6 @@ def post_message():
         team = Teams.query.filter_by(Id=tid, Division="Eagle").first()
         if not team:
             return make_response({"message": "Eagle team not found"}, HTTPStatus.NOT_FOUND)
-
-        role = _staff_role()
-        if role == TEACHER_ROLE and int(getattr(team, "SchoolId", 0) or 0) != int(getattr(current_user, "SchoolId", 0) or 0):
-            return make_response({"message": "Unauthorized"}, HTTPStatus.FORBIDDEN)
 
         msg = EagleTeamMessages(
             TeamId=tid,

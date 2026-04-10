@@ -10,6 +10,9 @@ import axios from 'axios'
 import '../../styling/AdminHelpRequests.scss'
 import MenuComponent from '../components/MenuComponent'
 import DirectoryBreadcrumbs from '../components/DirectoryBreadcrumbs'
+import HelpRequestThread, {
+    HelpRequestConversationMessage,
+} from '../components/HelpRequestThread'
 import {
     FaHandshake,
     FaRegClock,
@@ -319,6 +322,16 @@ const AdminHelpRequests: React.FC = () => {
     const selectedRequest = useMemo(() => {
         return helpRequests.find((item) => item.id === selectedRequestId) ?? null
     }, [helpRequests, selectedRequestId])
+
+    const threadMessages = useMemo<HelpRequestConversationMessage[]>(() => {
+        return messages.map((message) => ({
+            id: message.id,
+            senderRole: message.senderRole,
+            authorLabel: message.senderName || (message.senderRole === 'staff' ? 'Staff' : 'Requester'),
+            body: message.body,
+            createdAt: message.createdAt,
+        }))
+    }, [messages])
 
     const updateRequestStatus = async (id: number, newStatus: number) => {
         setUpdatingStatus(true)
@@ -768,61 +781,28 @@ const AdminHelpRequests: React.FC = () => {
 
                             {renderResponseBanner()}
 
-                            <div className="ahr-messages">
-                                {loadingMessages ? (
-                                    <div className="ahr-empty-state">Loading conversation...</div>
-                                ) : messages.length === 0 ? (
-                                    <div className="ahr-empty-state">No replies yet.</div>
-                                ) : (
-                                    messages.map((message) => (
-                                        <div
-                                            key={message.id}
-                                            className={`ahr-message ${message.senderRole === 'staff' ? 'is-staff' : 'is-requester'}`}
-                                        >
-                                            <div className="ahr-message__meta">
-                                                <span className="ahr-message__author">{message.senderName}</span>
-                                                <span>{formatDateTime(message.createdAt)}</span>
-                                            </div>
-                                            <div className="ahr-message__body">{message.body}</div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-
-                            <div className="ahr-composer">
-                                {!canReply ? (
-                                    <div className="ahr-composer__closed">
-                                        This request is closed. Reopen it to continue the conversation.
-                                    </div>
-                                ) : (
-                                    <>
-                                        <label htmlFor="admin-help-request-reply" className="ahr-composer__label">
-                                            Reply
-                                        </label>
-                                        <textarea
-                                            ref={composerTextareaRef}
-                                            id="admin-help-request-reply"
-                                            rows={2}
-                                            value={draftMessage}
-                                            onChange={(e) => setDraftMessage(e.target.value)}
-                                            placeholder="Reply with an update, follow-up question, or next steps."
-                                            disabled={sendingMessage}
-                                        />
-                                        <div className="ahr-composer__footer">
-                                            <span className="ahr-composer__hint">
-                                                {composerHint}
-                                            </span>
-                                            <button
-                                                className="button button-accept"
-                                                disabled={sendingMessage || !draftMessage.trim()}
-                                                onClick={sendMessage}
-                                            >
-                                                <FaPaperPlane /> {sendingMessage ? 'Sending...' : 'Send Reply'}
-                                            </button>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                            <HelpRequestThread
+                                classNamePrefix="ahr"
+                                messages={threadMessages}
+                                loading={loadingMessages}
+                                loadingText="Loading conversation..."
+                                emptyText="No replies yet."
+                                canReply={canReply}
+                                closedText="This request is closed. Reopen it to continue the conversation."
+                                composerId="admin-help-request-reply"
+                                composerLabel="Reply"
+                                composerValue={draftMessage}
+                                onComposerChange={setDraftMessage}
+                                composerPlaceholder="Reply with an update, follow-up question, or next steps."
+                                composerHint={composerHint}
+                                sending={sendingMessage}
+                                sendLabel="Send Reply"
+                                sendingLabel="Sending..."
+                                onSend={sendMessage}
+                                formatDateTime={formatDateTime}
+                                textareaRows={2}
+                                textareaRef={composerTextareaRef}
+                            />
                         </>
                     )}
                 </section>

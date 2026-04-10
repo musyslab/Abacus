@@ -10,7 +10,10 @@ import {
 } from 'react-icons/fa'
 import MenuComponent from '../components/MenuComponent'
 import DirectoryBreadcrumbs from '../components/DirectoryBreadcrumbs'
-import '../../styling/StudentHelpRequests.scss'
+import HelpRequestThread, {
+    HelpRequestConversationMessage,
+} from '../components/HelpRequestThread'
+import '../../styling/HelpRequestsRequester.scss'
 
 type ConversationStage =
     | 'waiting_for_admin'
@@ -443,6 +446,16 @@ const TeacherHelpRequests: React.FC = () => {
         return 'You can add more context here instead of opening a new request.'
     }, [selectedRequest, getConversationStage])
 
+    const threadMessages = useMemo<HelpRequestConversationMessage[]>(() => {
+        return messages.map((message) => ({
+            id: message.id,
+            senderRole: message.senderRole,
+            authorLabel: message.senderRole === 'requester' ? 'You' : message.senderName,
+            body: message.body,
+            createdAt: message.createdAt,
+        }))
+    }, [messages])
+
     const renderResponseBanner = () => {
         if (!selectedRequest || !canReply) return null
 
@@ -723,62 +736,27 @@ const TeacherHelpRequests: React.FC = () => {
 
                             {renderResponseBanner()}
 
-                            <div className="shr-messages">
-                                {loadingMessages ? (
-                                    <div className="shr-empty-state">Loading conversation...</div>
-                                ) : messages.length === 0 ? (
-                                    <div className="shr-empty-state">No replies yet.</div>
-                                ) : (
-                                    messages.map((message) => (
-                                        <div
-                                            key={message.id}
-                                            className={`shr-message ${message.senderRole === 'requester' ? 'is-requester' : 'is-staff'}`}
-                                        >
-                                            <div className="shr-message__meta">
-                                                <span className="shr-message__author">
-                                                    {message.senderRole === 'requester' ? 'You' : message.senderName}
-                                                </span>
-                                                <span>{formatDateTime(message.createdAt)}</span>
-                                            </div>
-                                            <div className="shr-message__body">{message.body}</div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-
-                            <div className="shr-composer">
-                                {!canReply ? (
-                                    <div className="shr-composer__closed">
-                                        This request is closed. Start a new request if you need more help.
-                                    </div>
-                                ) : (
-                                    <>
-                                        <label htmlFor="teacher-help-request-reply" className="shr-composer__label">
-                                            Send a follow-up
-                                        </label>
-                                        <textarea
-                                            id="teacher-help-request-reply"
-                                            rows={4}
-                                            value={draftMessage}
-                                            onChange={(e) => setDraftMessage(e.target.value)}
-                                            placeholder="Add context, answer a follow-up question, or share what changed."
-                                            disabled={sendingMessage}
-                                        />
-                                        <div className="shr-composer__footer">
-                                            <span className="shr-composer__hint">
-                                                {composerHint}
-                                            </span>
-                                            <button
-                                                className="button button-accept"
-                                                disabled={sendingMessage || !draftMessage.trim()}
-                                                onClick={sendMessage}
-                                            >
-                                                <FaPaperPlane /> {sendingMessage ? 'Sending...' : 'Send Message'}
-                                            </button>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                            <HelpRequestThread
+                                classNamePrefix="shr"
+                                messages={threadMessages}
+                                loading={loadingMessages}
+                                loadingText="Loading conversation..."
+                                emptyText="No replies yet."
+                                canReply={canReply}
+                                closedText="This request is closed. Start a new request if you need more help."
+                                composerId="teacher-help-request-reply"
+                                composerLabel="Send a follow-up"
+                                composerValue={draftMessage}
+                                onComposerChange={setDraftMessage}
+                                composerPlaceholder="Add context, answer a follow-up question, or share what changed."
+                                composerHint={composerHint}
+                                sending={sendingMessage}
+                                sendLabel="Send Message"
+                                sendingLabel="Sending..."
+                                onSend={sendMessage}
+                                formatDateTime={formatDateTime}
+                                textareaRows={4}
+                            />
                         </>
                     )}
                 </section>

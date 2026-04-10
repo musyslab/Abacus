@@ -1,13 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 import { Helmet } from "react-helmet";
-import { FaDownload, FaPaperPlane } from "react-icons/fa";
+import { FaDownload } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
 import MenuComponent from "../components/MenuComponent";
 import DirectoryBreadcrumbs from "../components/DirectoryBreadcrumbs";
-import EagleChatMessageRow from "../components/EagleChatMessageRow";
-import "../../styling/StudentEagleHome.scss";
+import EagleChatThread from "../components/EagleChatThread";
+import "../../styling/EagleDivision.scss";
 
 type ProblemPayload = {
     projectId: number | null;
@@ -26,6 +26,14 @@ type ChatRow = {
     createdAt: string;
 };
 
+type TeamSummary = {
+    id: number;
+    name: string;
+    division: string;
+    teamNumber: number;
+    isOnline: boolean;
+};
+
 export default function StudentEagleHome() {
     const apiBase = (import.meta.env.VITE_API_URL as string) || "";
     const navigate = useNavigate();
@@ -36,10 +44,7 @@ export default function StudentEagleHome() {
     const [chatError, setChatError] = useState("");
     const [draft, setDraft] = useState("");
     const [sending, setSending] = useState(false);
-    const chatLogRef = useRef<HTMLDivElement | null>(null);
-    const [isPinnedToBottom, setIsPinnedToBottom] = useState(true);
-
-    const shouldAutoScroll = useMemo(() => isPinnedToBottom, [isPinnedToBottom]);
+    const [teamName, setTeamName] = useState("");
 
     const authConfig = useCallback(() => {
         const token = localStorage.getItem("AUTOTA_AUTH_TOKEN");
@@ -50,6 +55,15 @@ export default function StudentEagleHome() {
             },
         };
     }, []);
+
+    const loadTeam = useCallback(async () => {
+        try {
+            const res = await axios.get<TeamSummary>(`${apiBase}/team/me`, authConfig());
+            setTeamName((res.data?.name || "").trim());
+        } catch {
+            setTeamName("");
+        }
+    }, [apiBase, authConfig]);
 
     const loadProblem = useCallback(async () => {
         setProblemError("");
@@ -84,6 +98,10 @@ export default function StudentEagleHome() {
     }, [apiBase, authConfig, navigate]);
 
     useEffect(() => {
+        loadTeam();
+    }, [loadTeam]);
+
+    useEffect(() => {
         loadProblem();
     }, [loadProblem]);
 
@@ -92,13 +110,6 @@ export default function StudentEagleHome() {
         const id = window.setInterval(loadMessages, 30000);
         return () => window.clearInterval(id);
     }, [loadMessages]);
-
-    useEffect(() => {
-        if (!shouldAutoScroll) return;
-        const el = chatLogRef.current;
-        if (!el) return;
-        el.scrollTop = el.scrollHeight;
-    }, [messages, shouldAutoScroll]);
 
     function downloadInstructions() {
         setProblemError("");
@@ -123,7 +134,7 @@ export default function StudentEagleHome() {
             .catch(() => setProblemError("Download failed. Try again or contact an admin."));
     }
 
-    async function sendMessage(e: React.FormEvent) {
+    async function sendMessage(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         const text = draft.trim();
         if (!text || sending) return;
@@ -152,7 +163,7 @@ export default function StudentEagleHome() {
 
             <MenuComponent />
 
-            <div className="admin-team-manage-root">
+            <div className="eagle-home-root">
                 <DirectoryBreadcrumbs
                     items={[
                         { label: "Eagle Submissions" }
@@ -209,49 +220,20 @@ export default function StudentEagleHome() {
                                     {chatError}
                                 </div>
                             ) : null}
-                            <div
-                                ref={chatLogRef}
-                                className="eagle-chat-log"
-                                role="log"
-                                aria-live="polite"
-                                onScroll={() => {
-                                    const el = chatLogRef.current;
-                                    if (!el) return;
-                                    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-                                    setIsPinnedToBottom(nearBottom);
-                                }}
-                            >
-                                {messages.length === 0 ? (
-                                    <p className="eagle-empty-chat">No messages yet. Say hello below.</p>
-                                ) : (
-                                    messages.map((m) => (
-                                        <EagleChatMessageRow key={m.id} message={m} audience="student" />
-                                    ))
-                                )}
-                            </div>
-                            <form className="eagle-chat-form" onSubmit={sendMessage}>
-                                <textarea
-                                    className="eagle-chat-input"
-                                    value={draft}
-                                    onChange={(e) => setDraft(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key !== "Enter" || e.shiftKey) return;
-                                        e.preventDefault();
-                                        (e.currentTarget.form as HTMLFormElement | null)?.requestSubmit();
-                                    }}
-                                    placeholder="Type a message to admins…"
-                                    maxLength={8000}
-                                    aria-label="Message to administrators"
-                                />
-                                <button
-                                    type="submit"
-                                    className="eagle-btn eagle-btn--primary"
-                                    disabled={sending || !draft.trim()}
-                                >
-                                    <FaPaperPlane aria-hidden />
-                                    {sending ? "Sending…" : "Send"}
-                                </button>
-                            </form>
+                            <EagleChatThread
+                                messages={messages}
+                                draft={draft}
+                                onDraftChange={setDraft}
+                                onSend={sendMessage}
+                                sending={sending}
+                                placeholder="Type a message to admins…"
+                                ariaLabel="Message to administrators"
+                                submitLabel="Send"
+                                sendingLabel="Sending…"
+                                emptyText="No messages yet. Say hello below."
+                                audience="student"
+                                ownSenderLabel={teamName || "Your team"}
+                            />
                         </section>
                     </div>
                 </div>
