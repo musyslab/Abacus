@@ -242,11 +242,12 @@
 
 .eagle-chat-log {
     flex: 0 1 auto;
-    min-height: 200px;
+    min-height: 160px;
     /* Cap height so long threads scroll inside the card instead of stretching the page */
-    max-height: min(42vh, 400px);
+    max-height: min(60vh, 560px);
     overflow-y: auto;
-    overscroll-behavior: contain;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
     scrollbar-gutter: stable;
     display: flex;
     flex-direction: column;
