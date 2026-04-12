@@ -76,13 +76,11 @@ def create_app():
         'CACHE_DEFAULT_TIMEOUT': 60,
     })
 
-    # Scheduler setup
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        if scheduler.get_job("scoreboard_snapshot_job") is None:
-            add_scoreboard_job(scheduler, app)
+    if scheduler.get_job("scoreboard_snapshot_job") is None:
+        add_scoreboard_job(scheduler, app)
 
-        if not scheduler.running:
-            scheduler.start()
+    if not scheduler.running:
+        scheduler.start()
 
     return app
 
