@@ -57,6 +57,13 @@
     }
 }
 
+.scoreboard-download-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
 .leaderboard-legend {
     display: flex;
     flex-direction: column;
