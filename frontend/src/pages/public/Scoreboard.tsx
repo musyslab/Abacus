@@ -99,14 +99,13 @@ const SCORE_TOOLTIP_TEXT = (
 const PROJECT_COLORS = [
     "project--blue",
     "project--green",
-    "project--lightblue",
     "project--orange",
     "project--purple",
     "project--red",
     "project--pink",
     "project--yellow",
-    "project--black",
     "project--white",
+    "project--black",
 ] as const;
 
 function formatTimestamp(isoString?: string | null): string {
