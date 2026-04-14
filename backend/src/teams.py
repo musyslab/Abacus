@@ -1,6 +1,5 @@
-from flask import make_response
 from http import HTTPStatus
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, make_response, send_file
 from flask_jwt_extended import jwt_required, current_user
 from dependency_injector.wiring import inject, Provide
 from container import Container
@@ -31,6 +30,10 @@ from src.constants import (
 )
 from src.services.scoreboard_service import build_scoreboard_payload
 from src.extensions import cache
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill
+from openpyxl.utils import get_column_letter
+from io import BytesIO
 
 team_api = Blueprint("team_api", __name__)
 
@@ -104,6 +107,27 @@ def count_passed_testcases(rows: List[dict]) -> int:
         if bool(row.get("passed", row.get("State", False))):
             passed += 1
     return passed
+
+def clean_scoreboard_args(division: str, is_online_raw: str, project_type: str = None) -> tuple:
+    if not all([division, is_online_raw]):
+        raise Exception('Missing required parameters')
+
+    is_online_str = is_online_raw.lower()
+    if is_online_str not in {"true", "false"}:
+        raise Exception('Invalid is_online value')
+    is_online = is_online_str == "true"
+
+    division = division.capitalize()
+    if division not in {"Blue", "Gold", "Eagle"}:
+        raise Exception('Invalid division')
+    
+    if project_type is not None:
+        project_type = project_type.lower()
+        if project_type not in {"competition", "practice"}:
+            raise Exception('Invalid project_type')
+        return division, is_online, project_type
+
+    return division, is_online
 
 def build_scoreboard_now(project_repo, team_repo, division, is_online, project_type, now, status, transition_at=None):
     payload = build_scoreboard_payload(
@@ -601,21 +625,10 @@ def get_scoreboard(
     project_type = request.args.get("project_type", type=str)
     is_online_raw = request.args.get("is_online", type=str)
 
-    if not all([division, project_type, is_online_raw]):
-        return make_response({'message': 'Missing required parameters'}, HTTPStatus.BAD_REQUEST)
-
-    is_online_str = is_online_raw.lower()
-    if is_online_str not in {"true", "false"}:
-        return make_response({'message': 'Invalid is_online value'}, HTTPStatus.BAD_REQUEST)
-    is_online = is_online_str == "true"
-
-    division = division.capitalize()
-    project_type = project_type.lower()
-
-    if division not in {"Blue", "Gold", "Eagle"}:
-        return make_response({'message': 'Invalid division'}, HTTPStatus.BAD_REQUEST)
-    if project_type not in {"competition", "practice"}:
-        return make_response({'message': 'Invalid project_type'}, HTTPStatus.BAD_REQUEST)
+    try:
+        division, is_online, project_type = clean_scoreboard_args(division, is_online_raw, project_type)
+    except Exception as e:
+        return make_response({'message': str(e)}, HTTPStatus.BAD_REQUEST)
 
     user_is_admin = current_user is not None and user_repo.is_admin()
     now = datetime.now()
@@ -676,3 +689,99 @@ def get_scoreboard(
     cache.set(cache_key, payload, timeout=60)
 
     return jsonify(payload)
+
+@team_api.route("/scoreboard/download", methods=["GET"])
+@jwt_required()
+@inject
+def download_scoreboard(
+    team_repo: TeamRepository = Provide[Container.team_repo],
+    project_repo: ProjectRepository = Provide[Container.project_repo],
+    user_repo: UserRepository = Provide[Container.user_repo],
+):
+    if not user_repo.is_admin():
+        return make_response({'message': 'Forbidden'}, HTTPStatus.FORBIDDEN)
+    
+    division = request.args.get("division", type=str)
+    is_online_raw = request.args.get("is_online", type=str)
+
+    try:
+        division, is_online = clean_scoreboard_args(division, is_online_raw)
+    except Exception as e:
+        return make_response({'message': str(e)}, HTTPStatus.BAD_REQUEST)
+    
+    now = datetime.now()
+
+    if now > COMPETITION_END:
+        minute = get_minute_index(start=COMPETITION_START, now=COMPETITION_END)
+    else:
+        minute = get_minute_index(start=COMPETITION_START, now=now)
+
+    scoreboard = team_repo.get_latest_scoreboard_snapshot(division=division, is_online=is_online, max_minute=minute)
+
+    if scoreboard:
+        timestamp = scoreboard.TimeStamp.strftime("%B %d, %Y at %I:%M %p") if scoreboard.TimeStamp else "Unknown"
+        payload = json.loads(scoreboard.Payload) if scoreboard.Payload else {}
+    else:
+        try:
+            payload = build_scoreboard_now(project_repo, team_repo, division, is_online, "competition", now, "")
+            timestamp = now.strftime("%B %d, %Y at %I:%M %p")
+        except Exception:
+            return make_response({"message": "Scoreboard failed to load."}, HTTPStatus.SERVICE_UNAVAILABLE)
+
+    teams = payload.get("teams", [])
+    projects = payload.get("projects", [])
+    is_online_str = "Virtual" if is_online else "In-Person"
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Scoreboard'
+
+    headers = ['Rank', 'Team Name', 'School Name', 'Score', 'Total Penalty']
+    headers += [f"P{p['orderIndex']}" for p in projects]
+
+    total_cols = len(headers)
+    ws.cell(row=1, column=1, value=f"{division} {is_online_str} Scoreboard - {timestamp}")
+    ws.cell(row=1, column=1).font = Font(bold=True, size=13, name="Arial")
+    ws.cell(row=1, column=1).alignment = Alignment(horizontal="left", vertical="center")
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=total_cols)
+
+    cell_alignment = Alignment(horizontal="center", vertical="center")
+
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=3, column=col, value=header)
+        cell.font = Font(bold=True, size=11, name="Arial")
+        cell.fill = PatternFill("solid", fgColor="D9E1F2")
+        cell.alignment = cell_alignment
+
+    for t_idx, team in enumerate(teams):
+        row = t_idx + 4
+        ws.cell(row=row, column=1, value=t_idx + 1).alignment = cell_alignment
+        ws.cell(row=row, column=2, value=team.get('teamName'))
+        ws.cell(row=row, column=3, value=team.get('schoolName'))
+        ws.cell(row=row, column=4, value=team.get('solvedCount')).alignment = cell_alignment
+        ws.cell(row=row, column=5, value=team.get('totalPenalty')).alignment = cell_alignment
+        for p_idx, project in enumerate(team.get('projects', [])):
+            icon = "\u2713" if project.get('solved') else "\u2717"
+            col = p_idx + 6
+            if project.get("attempts", 0) > 0:
+                val = f"{icon} {project.get('attempts', '')}"
+            else:
+                val = ""
+            ws.cell(row=row, column=col, value=val).alignment = cell_alignment
+
+    for col_idx in range(1, total_cols + 1):
+        max_len = max(
+            (len(str(ws.cell(row=row, column=col_idx).value or ""))
+            for row in range(3, len(teams) + 4)),
+            default=0,
+        )
+        ws.column_dimensions[get_column_letter(col_idx)].width = max(max_len + 3, 10)
+    
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{now_str}_{division}_{is_online_str}_Scoreboard.xlsx"
+
+    return send_file(buffer, download_name=filename, as_attachment=True, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.xml")

@@ -15,6 +15,7 @@ import {
     FaSync,
     FaHourglassHalf,
     FaFlask,
+    FaDownload,
 } from "react-icons/fa";
 
 import "../../styling/Scoreboard.scss";
@@ -98,14 +99,13 @@ const SCORE_TOOLTIP_TEXT = (
 const PROJECT_COLORS = [
     "project--blue",
     "project--green",
-    "project--lightblue",
     "project--orange",
     "project--purple",
     "project--red",
     "project--pink",
     "project--yellow",
-    "project--black",
     "project--white",
+    "project--black",
 ] as const;
 
 function formatTimestamp(isoString?: string | null): string {
@@ -420,6 +420,26 @@ export default function Scoreboard() {
         animateNextLayoutRef.current = false;
     }, [teams]);
 
+    async function handleDownloadScoreboard() {
+        try {
+            const res = await axios.get<Blob>(`${API}/teams/scoreboard/download`, {
+                ...authConfig(),
+                params: { division: division, is_online: isOnline },
+                responseType: "blob",
+            })
+            const a = document.createElement("a");
+            const url = window.URL.createObjectURL(res.data);
+            a.href = url;
+            a.download = `Scoreboard_${division}_${isOnline ? "Virtual" : "InPerson"}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (err: any) {
+            alert(err.response?.data?.message || "Unable to download scoreboard");
+        }
+    }
+
     const statusDisplay: StatusDisplay = useMemo(() => {
         switch (status) {
             case "practice":
@@ -589,7 +609,6 @@ export default function Scoreboard() {
         );
     }
 
-
     return (
         <>
             <Helmet>
@@ -632,17 +651,28 @@ export default function Scoreboard() {
                                     />
                                 </div>
                                 {isAdmin && (
-                                    <div className="filter-group">
-                                        <label className="filter-label">Problem Type</label>
-                                        <SegmentedControl
-                                            className="segment-project-type"
-                                            options={[{ label: "Competition", value: "competition" }, { label: "Practice", value: "practice" }]}
-                                            value={projectType}
-                                            onChange={(v) => setProjectType(v as ProjectType)}
-                                            getOptionClassName={(v) => v}
-                                        />
-                                    </div>
-                                )} 
+                                    <>
+                                        <div className="filter-group">
+                                            <label className="filter-label">Problem Type</label>
+                                            <SegmentedControl
+                                                className="segment-project-type"
+                                                options={[{ label: "Competition", value: "competition" }, { label: "Practice", value: "practice" }]}
+                                                value={projectType}
+                                                onChange={(v) => setProjectType(v as ProjectType)}
+                                                getOptionClassName={(v) => v}
+                                            />
+                                        </div>
+                                        <div className="filter-group">
+                                            <button 
+                                                className="atm-btn scoreboard-download-btn"
+                                                onClick={handleDownloadScoreboard}
+                                            >
+                                                <FaDownload size={14} />
+                                                Download as Excel
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                             <div className="filters-right">
                                 <div className="leaderboard-legend">

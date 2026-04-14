@@ -57,6 +57,13 @@
     }
 }
 
+.scoreboard-download-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
 .leaderboard-legend {
     display: flex;
     flex-direction: column;
@@ -455,9 +462,6 @@
     &.project--green {
         background-color: #00b336;
     }
-    &.project--lightblue {
-        background-color: #00aaed;
-    }
     &.project--orange {
         background-color: #f47216;
     }
@@ -477,7 +481,7 @@
         background-color: #1a1a1a;
     }
     &.project--white {
-        background-color: #f0f0f5;
+        background-color: #ffffff;
         border-color: #d0d0d0;
         color: #222222;
     }
