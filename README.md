@@ -6,10 +6,6 @@
 
 Download Ubuntu App from Windows Store
 
-Launch Ubuntu App
-
-Make username/password
-
 ## Install packages:
 
 In Ubuntu:
@@ -18,31 +14,11 @@ Update Packages:
 
 ```sudo apt update```
 
-Install nvm:
-
-```curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash```
-
-Install Node.js:
-
-```nvm install --latest-npm```
-
-Verify node/npm is working:
-
-```node -v```
+Install/verify npm is working:
 
 ```npm -v```
 
 Install Docker (Follow instructions at: https://docs.docker.com/engine/install/ubuntu/)
-
-Make it so you don't have to run sudo everytime in docker:
-
-```sudo usermod -aG docker $USER```
-
-```source ~/.bashrc```
-
-```newgrp docker```
-
-```docker run hello-world```
 
 ## Install Abacus:
 
@@ -60,6 +36,8 @@ Add the following line to that file: ```VITE_API_URL=http://localhost:5000/api``
 
 (Or different URL for Production)
 
+Go back into from the frontend folder into the backend folder. Create .env.backend. Enter environment variables.
+
 ## Run Abacus
 
 Go up a directory (from the frontend folder) and run:
@@ -75,10 +53,6 @@ It will take a while to compile the first time, but once it is ready navigate to
 Download DBDeaver: https://dbeaver.io/download/
 
 In DBBeaver, connect to: ```localhost:3306```
-
-## Setup Database for First Time Use
-
-Currently, manual setup required. Classes, lectures, and labs need to be manually added
 
 ## Pushing Docker Image to Production:
 
